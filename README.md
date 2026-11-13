@@ -27,10 +27,10 @@ python -m http.server 8767
 
 ## 資料夾規範（新模型擴充結構）
 
-本倉庫同時收錄通用程序化建模技能 [threejs-model-to-unity-pipeline](./.agents/skills/threejs-model-to-unity-pipeline/SKILL.md)，於 Antigravity 開啟本專案時會自動載入為 Workspace Skill。日後新增模型皆統一建立於本倉庫下之獨立子資料夾：
+本倉庫同時收錄通用程序化建模技能 [threejs-model-to-unity-pipeline](./.agent/skills/threejs-model-to-unity-pipeline/SKILL.md)，於 Antigravity 開啟本專案時會自動載入為 Workspace Skill。日後新增模型皆統一建立於本倉庫下之獨立子資料夾：
 
 ```text
-.agents/skills/
+.agent/skills/
 └── threejs-model-to-unity-pipeline/
     └── SKILL.md          # 通用 Three.js -> Unity URP / Blender 建模與導出技能規範
 <asset-name>/
