@@ -18,6 +18,7 @@
 | **AERO-900X Widebody Commercial Airliner** | 次世代雙發廣體長程客機（含駕駛艙與客艙剖視） | [aero_900x_airliner_forge.html](./aero-900x-airliner-forge/aero_900x_airliner_forge.html) | `AirlinerFlightSystemsController.cs` |
 | **GARGANTUA-IX Relativistic Singularity** | 純天文克爾旋轉黑洞、立體重力透鏡、吸積盤與雙極噴流 | [gargantua_ix_singularity_forge.html](./gargantua-ix-singularity-forge/gargantua_ix_singularity_forge.html) | `SingularityAccretionController.cs` |
 | **ENOCHIAN-TOWER Ancient Spire** | 遠古以諾殘冠石塔、15 節懸臂石拱與繞塔雲霧 | [enochian_tower_forge.html](./enochian-tower-forge/enochian_tower_forge.html) | `EnochianTowerController.cs` |
+| **NPC_01_SkeletonMerchant** | 黑暗中世紀 ARPG《Dungeon》地下城骷髏商店老闆（雙 LOD、7 Sockets、Collider_Body） | [npc_01_skeleton_merchant_forge.html](./npc-01-skeleton-merchant-forge/npc_01_skeleton_merchant_forge.html) | `SkeletonMerchantIdleController.cs` |
 
 ## 本機預覽方式
 

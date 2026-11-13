@@ -1,0 +1,3543 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NPC_01_SkeletonMerchant — 《Dungeon》ARPG Procedural 3D Forge</title>
+  <style>
+    :root {
+      --bg-deep: #121015;
+      --panel-bg: rgba(16, 15, 20, 0.88);
+      --panel-border: rgba(214, 168, 88, 0.28);
+      --accent: #d8a64f;
+      --accent-soul: #38bdf8;
+      --text-main: #f3eee4;
+      --text-dim: #a59d8e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none;
+      background: radial-gradient(circle at 46% 38%, #28232d 0%, #17141b 60%, #0d0b10 100%);
+      color: var(--text-main);
+      font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
+      font-size: 11px;
+      user-select: none;
+    }
+    #viewport, #viewport canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      touch-action: none;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.62);
+    }
+
+    /* Top-Left Telemetry HUD */
+    #hud-header {
+      position: fixed; top: 12px; left: 12px; z-index: 20;
+      padding: 10px 14px; min-width: 330px;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 7px;
+    }
+    .brand-title {
+      font-size: 12px; font-weight: 800; letter-spacing: 0.05em;
+      color: #fdf6e7; display: flex; align-items: center; gap: 7px;
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: #4ce3ff; box-shadow: 0 0 10px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.75);
+    }
+    .badge-lod {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(216, 166, 79, 0.16); color: #f6d591;
+      border: 1px solid rgba(216, 166, 79, 0.45);
+      white-space: nowrap;
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px; padding: 4px 6px; text-align: center;
+    }
+    .stat-val { font-size: 12px; font-weight: 700; color: #f8f5ee; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 8.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Bottom-Left Camera Presets */
+    #camera-bar {
+      position: fixed; bottom: 12px; left: 12px; right: 320px; z-index: 20;
+      padding: 7px 8px; display: flex; flex-wrap: wrap; gap: 5px;
+      width: fit-content; max-width: calc(100vw - 336px);
+    }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      color: var(--text-main); border-radius: 6px;
+      padding: 5px 10px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.16s ease;
+    }
+    .cam-btn:hover { background: rgba(216, 166, 79, 0.22); border-color: var(--accent); color: #fff; }
+    .cam-btn.active {
+      background: linear-gradient(135deg, #d8a64f 0%, #a87424 100%);
+      border-color: #f6d591; color: #161108;
+    }
+
+    /* Right Control & Export Panel */
+    #controls-panel {
+      position: fixed; top: 12px; right: 12px; bottom: 12px; width: 300px; z-index: 20;
+      padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+      overflow-y: auto;
+    }
+    #controls-panel::-webkit-scrollbar { width: 4px; }
+    #controls-panel::-webkit-scrollbar-thumb { background: rgba(216, 166, 79, 0.28); border-radius: 4px; }
+
+    .sec-title {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: #f1cf8b;
+      border-bottom: 1px solid rgba(216, 166, 79, 0.22);
+      padding-bottom: 3px; margin-bottom: 6px;
+    }
+    .seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .seg-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 6px 5px; font-size: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; text-align: center;
+    }
+    .pill-btn:hover { border-color: var(--accent); background: rgba(216, 166, 79, 0.14); }
+    .pill-btn.active {
+      background: rgba(216, 166, 79, 0.24); border-color: var(--accent); color: #fff8ea;
+      box-shadow: inset 0 0 8px rgba(216, 166, 79, 0.22);
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-dim); line-height: 1.25; }
+    .slider-head span.val { color: #f6e0b3; font-weight: 700; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #d8a64f; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+
+    .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+    .chk-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px; padding: 6px 6px;
+      font-size: 10px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chk-btn.active {
+      background: rgba(56, 189, 248, 0.22); border-color: #38bdf8; color: #e0f7ff;
+    }
+
+    /* Texture Thumbnails */
+    .tex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .tex-card {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: rgba(0, 0, 0, 0.36); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px; padding: 3px; cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    .tex-card:hover { border-color: var(--accent); }
+    .tex-card canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; }
+    .tex-card span { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+    /* Export Buttons */
+    .export-stack { display: flex; flex-direction: column; gap: 5px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #d8a64f 0%, #b0711c 100%);
+      border: none; color: #161108; font-weight: 800; font-size: 11.5px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(216, 166, 79, 0.30);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main); font-weight: 600; font-size: 10.5px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
+
+    #export-status { font-size: 9.5px; color: #f6d591; min-height: 14px; text-align: center; line-height: 1.35; }
+
+    /* Socket Floating Labels Overlay (toggleable) */
+    #socket-labels {
+      position: fixed; inset: 0; pointer-events: none; z-index: 15; overflow: hidden;
+    }
+    .sock-tag {
+      position: absolute; transform: translate(-50%, -100%);
+      background: rgba(12, 16, 24, 0.86);
+      border: 1px solid rgba(56, 189, 248, 0.65);
+      color: #bae6fd; font-family: "Consolas", "SFMono-Regular", monospace;
+      font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+      white-space: nowrap; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+    }
+
+    /* Unity C# Script Modal */
+    #cs-modal {
+      position: fixed; inset: 0; z-index: 80;
+      background: rgba(7, 6, 10, 0.78); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    #cs-modal.open { display: flex; }
+    .modal-card {
+      width: min(820px, 100%); max-height: 88vh;
+      background: #131118; border: 1px solid rgba(216, 166, 79, 0.38);
+      border-radius: 12px; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+    }
+    .modal-head {
+      padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1); gap: 8px;
+    }
+    .modal-head h3 { font-size: 13px; color: #f6d591; font-weight: 800; }
+    .modal-body {
+      padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+      user-select: text;
+    }
+    .urp-guide {
+      background: rgba(216, 166, 79, 0.08); border: 1px solid rgba(216, 166, 79, 0.25);
+      border-radius: 8px; padding: 10px 12px; font-size: 11px; line-height: 1.55; color: #e2dac9;
+    }
+    .urp-guide code {
+      background: rgba(0, 0, 0, 0.45); color: #7dd3fc; padding: 1px 5px; border-radius: 4px;
+      font-family: "Consolas", monospace; font-size: 10.5px;
+    }
+    pre#cs-code {
+      background: #0a090e; border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px; padding: 12px; font-family: "Consolas", "Cascadia Code", monospace;
+      font-size: 11px; line-height: 1.48; color: #dbeafe; overflow-x: auto; white-space: pre;
+    }
+
+    .mobile-drawer-fab { display: none; }
+
+    @media (max-width: 768px) {
+      #hud-header {
+        top: 8px; left: 8px; right: 8px;
+        min-width: 0; padding: 6px 10px;
+      }
+      .brand-row { margin-bottom: 4px; gap: 6px; }
+      .brand-title { font-size: 11px; letter-spacing: 0.03em; min-width: 0; }
+      .brand-title span:last-child {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .stats-grid { gap: 4px; }
+      .stat-box { padding: 2px 4px; display: flex; align-items: baseline; justify-content: center; gap: 3px; }
+      .stat-val { font-size: 11px; }
+      .stat-lbl { font-size: 8px; }
+      #camera-bar {
+        top: 64px; left: 8px; right: 8px; bottom: auto;
+        width: auto; max-width: calc(100vw - 16px);
+        flex-wrap: nowrap; overflow-x: auto; padding: 4px 6px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .cam-btn { white-space: nowrap; flex-shrink: 0; font-size: 11px; padding: 6px 10px; min-height: 36px; }
+      #controls-panel {
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        width: 100%; max-height: 50vh;
+        border-radius: 16px 16px 0 0; overflow-y: auto; z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%); opacity: 0; pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      #controls-panel.mobile-drawer-open {
+        transform: translateY(0); opacity: 1; pointer-events: auto;
+      }
+      input[type="range"] { min-height: 40px; height: 40px; }
+      .btn-primary, .btn-secondary, .pill-btn, .chk-btn {
+        min-height: 42px; padding-top: 9px; padding-bottom: 9px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        position: fixed; right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50; min-height: 44px; padding: 10px 16px;
+        border-radius: 999px; border: 1px solid #f6d591;
+        background: linear-gradient(135deg, #d8a64f 0%, #b0711c 100%);
+        color: #161108; font-size: 13px; font-weight: 800; cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.78), 0 0 18px rgba(216, 166, 79, 0.40);
+      }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+  <div id="socket-labels" style="display:none;"></div>
+
+  <!-- Top-Left Identity & Live Asset Budget HUD -->
+  <div id="hud-header" class="glass-panel">
+    <div class="brand-row">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>NPC_01_SKELETONMERCHANT · DUNGEON</span>
+      </div>
+      <span id="lod-badge" class="badge-lod">HERO LOD</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div id="stat-tris" class="stat-val">--</div><div class="stat-lbl">Tris</div></div>
+      <div class="stat-box"><div id="stat-verts" class="stat-val">--</div><div class="stat-lbl">Verts</div></div>
+      <div class="stat-box"><div id="stat-calls" class="stat-val">--</div><div class="stat-lbl">Calls</div></div>
+      <div class="stat-box"><div id="stat-mats" class="stat-val">--</div><div class="stat-lbl">Mats</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Camera Angle Presets -->
+  <div id="camera-bar" class="glass-panel">
+    <button class="cam-btn active" data-cam="hero">3/4 全身像</button>
+    <button class="cam-btn" data-cam="skull">頭骨・單片眼鏡・蠟燭</button>
+    <button class="cam-btn" data-cam="chest">胸腔肋骨・商會徽章</button>
+    <button class="cam-btn" data-cam="hand">右手算帳・古金幣</button>
+    <button class="cam-btn" data-cam="lantern">木杖・提燈・腰帶配件</button>
+    <button class="cam-btn" data-cam="back">背後脊椎・斗篷垂墜</button>
+  </div>
+
+  <!-- Right Control & Export Panel -->
+  <aside id="controls-panel" class="glass-panel">
+    <div>
+      <div class="sec-title">1. LOD 精度切換 (Asset Budget)</div>
+      <div class="seg-row">
+        <button id="btn-lod-hero" class="pill-btn active">Hero (~20k tris)</button>
+        <button id="btn-lod-game" class="pill-btn">Game-Ready (~6k)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">2. 商人動態與魂火發光</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>商人待機動態速度 (0=靜止)</span><span id="val-anim" class="val">1.00x</span></div>
+        <input id="sl-anim" type="range" min="0" max="2.5" step="0.05" value="1.0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>魂火與燭光發光強度 (Emission)</span><span id="val-glow" class="val">100%</span></div>
+        <input id="sl-glow" type="range" min="0" max="200" step="5" value="100" />
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">3. 地下城打光預設 &amp; 檢視輔助</div>
+      <div class="seg-row-3" style="margin-bottom:6px;">
+        <button class="pill-btn active" data-light="torch">地窖火把光</button>
+        <button class="pill-btn" data-light="moon">月光古墓</button>
+        <button class="pill-btn" data-light="studio">攝影棚檢視</button>
+      </div>
+      <div class="toggle-row">
+        <button id="btn-sockets-col" class="chk-btn">Sockets &amp; Collider</button>
+        <button id="btn-stone-base" class="chk-btn active">石磚底座預覽</button>
+      </div>
+      <div class="toggle-row" style="margin-bottom:0;">
+        <button id="btn-wireframe" class="chk-btn">線框 Wireframe</button>
+        <button id="btn-open-cs" class="chk-btn">📜 Unity C# 腳本</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">1024×1024 程序化 PBR 貼圖 (點擊下載)</div>
+      <div class="tex-grid">
+        <div class="tex-card" id="card-albedo" title="Download NPC_01_SkeletonMerchant_Albedo.png"><canvas id="prev-albedo" width="96" height="96"></canvas><span>Albedo</span></div>
+        <div class="tex-card" id="card-normal" title="Download NPC_01_SkeletonMerchant_Normal.png"><canvas id="prev-normal" width="96" height="96"></canvas><span>Normal</span></div>
+        <div class="tex-card" id="card-rough" title="Download NPC_01_SkeletonMerchant_Roughness.png"><canvas id="prev-rough" width="96" height="96"></canvas><span>Rough</span></div>
+        <div class="tex-card" id="card-metal" title="Download NPC_01_SkeletonMerchant_Metalness.png"><canvas id="prev-metal" width="96" height="96"></canvas><span>Metal</span></div>
+        <div class="tex-card" id="card-emissive" title="Download NPC_01_SkeletonMerchant_Emissive.png"><canvas id="prev-emissive" width="96" height="96"></canvas><span>Emiss</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">4. 無損匯出 (自動 Rest-Pose 重置)</div>
+      <div class="export-stack">
+        <button id="btn-export-glb" class="btn-primary">⬇ 匯出 NPC_01_SkeletonMerchant.glb</button>
+        <div class="seg-row">
+          <button id="btn-export-obj" class="btn-secondary">⬇ 匯出 .OBJ</button>
+          <button id="btn-export-shot" class="btn-secondary">📸 匯出高畫質 .PNG</button>
+        </div>
+        <div class="seg-row">
+          <button id="btn-export-pngs" class="btn-secondary">⬇ 全部 PBR .PNG</button>
+          <button id="btn-reset-pose" class="btn-secondary">↺ Rest-Pose 重置</button>
+        </div>
+        <div id="export-status">Ready · 1 unit = 1m (H ≈ 1.75m, +Z Front)</div>
+      </div>
+    </div>
+  </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
+
+  <!-- Unity URP C# Script Inspection Modal -->
+  <div id="cs-modal" role="dialog" aria-modal="true" aria-label="Unity URP C# Controller">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>SkeletonMerchantIdleController.cs — Unity 6 URP 整合指南</h3>
+        <div style="display:flex; gap:6px;">
+          <button id="btn-copy-cs" class="btn-secondary">📋 複製</button>
+          <button id="btn-dl-cs" class="btn-primary" style="padding:6px 10px; font-size:11px;">⬇ 下載 .CS</button>
+          <button id="btn-close-cs" class="btn-secondary">✕ 關閉</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="urp-guide">
+          <strong>Unity URP 匯入步驟：</strong><br>
+          1. 將匯出的 <code>NPC_01_SkeletonMerchant.glb</code> 放入 Unity <code>Assets/Res/Model/NPC/</code>（搭配 <code>glTFast</code> 套件自動生成 Prefab，保留所有 <code>Part_*</code> 層級、<code>COLOR_0</code> 頂點 AO、<code>Socket_*</code> 與 <code>Collider_Body</code>）。<br>
+          2. 若需手動微調貼圖：將 <code>MAT_Aged_Bone</code>、<code>MAT_Cloak_Fabric</code>、<code>MAT_Leather_Trim</code>、<code>MAT_Tarnished_Brass</code>、<code>MAT_Emissive_Rune</code> 對應至 <code>Universal Render Pipeline/Lit</code>（法線圖設為 <code>Normal map</code> Texture Type，<code>Emissive</code> 勾選 Emission）。<br>
+          3. 選取子節點 <code>Collider_Body</code>，掛載 <code>MeshCollider</code> 並勾選 <code>Convex</code>；於根節點掛載 <code>SkeletonMerchantIdleController.cs</code>，即可透過 <code>transform.Find</code> 自動綁定部位並使用 <code>MaterialPropertyBlock</code> 驅動魂火發光。
+        </div>
+        <pre id="cs-code"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    // =========================================================================
+    // 1. RENDERER, SCENE, PMREM ENVIRONMENT & LIGHTING (<= 1 PointLight)
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.10;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x161218);
+    scene.fog = new THREE.FogExp2(0x161218, 0.032);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.045).texture;
+    scene.environmentIntensity = 0.72;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const aspect = window.innerWidth / window.innerHeight;
+    const camera = new THREE.PerspectiveCamera(36, aspect, 0.05, 80);
+    const heroZ = aspect < 0.85 ? 3.55 : 2.95;
+    camera.position.set(0.75, 1.38, heroZ);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0.02, 0.94, 0.02);
+    controls.minDistance = 0.45;
+    controls.maxDistance = 8.5;
+    controls.maxPolarAngle = Math.PI * 0.52;
+
+    const hemiLight = new THREE.HemisphereLight(0xa89bc4, 0x2a1f18, 0.72);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffb56b, 2.25);
+    keyLight.position.set(-2.4, 3.6, 2.8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 0.4;
+    keyLight.shadow.camera.far = 12;
+    keyLight.shadow.camera.left = -1.6;
+    keyLight.shadow.camera.right = 1.6;
+    keyLight.shadow.camera.top = 2.4;
+    keyLight.shadow.camera.bottom = -0.4;
+    keyLight.shadow.bias = -0.0004;
+    keyLight.shadow.normalBias = 0.015;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x5ea6eb, 1.05);
+    rimLight.position.set(2.5, 2.2, -2.6);
+    scene.add(rimLight);
+
+    // Strictly <= 1 dynamic PointLight in the scene (tracks the iron-cage soul lantern)
+    const soulPointLight = new THREE.PointLight(0x52e0ff, 2.6, 3.8, 1.6);
+    soulPointLight.position.set(0.36, 0.96, 0.28);
+    scene.add(soulPointLight);
+
+    // =========================================================================
+    // 2. MATH & SEAMLESS NOISE HELPERS
+    // =========================================================================
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(e0, e1, x) {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+    function hash2(ix, iy) {
+      const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+    function valueNoise3D(x, y, z) {
+      const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+      const fx = x - ix, fy = y - iy, fz = z - iz;
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+      const uz = fz * fz * (3 - 2 * fz);
+      const h = (dx, dy, dz) => {
+        const n = Math.sin((ix + dx) * 127.1 + (iy + dy) * 311.7 + (iz + dz) * 74.7) * 43758.5453;
+        return n - Math.floor(n);
+      };
+      const x00 = lerp(h(0,0,0), h(1,0,0), ux), x10 = lerp(h(0,1,0), h(1,1,0), ux);
+      const x01 = lerp(h(0,0,1), h(1,0,1), ux), x11 = lerp(h(0,1,1), h(1,1,1), ux);
+      return lerp(lerp(x00, x10, uy), lerp(x01, x11, uy), uz);
+    }
+    function fbmSeamlessU(u, v, rFreq = 3.0, vScale = 8.0, octaves = 5) {
+      const a = u * Math.PI * 2;
+      let sum = 0, amp = 0.5, f = 1.0, norm = 0;
+      for (let oct = 0; oct < octaves; oct++) {
+        sum += amp * valueNoise3D(Math.cos(a * f) * rFreq * f + 5.7, v * vScale * f + 11.3, Math.sin(a * f) * rFreq * f + 17.9);
+        norm += amp;
+        amp *= 0.5;
+        f *= 2.02;
+      }
+      return sum / norm;
+    }
+
+    // =========================================================================
+    // 3. 1024x1024 PROCEDURAL PBR TEXTURES + 3x3 SOBEL NORMAL BAKER
+    // =========================================================================
+    const TEX_SIZE = 1024;
+    const UV_BANDS = {
+      bone:       { vMin: 0.025, vMax: 0.235 },
+      cloak:      { vMin: 0.265, vMax: 0.495 },
+      leather:    { vMin: 0.525, vMax: 0.725 },
+      brass:      { vMin: 0.755, vMax: 0.895 },
+      soulCyan:   { vMin: 0.915, vMax: 0.948 },
+      candleWarm: { vMin: 0.960, vMax: 0.992 }
+    };
+
+    function bakeNormalFromHeightCanvas(heightCanvas, strength = 2.65) {
+      const w = heightCanvas.width, h = heightCanvas.height;
+      const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      const outImg = outCtx.createImageData(w, h);
+      const dst = outImg.data;
+      const sampleH = (px, py) => {
+        const wx = ((px % w) + w) % w;
+        const wy = clamp(py, 0, h - 1);
+        return src[(wy * w + wx) * 4] / 255.0;
+      };
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tl = sampleH(x - 1, y - 1), tc = sampleH(x, y - 1), tr = sampleH(x + 1, y - 1);
+          const ml = sampleH(x - 1, y),                             mr = sampleH(x + 1, y);
+          const bl = sampleH(x - 1, y + 1), bc = sampleH(x, y + 1), br = sampleH(x + 1, y + 1);
+          const dx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+          const dy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+          let nx = -dx * strength, ny = -dy * strength, nz = 1.0;
+          const inv = 1.0 / Math.hypot(nx, ny, nz);
+          nx *= inv; ny *= inv; nz *= inv;
+          const idx = (y * w + x) * 4;
+          dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+          dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          dst[idx + 3] = 255;
+        }
+      }
+      outCtx.putImageData(outImg, 0, 0);
+      return outCanvas;
+    }
+
+    function createCanvasTex(canvas, isSRGB) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function buildMerchantPBRTextures() {
+      const mk = () => {
+        const c = document.createElement('canvas');
+        c.width = TEX_SIZE; c.height = TEX_SIZE;
+        return c;
+      };
+      const albedoCanvas = mk(), heightCanvas = mk(), roughCanvas = mk(), metalCanvas = mk(), emissiveCanvas = mk();
+      const aCtx = albedoCanvas.getContext('2d');
+      const hCtx = heightCanvas.getContext('2d');
+      const rCtx = roughCanvas.getContext('2d');
+      const mCtx = metalCanvas.getContext('2d');
+      const eCtx = emissiveCanvas.getContext('2d');
+
+      const aImg = aCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const hImg = hCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const rImg = rCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const mImg = mCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const eImg = eCtx.createImageData(TEX_SIZE, TEX_SIZE);
+
+      const ad = aImg.data, hd = hImg.data, rd = rImg.data, md = mImg.data, ed = eImg.data;
+
+      for (let y = 0; y < TEX_SIZE; y++) {
+        const v = 1.0 - y / (TEX_SIZE - 1);
+        for (let x = 0; x < TEX_SIZE; x++) {
+          const u = x / TEX_SIZE;
+          const idx = (y * TEX_SIZE + x) * 4;
+
+          let ar = 180, ag = 166, ab = 140;
+          let hv = 128, rv = 210, mv = 0;
+          let er = 0, eg = 0, eb = 0;
+
+          if (v < 0.25) {
+            // BAND 1: Aged Porous Ivory Bone (cracks, yellowing stains, marrow pores)
+            const vb = clamp(v / 0.25, 0, 1);
+            const nBase = fbmSeamlessU(u, vb, 4.0, 9.0);
+            const stria = fbmSeamlessU(u * 2.0 + 0.2, vb * 0.3, 12.0, 4.0);
+            const pore = hash2(Math.floor(u * 480), Math.floor(vb * 220));
+            const pit = pore < 0.08 ? (0.08 - pore) * 8.0 : 0.0;
+            const crackField = Math.abs(fbmSeamlessU(u + 0.41, vb + 0.17, 5.2, 13.0) - 0.50);
+            const crack = 1.0 - smoothstep(0.006, 0.026, crackField);
+            const stain = smoothstep(0.45, 0.78, nBase);
+
+            let r = lerp(196, 152, stain) - stria * 14;
+            let g = lerp(180, 132, stain) - stria * 15;
+            let b = lerp(146, 98, stain) - stria * 16;
+            const darkCrev = clamp(crack * 0.78 + pit * 0.55, 0, 1);
+            r = lerp(r, 64, darkCrev);
+            g = lerp(g, 52, darkCrev);
+            b = lerp(b, 38, darkCrev);
+
+            ar = Math.round(clamp(r, 40, 228));
+            ag = Math.round(clamp(g, 34, 212));
+            ab = Math.round(clamp(b, 26, 180));
+            hv = Math.round(clamp(160 + (nBase - 0.5) * 40 + (stria - 0.5) * 28 - crack * 90 - pit * 70, 22, 235));
+            rv = Math.round(clamp(lerp(0.68, 0.89, stain * 0.6 + crack * 0.4) * 255, 165, 238));
+            mv = 0;
+          } else if (v < 0.51) {
+            // BAND 2: Dark Medieval Heavy Linen / Wool Cloak Fabric (weave, grime, frayed fibers)
+            const vc = (v - 0.25) / 0.26;
+            const grime = fbmSeamlessU(u, vc, 4.5, 9.5);
+            const warp = Math.sin(u * Math.PI * 220);
+            const weft = Math.sin(vc * Math.PI * 180);
+            const weave = 0.5 + 0.5 * (warp * weft);
+            const threadNoise = fbmSeamlessU(u * 2.0, vc * 2.0, 14.0, 22.0, 3);
+            const damp = smoothstep(0.42, 0.76, grime);
+
+            let r = lerp(46, 30, damp) + (weave - 0.5) * 14 + (threadNoise - 0.5) * 10;
+            let g = lerp(42, 28, damp) + (weave - 0.5) * 12 + (threadNoise - 0.5) * 9;
+            let b = lerp(48, 32, damp) + (weave - 0.5) * 13 + (threadNoise - 0.5) * 10;
+
+            ar = Math.round(clamp(r, 18, 88));
+            ag = Math.round(clamp(g, 16, 80));
+            ab = Math.round(clamp(b, 20, 92));
+            hv = Math.round(clamp(132 + (weave - 0.5) * 68 + (grime - 0.5) * 42 + (threadNoise - 0.5) * 28, 35, 225));
+            rv = Math.round(clamp(lerp(0.84, 0.97, damp * 0.5 + (1.0 - weave) * 0.5) * 255, 205, 250));
+            mv = 0;
+          } else if (v < 0.74) {
+            // BAND 3: Aged Oiled Dark-Umber Leather (pebble grain, worn creases, subtle patina)
+            const vl = (v - 0.51) / 0.23;
+            const patina = fbmSeamlessU(u, vl, 4.0, 8.0);
+            const cellA = fbmSeamlessU(u * 3.0 + 0.1, vl * 3.0, 16.0, 18.0, 3);
+            const crease = 1.0 - smoothstep(0.012, 0.045, Math.abs(fbmSeamlessU(u + 0.29, vl + 0.61, 6.0, 11.0) - 0.49));
+            const pebble = smoothstep(0.32, 0.72, cellA);
+
+            let r = lerp(78, 46, patina) + pebble * 14 - crease * 22;
+            let g = lerp(50, 29, patina) + pebble * 10 - crease * 15;
+            let b = lerp(33, 19, patina) + pebble * 6 - crease * 10;
+
+            ar = Math.round(clamp(r, 22, 118));
+            ag = Math.round(clamp(g, 14, 80));
+            ab = Math.round(clamp(b, 9, 54));
+            hv = Math.round(clamp(142 + pebble * 42 + (patina - 0.5) * 32 - crease * 75, 28, 225));
+            rv = Math.round(clamp(lerp(0.46, 0.74, patina * 0.55 + crease * 0.45) * 255, 110, 205));
+            mv = 0;
+          } else if (v < 0.905) {
+            // BAND 4: Tarnished Antique Brass with Verdigris Oxidation Pockets
+            const vm = (v - 0.74) / 0.165;
+            const hammer = fbmSeamlessU(u, vm, 9.0, 11.0);
+            const patinaNoise = fbmSeamlessU(u + 0.51, vm + 0.23, 4.5, 7.0);
+            const verdigris = smoothstep(0.57, 0.76, patinaNoise);
+            const brushed = Math.sin(u * Math.PI * 160 + hammer * 3.0) * 0.5 + 0.5;
+
+            let r = lerp(198, 128, hammer) + brushed * 18;
+            let g = lerp(152, 92, hammer) + brushed * 14;
+            let b = lerp(74, 42, hammer) + brushed * 8;
+
+            // Blend oxidized turquoise-green verdigris in recessed pockets
+            r = lerp(r, 64, verdigris * 0.82);
+            g = lerp(g, 116, verdigris * 0.82);
+            b = lerp(b, 94, verdigris * 0.82);
+
+            ar = Math.round(clamp(r, 40, 232));
+            ag = Math.round(clamp(g, 38, 196));
+            ab = Math.round(clamp(b, 26, 128));
+            hv = Math.round(clamp(145 + (hammer - 0.5) * 58 + brushed * 18 - verdigris * 44, 45, 230));
+            rv = Math.round(clamp(lerp(0.24, 0.76, verdigris * 0.80 + (1.0 - brushed) * 0.20) * 255, 58, 205));
+            mv = Math.round(clamp(lerp(0.94, 0.22, verdigris) * 255, 50, 245));
+          } else if (v < 0.953) {
+            // BAND 5a: Spectral Cyan-Blue Soul-Fire (Eyes & Iron-Cage Soul Lantern)
+            const ve = (v - 0.905) / 0.048;
+            const wisp = fbmSeamlessU(u, ve, 5.0, 8.0, 4);
+            const core = smoothstep(0.22, 0.85, wisp);
+            ar = Math.round(lerp(42, 165, core));
+            ag = Math.round(lerp(185, 245, core));
+            ab = Math.round(lerp(225, 255, core));
+            hv = Math.round(128 + core * 60);
+            rv = 85;
+            mv = 0;
+            er = Math.round(lerp(28, 145, core));
+            eg = Math.round(lerp(168, 242, core));
+            eb = Math.round(lerp(235, 255, core));
+          } else {
+            // BAND 5b: Warm Molten Amber Candle Flame & Gold Coin Rune Glow
+            const vw = (v - 0.953) / 0.047;
+            const flicker = fbmSeamlessU(u + 0.19, vw, 4.0, 6.0, 4);
+            const core = smoothstep(0.20, 0.82, flicker);
+            ar = Math.round(lerp(235, 255, core));
+            ag = Math.round(lerp(130, 224, core));
+            ab = Math.round(lerp(36, 130, core));
+            hv = Math.round(128 + core * 55);
+            rv = 90;
+            mv = 0;
+            er = Math.round(lerp(220, 255, core));
+            eg = Math.round(lerp(105, 206, core));
+            eb = Math.round(lerp(18, 92, core));
+          }
+
+          ad[idx] = ar; ad[idx + 1] = ag; ad[idx + 2] = ab; ad[idx + 3] = 255;
+          hd[idx] = hv; hd[idx + 1] = hv; hd[idx + 2] = hv; hd[idx + 3] = 255;
+          rd[idx] = rv; rd[idx + 1] = rv; rd[idx + 2] = rv; rd[idx + 3] = 255;
+          md[idx] = mv; md[idx + 1] = mv; md[idx + 2] = mv; md[idx + 3] = 255;
+          ed[idx] = er; ed[idx + 1] = eg; ed[idx + 2] = eb; ed[idx + 3] = 255;
+        }
+      }
+
+      aCtx.putImageData(aImg, 0, 0);
+      hCtx.putImageData(hImg, 0, 0);
+      rCtx.putImageData(rImg, 0, 0);
+      mCtx.putImageData(mImg, 0, 0);
+      eCtx.putImageData(eImg, 0, 0);
+
+      const normalCanvas = bakeNormalFromHeightCanvas(heightCanvas, 2.75);
+      return {
+        albedoCanvas, normalCanvas, roughCanvas, metalCanvas, emissiveCanvas,
+        albedoTex:   createCanvasTex(albedoCanvas, true),
+        normalTex:   createCanvasTex(normalCanvas, false),
+        roughTex:    createCanvasTex(roughCanvas, false),
+        metalTex:    createCanvasTex(metalCanvas, false),
+        emissiveTex: createCanvasTex(emissiveCanvas, true)
+      };
+    }
+
+    const TEX = buildMerchantPBRTextures();
+    ['albedo', 'normal', 'rough', 'metal', 'emissive'].forEach((k) => {
+      const dst = document.getElementById(`prev-${k}`);
+      if (dst) dst.getContext('2d').drawImage(TEX[`${k}Canvas`], 0, 0, dst.width, dst.height);
+    });
+
+    // =========================================================================
+    // 4. NAMED URP PBR MATERIALS (Strict ColorSpace + Vertex AO Enabled)
+    // =========================================================================
+    const MATS = {
+      bone: new THREE.MeshStandardMaterial({
+        name: 'MAT_Aged_Bone',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.05, 1.05),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 0.85,
+        vertexColors: true
+      }),
+      cloak: new THREE.MeshStandardMaterial({
+        name: 'MAT_Cloak_Fabric',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.25, 1.25),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 0.65,
+        vertexColors: true
+      }),
+      leather: new THREE.MeshStandardMaterial({
+        name: 'MAT_Leather_Trim',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.15, 1.15),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 0.95,
+        vertexColors: true
+      }),
+      brass: new THREE.MeshStandardMaterial({
+        name: 'MAT_Tarnished_Brass',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.95, 0.95),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 1.28,
+        vertexColors: true
+      }),
+      rune: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Rune',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xffffff,
+        emissiveIntensity: 1.95,
+        roughness: 0.35,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      collider: new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x38bdf8,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.45
+      })
+    };
+    const solidMaterials = [MATS.bone, MATS.cloak, MATS.leather, MATS.brass, MATS.rune];
+
+    // =========================================================================
+    // 5. GEOMETRY HELPERS: ARC-LENGTH LOFT, BEVEL EXTRUDE, VERTEX AO & MERGE
+    // =========================================================================
+    function normalizeForMerge(geom, tintHex = 0xffffff, aoFn = null) {
+      if (!geom.index) {
+        const posAttr = geom.getAttribute('position');
+        const idx = new Uint32Array(posAttr.count);
+        for (let i = 0; i < posAttr.count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      } else if (!(geom.index.array instanceof Uint32Array)) {
+        const arr = geom.index.array;
+        geom.setIndex(new THREE.BufferAttribute(new Uint32Array(arr), 1));
+      }
+      if (!geom.getAttribute('normal')) geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      if (!geom.getAttribute('uv')) {
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = 0.5;
+          uvs[i * 2 + 1] = 0.12;
+        }
+        geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      if (!geom.getAttribute('color')) {
+        const norm = geom.getAttribute('normal');
+        const col = new Float32Array(pos.count * 3);
+        const c = new THREE.Color(tintHex);
+        const vp = new THREE.Vector3(), vn = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          vp.fromBufferAttribute(pos, i);
+          vn.fromBufferAttribute(norm, i);
+          const ao = aoFn ? aoFn(vp, vn) : 1.0;
+          col[i * 3]     = c.r * ao;
+          col[i * 3 + 1] = c.g * ao;
+          col[i * 3 + 2] = c.b * ao;
+        }
+        geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      }
+      for (const attrName of Object.keys(geom.attributes)) {
+        if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+          geom.deleteAttribute(attrName);
+        }
+      }
+      return geom;
+    }
+
+    function safeMerge(list) {
+      if (!list || list.length === 0) return null;
+      if (list.length === 1) return list[0];
+      const merged = BufferGeometryUtils.mergeGeometries(list, false);
+      for (const g of list) g.dispose();
+      return merged;
+    }
+
+    function assemblePartMeshes(group, buckets) {
+      for (const [matKey, geos] of Object.entries(buckets)) {
+        if (!geos || geos.length === 0) continue;
+        const merged = safeMerge(geos);
+        const mesh = new THREE.Mesh(merged, MATS[matKey]);
+        mesh.name = `${group.name}_${matKey}`;
+        mesh.castShadow = (matKey !== 'rune');
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+      return group;
+    }
+
+    function averageSeamNormals(geom, segCount, stride, closedU = true, closedV = true) {
+      const norm = geom.getAttribute('normal');
+      if (!norm) return;
+      const nA = new THREE.Vector3(), nB = new THREE.Vector3();
+      if (closedU) {
+        for (let k = 0; k < stride; k++) {
+          const i0 = k;
+          const i1 = segCount * stride + k;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      if (closedV) {
+        const lastK = stride - 1;
+        for (let i = 0; i <= segCount; i++) {
+          const i0 = i * stride;
+          const i1 = i * stride + lastK;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      norm.needsUpdate = true;
+    }
+
+    // Remap any ExtrudeGeometry / LatheGeometry UVs cleanly into a target UV band with triplanar continuity
+    function applyBandBoxUVs(geom, band, tileScale = 4.0) {
+      geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      const norm = geom.getAttribute('normal');
+      const uv = new Float32Array(pos.count * 2);
+      const spanV = band.vMax - band.vMin;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const nx = Math.abs(norm.getX(i)), ny = Math.abs(norm.getY(i)), nz = Math.abs(norm.getZ(i));
+        let uu = 0, vv = 0;
+        if (ny >= nx && ny >= nz) {
+          uu = (x + z) * tileScale;
+          vv = (z - x) * tileScale;
+        } else if (nx >= nz) {
+          uu = z * tileScale;
+          vv = y * tileScale;
+        } else {
+          uu = x * tileScale;
+          vv = y * tileScale;
+        }
+        const vFold = 1.0 - Math.abs(((vv % 2) + 2) % 2 - 1.0);
+        uv[i * 2] = uu;
+        uv[i * 2 + 1] = band.vMin + vFold * spanV;
+      }
+      geom.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      return geom;
+    }
+
+    // Multi-station Bishop parallel-transport swept loft with cumulative Euclidean arc-length V
+    function buildSweptCurveLoft({
+      curve, tubularSegs, radialSegs,
+      rxFn, rbFn,
+      profileShape = 'circle', // 'circle' | 'squircle' | 'oval'
+      squirclePower = 3.5,
+      uRepeat = 1.0,
+      band = UV_BANDS.bone,
+      capMode = 'bevel3', // 'bevel3' | 'bevel1' | 'open' | 'closedLoop'
+      tintHex = 0xffffff,
+      aoFn = null
+    }) {
+      const pts = [], tangs = [];
+      for (let i = 0; i <= tubularSegs; i++) {
+        const s = i / tubularSegs;
+        pts.push(curve.getPointAt(clamp(s, 0, 1)));
+        tangs.push(curve.getTangentAt(clamp(s, 0, 1)).normalize());
+      }
+      const arc = [0];
+      for (let i = 1; i <= tubularSegs; i++) {
+        arc.push(arc[i - 1] + pts[i].distanceTo(pts[i - 1]));
+      }
+      const totalArc = Math.max(0.0001, arc[tubularSegs]);
+
+      const normals = [], binormals = [];
+      const t0 = tangs[0];
+      const upRef = Math.abs(t0.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+      const n0 = new THREE.Vector3().crossVectors(t0, upRef).normalize();
+      const b0 = new THREE.Vector3().crossVectors(t0, n0).normalize();
+      if (new THREE.Vector3().crossVectors(n0, b0).dot(t0) < 0) b0.negate();
+      normals.push(n0); binormals.push(b0);
+
+      for (let i = 1; i <= tubularSegs; i++) {
+        const q = new THREE.Quaternion().setFromUnitVectors(tangs[i - 1], tangs[i]);
+        const ni = normals[i - 1].clone().applyQuaternion(q).normalize();
+        const bi = new THREE.Vector3().crossVectors(tangs[i], ni).normalize();
+        if (new THREE.Vector3().crossVectors(ni, bi).dot(tangs[i]) < 0) bi.negate();
+        normals.push(ni); binormals.push(bi);
+      }
+
+      // Align twist for closed loops
+      if (capMode === 'closedLoop' && normals.length > 2) {
+        const nStart = normals[0];
+        const nEnd = normals[tubularSegs];
+        const dot = clamp(nStart.dot(nEnd), -1, 1);
+        let twistErr = Math.acos(dot);
+        if (new THREE.Vector3().crossVectors(nEnd, nStart).dot(tangs[0]) < 0) twistErr = -twistErr;
+        for (let i = 1; i <= tubularSegs; i++) {
+          const rot = new THREE.Quaternion().setFromAxisAngle(tangs[i], (twistErr * i) / tubularSegs);
+          normals[i].applyQuaternion(rot).normalize();
+          binormals[i].crossVectors(tangs[i], normals[i]).normalize();
+        }
+      }
+
+      const stations = [];
+      if (capMode === 'bevel3') {
+        const sb = [{ s: 0.0, sc: 0.001 }, { s: 0.025, sc: 0.72 }, { s: 0.06, sc: 0.92 }, { s: 0.10, sc: 1.0 }];
+        for (const bs of sb) {
+          stations.push({ s: bs.s, sArc: bs.s, pt: curve.getPointAt(bs.s), N: normals[0], B: binormals[0], endScale: bs.sc });
+        }
+        for (let i = 1; i < tubularSegs; i++) {
+          const s = i / tubularSegs;
+          if (s <= 0.105 || s >= 0.895) continue;
+          stations.push({ s, sArc: arc[i] / totalArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+        const eb = [{ s: 0.90, sc: 1.0 }, { s: 0.94, sc: 0.92 }, { s: 0.975, sc: 0.72 }, { s: 1.0, sc: 0.001 }];
+        for (const bs of eb) {
+          stations.push({ s: bs.s, sArc: bs.s, pt: curve.getPointAt(bs.s), N: normals[tubularSegs], B: binormals[tubularSegs], endScale: bs.sc });
+        }
+      } else if (capMode === 'bevel1') {
+        stations.push({ s: 0, sArc: 0, pt: pts[0], N: normals[0], B: binormals[0], endScale: 0.001 });
+        stations.push({ s: 0.05, sArc: 0.05, pt: curve.getPointAt(0.05), N: normals[0], B: binormals[0], endScale: 0.85 });
+        for (let i = 1; i < tubularSegs; i++) {
+          const s = i / tubularSegs;
+          if (s <= 0.055 || s >= 0.945) continue;
+          stations.push({ s, sArc: arc[i] / totalArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+        stations.push({ s: 0.95, sArc: 0.95, pt: curve.getPointAt(0.95), N: normals[tubularSegs], B: binormals[tubularSegs], endScale: 0.85 });
+        stations.push({ s: 1.0, sArc: 1.0, pt: pts[tubularSegs], N: normals[tubularSegs], B: binormals[tubularSegs], endScale: 0.001 });
+      } else {
+        for (let i = 0; i <= tubularSegs; i++) {
+          const s = i / tubularSegs;
+          stations.push({ s, sArc: arc[i] / totalArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+      }
+
+      const stride = radialSegs + 1;
+      const pos = [], uv = [], col = [], idx = [];
+      const baseC = new THREE.Color(tintHex);
+      const vp = new THREE.Vector3();
+
+      for (let i = 0; i < stations.length; i++) {
+        const st = stations[i];
+        const rx = (typeof rxFn === 'function' ? rxFn(st.s, st.pt) : rxFn) * st.endScale;
+        const rb = (typeof rbFn === 'function' ? rbFn(st.s, st.pt) : rbFn) * st.endScale;
+
+        for (let k = 0; k <= radialSegs; k++) {
+          const uFrac = k / radialSegs;
+          const ang = uFrac * Math.PI * 2;
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          let lx, lb;
+          if (profileShape === 'squircle') {
+            const pNorm = Math.pow(Math.pow(Math.abs(ca), squirclePower) + Math.pow(Math.abs(sa), squirclePower), -1 / squirclePower);
+            lx = ca * pNorm * rx;
+            lb = sa * pNorm * rb;
+          } else {
+            lx = ca * rx;
+            lb = sa * rb;
+          }
+          const wx = st.pt.x + st.N.x * lx + st.B.x * lb;
+          const wy = st.pt.y + st.N.y * lx + st.B.y * lb;
+          const wz = st.pt.z + st.N.z * lx + st.B.z * lb;
+          pos.push(wx, wy, wz);
+          uv.push(uFrac * uRepeat, lerp(band.vMin, band.vMax, clamp(st.sArc, 0, 1)));
+
+          vp.set(wx, wy, wz);
+          const ao = aoFn ? aoFn(st.s, ang, vp) : 1.0;
+          col.push(baseC.r * ao, baseC.g * ao, baseC.b * ao);
+        }
+      }
+
+      const numS = stations.length - 1;
+      for (let i = 0; i < numS; i++) {
+        for (let k = 0; k < radialSegs; k++) {
+          const a = i * stride + k;
+          const b = (i + 1) * stride + k;
+          const c = (i + 1) * stride + (k + 1);
+          const d = i * stride + (k + 1);
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, numS, stride, capMode === 'closedLoop', true);
+      return normalizeForMerge(g, tintHex);
+    }
+
+    // Multi-ring Lathe with cumulative Euclidean arc-length V coordinates
+    function buildArcLengthLathe(profilePts, radialSegs, band, uRepeat = 2.0, tintHex = 0xffffff, aoList = null) {
+      const nProf = profilePts.length;
+      const stride = nProf;
+      const arc = [0];
+      for (let k = 1; k < nProf; k++) {
+        arc.push(arc[k - 1] + profilePts[k].distanceTo(profilePts[k - 1]));
+      }
+      const totalArc = Math.max(0.0001, arc[nProf - 1]);
+      const baseC = new THREE.Color(tintHex);
+
+      const pos = [], uv = [], col = [], idx = [];
+      for (let it = 0; it <= radialSegs; it++) {
+        const uFrac = it / radialSegs;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        for (let k = 0; k < nProf; k++) {
+          const pt = profilePts[k];
+          pos.push(pt.x * cT, pt.y, -pt.x * sT);
+          uv.push(uFrac * uRepeat, lerp(band.vMin, band.vMax, arc[k] / totalArc));
+          const ao = aoList ? aoList[k] : 1.0;
+          col.push(baseC.r * ao, baseC.g * ao, baseC.b * ao);
+        }
+      }
+
+      for (let it = 0; it < radialSegs; it++) {
+        for (let k = 0; k < nProf - 1; k++) {
+          const a = it * stride + k;
+          const b = (it + 1) * stride + k;
+          const c = (it + 1) * stride + (k + 1);
+          const d = it * stride + (k + 1);
+          idx.push(a, b, c, a, c, d);
+        }
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, radialSegs, stride, true, false);
+      return normalizeForMerge(g, tintHex);
+    }
+
+    function buildBeveledExtrude(shape, opts, band, tintHex = 0xffffff, aoFn = null, tileScale = 6.0) {
+      const g = new THREE.ExtrudeGeometry(shape, {
+        depth: opts.depth ?? 0.01,
+        bevelEnabled: true,
+        bevelSegments: Math.max(3, opts.bevelSegments ?? 3),
+        steps: opts.steps ?? 1,
+        bevelSize: opts.bevelSize ?? 0.004,
+        bevelThickness: opts.bevelThickness ?? 0.004,
+        curveSegments: opts.curveSegments ?? 14
+      });
+      if (opts.centerZ !== false) g.translate(0, 0, -(opts.depth ?? 0.01) * 0.5);
+      applyBandBoxUVs(g, band, tileScale);
+      return normalizeForMerge(g, tintHex, aoFn);
+    }
+
+    function buildSculptedBoneBlob(rx, ry, rz, segU, segV, band, tintHex = 0xffffff, aoFn = null, deformFn = null) {
+      const g = new THREE.SphereGeometry(1, segU, segV);
+      const pos = g.getAttribute('position');
+      const uv = g.getAttribute('uv');
+      const v = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        v.set(v.x * rx, v.y * ry, v.z * rz);
+        if (deformFn) deformFn(v, uv.getX(i), uv.getY(i));
+        pos.setXYZ(i, v.x, v.y, v.z);
+        uv.setXY(i, uv.getX(i) * 2.0, lerp(band.vMin, band.vMax, uv.getY(i)));
+      }
+      g.computeVertexNormals();
+      return normalizeForMerge(g, tintHex, aoFn);
+    }
+
+    // =========================================================================
+    // 6. PROCEDURAL SUB-ASSEMBLY BUILDERS FOR NPC_01_SkeletonMerchant
+    // =========================================================================
+
+    // A. Sculpted Cranium, Deep Eye Sockets, Zygomatic Cheekbones, Nasal Cavity, Teeth, Monocle & Soul Pupils
+    function buildPartHead(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Head';
+      grp.position.set(0, 0.495, 0.025); // Relative to Part_Torso_Ribcage -> World (0, 1.405, 0.010)
+
+      const boneGeos = [];
+      const brassGeos = [];
+      const runeGeos = [];
+
+      // 1. Anatomically Sculpted Cranium + Maxilla (Zero flat edges, sculpted orbital & nasal cavities)
+      const segU = isHero ? 28 : 14;
+      const segV = isHero ? 20 : 10;
+      const skull = new THREE.SphereGeometry(1, segU, segV);
+      const sPos = skull.getAttribute('position');
+      const sUv = skull.getAttribute('uv');
+      const sCol = new Float32Array(sPos.count * 3);
+      const boneCol = new THREE.Color(0xf6efe0);
+
+      for (let i = 0; i < sPos.count; i++) {
+        let nx = sPos.getX(i), ny = sPos.getY(i), nz = sPos.getZ(i);
+        // Base cranium ellipsoid shifted slightly upward; local origin = atlanto-occipital pivot
+        let x = nx * 0.088;
+        let y = ny * 0.104 + 0.128;
+        let z = nz * 0.102 - 0.005;
+
+        // Cranial dome fullness at back/top + narrowed temporal temples
+        const dome = smoothstep(-0.1, 0.75, ny);
+        x *= lerp(0.84, 1.03, dome);
+        if (ny < 0.05 && nz > 0.15) {
+          // Narrow down toward maxilla muzzle
+          const muzzle = smoothstep(0.05, -0.82, ny);
+          x *= lerp(1.0, 0.56, muzzle);
+          z += muzzle * 0.022;
+        }
+        // Taper base back of occiput neatly into C1 neck
+        if (ny < -0.2 && nz < 0.1) {
+          const neckTaper = smoothstep(-0.2, -0.95, ny) * smoothstep(0.1, -0.6, nz);
+          z += neckTaper * 0.032;
+          y += neckTaper * 0.025;
+        }
+
+        // Supraorbital brow ridge
+        const browMask = Math.exp(-Math.pow((ny - 0.09) / 0.16, 2)) * smoothstep(0.45, 0.90, nz);
+        z += browMask * 0.015;
+
+        // Deeply carved eye sockets (x = +-0.036, y = 0.122)
+        const dEyeL = Math.hypot((x - 0.036) / 0.024, (y - 0.122) / 0.022);
+        const dEyeR = Math.hypot((x + 0.036) / 0.024, (y - 0.122) / 0.022);
+        const eyeDist = Math.min(dEyeL, dEyeR);
+        const eyePit = nz > 0.35 ? Math.max(0, 1.0 - eyeDist * eyeDist) : 0;
+        const eyeRim = nz > 0.40 ? Math.exp(-Math.pow((eyeDist - 1.06) / 0.24, 2)) : 0;
+        z -= eyePit * 0.033;
+        z += eyeRim * 0.007;
+
+        // Zygomatic cheekbones flaring below eyes
+        const cheekL = Math.exp(-Math.pow((x - 0.054) / 0.018, 2) - Math.pow((y - 0.092) / 0.016, 2));
+        const cheekR = Math.exp(-Math.pow((x + 0.054) / 0.018, 2) - Math.pow((y - 0.092) / 0.016, 2));
+        const cheekBump = (cheekL + cheekR) * smoothstep(0.2, 0.85, nz);
+        x += Math.sign(x) * cheekBump * 0.008;
+        z += cheekBump * 0.011;
+
+        // Piriform nasal cavity + subtle nasal bridge
+        const nasalHole = Math.exp(-Math.pow(x / 0.012, 2) - Math.pow((y - 0.092) / 0.017, 2)) * smoothstep(0.5, 0.92, nz);
+        const nasalBridge = Math.exp(-Math.pow(x / 0.009, 2) - Math.pow((y - 0.114) / 0.010, 2)) * smoothstep(0.6, 0.95, nz);
+        z -= nasalHole * 0.025;
+        z += nasalBridge * 0.010;
+
+        // Maxilla dental arch curve
+        const jawMuzzle = Math.exp(-Math.pow((y - 0.058) / 0.022, 2)) * smoothstep(0.35, 0.95, nz);
+        z += jawMuzzle * 0.010;
+
+        sPos.setXYZ(i, x, y, z);
+        const uOrig = sUv.getX(i), vOrig = sUv.getY(i);
+        sUv.setXY(i, uOrig * 2.0, lerp(UV_BANDS.bone.vMin, UV_BANDS.bone.vMax, vOrig));
+
+        // Vertex AO: deep shadows inside eye orbits, nasal fossa, temples & under cheekbones
+        const aoOrbit = 1.0 - eyePit * 0.86;
+        const aoNose = 1.0 - nasalHole * 0.84;
+        const aoUnder = lerp(0.65, 1.0, smoothstep(-0.02, 0.18, y));
+        const ao = clamp(aoOrbit * aoNose * aoUnder, 0.12, 1.0);
+        sCol[i * 3]     = boneCol.r * ao;
+        sCol[i * 3 + 1] = boneCol.g * ao;
+        sCol[i * 3 + 2] = boneCol.b * ao;
+      }
+      skull.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+      skull.computeVertexNormals();
+      averageSeamNormals(skull, segV, segU + 1, false, false);
+      boneGeos.push(normalizeForMerge(skull));
+
+      // 2. Sculpted Upper Maxilla Teeth (8 rounded teeth curving along upper jaw)
+      const toothCount = 8;
+      for (let t = 0; t < toothCount; t++) {
+        const frac = (t / (toothCount - 1)) * 2 - 1; // -1 to +1
+        const ang = frac * 0.82;
+        const tx = Math.sin(ang) * 0.036;
+        const tz = 0.056 + Math.cos(ang) * 0.041;
+        const ty = 0.052 - (1.0 - Math.abs(frac) * 0.25) * 0.005;
+        const tooth = buildSculptedBoneBlob(0.0044, 0.0085, 0.0042, isHero ? 5 : 3, isHero ? 4 : 3, UV_BANDS.bone, 0xf2e6c8);
+        tooth.rotateZ(frac * -0.06);
+        tooth.rotateY(ang * 0.7);
+        tooth.translate(tx, ty, tz);
+        boneGeos.push(tooth);
+      }
+
+      // 3. Glowing Soul-Fire Pupils nestled deeply inside dark eye orbits (MAT_Emissive_Rune, Band 5a Cyan)
+      [-0.036, 0.036].forEach((ex) => {
+        const pupil = buildSculptedBoneBlob(0.0092, 0.0092, 0.0080, isHero ? 8 : 5, isHero ? 6 : 4, UV_BANDS.soulCyan, 0x8ef5ff);
+        pupil.translate(ex, 0.122, 0.064);
+        runeGeos.push(pupil);
+
+        // Subtle pointed wisp trailing back inside the socket
+        const wispCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(ex, 0.122, 0.064),
+          new THREE.Vector3(ex * 1.15, 0.126, 0.054),
+          new THREE.Vector3(ex * 1.28, 0.132, 0.040)
+        ]);
+        const wisp = buildSweptCurveLoft({
+          curve: wispCurve, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 4 : 3,
+          rxFn: (s) => 0.0055 * (1.0 - s * 0.85),
+          rbFn: (s) => 0.0048 * (1.0 - s * 0.85),
+          band: UV_BANDS.soulCyan, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x5ae2ff
+        });
+        runeGeos.push(wisp);
+      });
+
+      // 4. Tarnished Brass Monocle + Catenary Chain over Right Eye (x = -0.037)
+      const monoCenter = new THREE.Vector3(-0.037, 0.122, 0.104);
+      const monoPts = [];
+      const monoLoopSegs = isHero ? 14 : 8;
+      for (let i = 0; i <= monoLoopSegs; i++) {
+        const a = (i / monoLoopSegs) * Math.PI * 2;
+        monoPts.push(new THREE.Vector3(
+          monoCenter.x + Math.cos(a) * 0.025,
+          monoCenter.y + Math.sin(a) * 0.025,
+          monoCenter.z - Math.abs(Math.cos(a)) * 0.003
+        ));
+      }
+      const monoCurve = new THREE.CatmullRomCurve3(monoPts, true);
+      brassGeos.push(buildSweptCurveLoft({
+        curve: monoCurve, tubularSegs: monoLoopSegs, radialSegs: isHero ? 6 : 4,
+        rxFn: 0.0038, rbFn: 0.0048,
+        profileShape: 'squircle', squirclePower: 3.0,
+        band: UV_BANDS.brass, capMode: 'closedLoop', tintHex: 0xebc672
+      }));
+
+      // Monocle side lug + delicate hanging bead chain draping along right cheek
+      const lug = buildSculptedBoneBlob(0.005, 0.004, 0.004, isHero ? 5 : 4, isHero ? 4 : 3, UV_BANDS.brass, 0xdeb660);
+      lug.translate(-0.064, 0.120, 0.100);
+      brassGeos.push(lug);
+
+      const chainCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.064, 0.118, 0.098),
+        new THREE.Vector3(-0.078, 0.088, 0.082),
+        new THREE.Vector3(-0.085, 0.050, 0.060),
+        new THREE.Vector3(-0.072, 0.015, 0.032)
+      ]);
+      brassGeos.push(buildSweptCurveLoft({
+        curve: chainCurve, tubularSegs: isHero ? 10 : 5, radialSegs: isHero ? 4 : 3,
+        rxFn: (s) => 0.0020 * (0.85 + 0.35 * Math.sin(s * Math.PI * 16)),
+        rbFn: (s) => 0.0020 * (0.85 + 0.35 * Math.sin(s * Math.PI * 16)),
+        band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xd6ac56
+      }));
+
+      assemblePartMeshes(grp, { bone: boneGeos, brass: brassGeos, rune: runeGeos });
+
+      // 5. Articulated Mandible (Part_Jaw) pivoted at Temporomandibular Joint
+      const jawGrp = buildPartJaw(isHero);
+      grp.add(jawGrp);
+
+      // 6. Slouch Merchant Hat + Melted Candle (Part_Hat)
+      const hatGrp = buildPartHat(isHero);
+      grp.add(hatGrp);
+
+      // 7. Unity Head & Eye VFX Sockets
+      const sockHead = new THREE.Object3D();
+      sockHead.name = 'Socket_Head';
+      sockHead.position.set(0, 0.48, 0); // World y ≈ 1.885m above hat tip
+      grp.add(sockHead);
+
+      const sockEyeL = new THREE.Object3D();
+      sockEyeL.name = 'Socket_VFX_SoulEye_L';
+      sockEyeL.position.set(0.036, 0.122, 0.080);
+      grp.add(sockEyeL);
+
+      const sockEyeR = new THREE.Object3D();
+      sockEyeR.name = 'Socket_VFX_SoulEye_R';
+      sockEyeR.position.set(-0.036, 0.122, 0.080);
+      grp.add(sockEyeR);
+
+      return grp;
+    }
+
+    // B. Articulated Mandible (Part_Jaw)
+    function buildPartJaw(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Jaw';
+      grp.position.set(0, 0.068, 0.012); // TMJ pivot relative to Part_Head
+
+      const boneGeos = [];
+      const jawCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.043, 0.022, -0.012), // Medial condyle tucked cleanly inside TMJ fossa (no cheek Z-fighting)
+        new THREE.Vector3(-0.047, -0.026, 0.004),
+        new THREE.Vector3(-0.034, -0.039, 0.054),
+        new THREE.Vector3( 0.000, -0.044, 0.082),
+        new THREE.Vector3( 0.034, -0.039, 0.054),
+        new THREE.Vector3( 0.047, -0.026, 0.004),
+        new THREE.Vector3( 0.043, 0.022, -0.012)
+      ]);
+      boneGeos.push(buildSweptCurveLoft({
+        curve: jawCurve,
+        tubularSegs: isHero ? 14 : 7,
+        radialSegs: isHero ? 6 : 4,
+        profileShape: 'squircle', squirclePower: 2.8,
+        rxFn: (s) => {
+          const chin = Math.exp(-Math.pow((s - 0.5) / 0.18, 2));
+          return lerp(0.0075, 0.0115, chin);
+        },
+        rbFn: (s) => {
+          const chin = Math.exp(-Math.pow((s - 0.5) / 0.18, 2));
+          return lerp(0.0125, 0.0145, chin);
+        },
+        band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xefe3ca,
+        aoFn: (s, ang, vp) => clamp(0.68 + 0.32 * smoothstep(-0.045, -0.015, vp.y) - (Math.sin(ang) > 0.4 ? 0.15 : 0), 0.45, 1.0)
+      }));
+
+      // Rounded chin prominence pad
+      const chinPad = buildSculptedBoneBlob(0.018, 0.014, 0.014, isHero ? 6 : 4, isHero ? 5 : 3, UV_BANDS.bone, 0xf2e8d0);
+      chinPad.translate(0, -0.044, 0.081);
+      boneGeos.push(chinPad);
+
+      // Lower jaw teeth (8 teeth curving cleanly inside dental ridge)
+      const toothCount = 8;
+      for (let t = 0; t < toothCount; t++) {
+        const frac = (t / (toothCount - 1)) * 2 - 1;
+        const ang = frac * 0.78;
+        const tx = Math.sin(ang) * 0.032;
+        const tz = 0.046 + Math.cos(ang) * 0.037;
+        const ty = -0.028;
+        const tooth = buildSculptedBoneBlob(0.0040, 0.0075, 0.0038, isHero ? 5 : 3, isHero ? 4 : 3, UV_BANDS.bone, 0xeee0be);
+        tooth.translate(tx, ty, tz);
+        boneGeos.push(tooth);
+      }
+
+      return assemblePartMeshes(grp, { bone: boneGeos });
+    }
+
+    // C. Wide-Brimmed Merchant Slouch Hat (Part_Hat) + Melted Wax Candle (Part_Candle)
+    function buildPartHat(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Hat';
+      grp.position.set(0, 0.155, -0.006); // Perched securely on upper cranium
+
+      const cloakGeos = [];
+      const leatherGeos = [];
+      const brassGeos = [];
+
+      // Watertight Double-Layered Hat (outer shell -> rolled brim rim -> inner lining down to crown cap)
+      const radSegs = isHero ? 22 : 11;
+      const profOuter = [
+        { r: 0.002, y: 0.255, cx: 0.032, cz: -0.068 }, // Tilted pointed tip
+        { r: 0.038, y: 0.205, cx: 0.022, cz: -0.046 },
+        { r: 0.072, y: 0.135, cx: 0.012, cz: -0.024 },
+        { r: 0.095, y: 0.072, cx: 0.004, cz: -0.008 },
+        { r: 0.104, y: 0.025, cx: 0.000, cz:  0.000 }, // Crown base
+        { r: 0.175, y: 0.008, cx: 0.000, cz:  0.000 }, // Inner brim flare
+        { r: 0.275, y: -0.004, cx: 0.000, cz: 0.000 }, // Outer brim
+        { r: 0.285, y: -0.012, cx: 0.000, cz: 0.000 }, // Rolled thick brim outer edge
+        { r: 0.274, y: -0.020, cx: 0.000, cz: 0.000 }, // Under-brim edge
+        { r: 0.175, y: -0.005, cx: 0.000, cz: 0.000 }, // Under-brim return
+        { r: 0.092, y: 0.010, cx: 0.000, cz:  0.000 }, // Inner sweatband
+        { r: 0.082, y: 0.075, cx: 0.004, cz: -0.008 }, // Inner crown ceiling
+        { r: 0.002, y: 0.115, cx: 0.010, cz: -0.020 }  // Closed inner dome apex
+      ];
+
+      const nP = profOuter.length;
+      const stride = nP;
+      const pos = [], uv = [], col = [], idx = [];
+      const hatCol = new THREE.Color(0x52464c); // Deep weathered plum-charcoal felt/linen
+
+      for (let it = 0; it <= radSegs; it++) {
+        const uFrac = it / radSegs;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        // Asymmetrical medieval slouch wave: flares up on right (-X, monocle side), dips over left brow (+X)
+        const brimWave = -0.022 * Math.cos(theta * 2 - 0.5)
+          + 0.018 * smoothstep(0.0, 0.85, -cT) * smoothstep(-0.4, 0.8, sT)
+          - 0.016 * smoothstep(0.0, 0.85, cT) * smoothstep(-0.3, 0.8, sT)
+          + 0.009 * Math.sin(theta * 5 + 0.7);
+        const radRipple = 1.0 + 0.055 * Math.sin(theta * 3 + 0.4) + 0.025 * Math.cos(theta * 6);
+        const crownPinch = 1.0 + 0.06 * Math.sin(theta * 4 + 1.1);
+
+        const ringPts = [];
+        for (let k = 0; k < nP; k++) {
+          const st = profOuter[k];
+          const isBrim = st.r > 0.11;
+          const isInner = k >= 8;
+          const rEff = isBrim ? st.r * radRipple : st.r * crownPinch;
+          const yWave = isBrim ? brimWave * smoothstep(0.10, 0.28, st.r) : 0;
+          const creasePinch = (k === 1 || k === 2) ? Math.sin(theta * 2) * 0.007 : 0;
+          const x = st.cx + rEff * cT;
+          const z = st.cz + rEff * sT;
+          const y = st.y + yWave + creasePinch;
+          ringPts.push({ x, y, z, isInner, k });
+        }
+        const arc = [0];
+        for (let k = 1; k < nP; k++) {
+          arc.push(arc[k - 1] + Math.hypot(ringPts[k].x - ringPts[k - 1].x, ringPts[k].y - ringPts[k - 1].y, ringPts[k].z - ringPts[k - 1].z));
+        }
+        const totArc = Math.max(0.001, arc[nP - 1]);
+
+        for (let k = 0; k < nP; k++) {
+          const p = ringPts[k];
+          pos.push(p.x, p.y, p.z);
+          uv.push(uFrac * 3.0, lerp(UV_BANDS.cloak.vMin, UV_BANDS.cloak.vMax, arc[k] / totArc));
+          const underAO = p.isInner ? 0.38 : (k === 4 || k === 5 ? 0.68 : 0.96);
+          const foldAO = 0.88 + 0.12 * Math.sin(theta * 3 + 0.4);
+          const ao = clamp(underAO * foldAO, 0.30, 1.0);
+          col.push(hatCol.r * ao, hatCol.g * ao, hatCol.b * ao);
+        }
+      }
+
+      for (let it = 0; it < radSegs; it++) {
+        for (let k = 0; k < nP - 1; k++) {
+          const a = it * stride + k;
+          const b = (it + 1) * stride + k;
+          const c = (it + 1) * stride + (k + 1);
+          const d = it * stride + (k + 1);
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+      const hatGeom = new THREE.BufferGeometry();
+      hatGeom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      hatGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      hatGeom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      hatGeom.setIndex(idx);
+      hatGeom.computeVertexNormals();
+      averageSeamNormals(hatGeom, radSegs, stride, true, false);
+      cloakGeos.push(normalizeForMerge(hatGeom));
+
+      // Leather Hatband wrapped around crown base
+      const bandPts = [];
+      const bandSegs = isHero ? 16 : 9;
+      for (let i = 0; i <= bandSegs; i++) {
+        const a = (i / bandSegs) * Math.PI * 2;
+        const r = 0.106 * (1.0 + 0.055 * Math.sin(a * 4 + 1.1));
+        bandPts.push(new THREE.Vector3(r * Math.cos(a), 0.032, r * Math.sin(a)));
+      }
+      leatherGeos.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3(bandPts, true),
+        tubularSegs: bandSegs, radialSegs: isHero ? 5 : 3,
+        rxFn: 0.007, rbFn: 0.015, profileShape: 'squircle', squirclePower: 3.4,
+        band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0xaa8668
+      }));
+
+      // Beveled Tarnished-Brass Hat Buckle on front-left (+X, +Z)
+      const hbShape = new THREE.Shape();
+      hbShape.moveTo(-0.016, -0.019); hbShape.lineTo(0.016, -0.019);
+      hbShape.lineTo(0.016, 0.019); hbShape.lineTo(-0.016, 0.019); hbShape.closePath();
+      const hbHole = new THREE.Path();
+      hbHole.moveTo(-0.009, -0.011); hbHole.lineTo(0.009, -0.011);
+      hbHole.lineTo(0.009, 0.011); hbHole.lineTo(-0.009, 0.011); hbHole.closePath();
+      hbShape.holes.push(hbHole);
+      const hatBuckle = buildBeveledExtrude(hbShape, { depth: 0.005, bevelSegments: 3, bevelSize: 0.003, bevelThickness: 0.003, curveSegments: 1 }, UV_BANDS.brass, 0xebc774);
+      hatBuckle.rotateY(0.55);
+      hatBuckle.translate(0.058, 0.034, 0.095);
+      brassGeos.push(hatBuckle);
+
+      assemblePartMeshes(grp, { cloak: cloakGeos, leather: leatherGeos, brass: brassGeos });
+
+      // Melted Tallow Candle mounted on right-front brim ledge
+      const candleGrp = buildPartCandle(isHero);
+      grp.add(candleGrp);
+
+      return grp;
+    }
+
+    // D. Melted Candle on Hat Brim (Part_Candle) + Socket_VFX_Candle
+    function buildPartCandle(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Candle';
+      grp.position.set(-0.155, 0.012, 0.115);
+      grp.rotation.z = 0.09; // Slight jaunty outward tilt
+
+      const waxGeos = [];
+      const runeGeos = [];
+      const leatherGeos = [];
+
+      // Brass drip tray dish at candle base
+      const dishProf = [
+        new THREE.Vector2(0.001, -0.004),
+        new THREE.Vector2(0.024, -0.002),
+        new THREE.Vector2(0.028,  0.004),
+        new THREE.Vector2(0.024,  0.008),
+        new THREE.Vector2(0.016,  0.004),
+        new THREE.Vector2(0.001,  0.004)
+      ];
+      const dish = buildArcLengthLathe(dishProf, isHero ? 10 : 6, UV_BANDS.brass, 2.0, 0xd9b25f, [0.6, 0.85, 1.0, 0.9, 0.7, 0.6]);
+      const brassGeos = [dish];
+
+      // Sculpted melted tallow wax stump (pooled crater top, uneven rim)
+      const waxProf = [
+        new THREE.Vector2(0.001, 0.002),
+        new THREE.Vector2(0.017, 0.003),
+        new THREE.Vector2(0.018, 0.028),
+        new THREE.Vector2(0.0165, 0.056),
+        new THREE.Vector2(0.014, 0.068),
+        new THREE.Vector2(0.009, 0.061),
+        new THREE.Vector2(0.001, 0.060)
+      ];
+      waxGeos.push(buildArcLengthLathe(waxProf, isHero ? 10 : 6, UV_BANDS.bone, 1.5, 0xfff3d4, [0.75, 0.88, 0.96, 1.0, 0.95, 0.72, 0.68]));
+
+      // Organic Melted Wax Drips running down candle & onto brim
+      const dripSpecs = isHero ? [
+        [[-0.013, 0.064, 0.006], [-0.017, 0.036, 0.009], [-0.019, 0.006, 0.014]],
+        [[ 0.010, 0.062, 0.011], [ 0.014, 0.028, 0.016], [ 0.018, 0.002, 0.022]],
+        [[-0.004, 0.061, -0.014], [-0.006, 0.032, -0.018], [-0.009, 0.004, -0.022]]
+      ] : [
+        [[-0.013, 0.064, 0.006], [-0.017, 0.036, 0.009], [-0.019, 0.006, 0.014]]
+      ];
+      dripSpecs.forEach((pts) => {
+        const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+        waxGeos.push(buildSweptCurveLoft({
+          curve: c, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 4 : 3,
+          rxFn: (s) => lerp(0.0024, 0.0042, Math.pow(s, 0.7)),
+          rbFn: (s) => lerp(0.0020, 0.0038, Math.pow(s, 0.7)),
+          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xfaebd0
+        }));
+      });
+
+      // Charred wick
+      const wickCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.059, 0),
+        new THREE.Vector3(0.001, 0.068, 0.001),
+        new THREE.Vector3(0.002, 0.076, 0.002)
+      ]);
+      leatherGeos.push(buildSweptCurveLoft({
+        curve: wickCurve, tubularSegs: 2, radialSegs: 3,
+        rxFn: 0.0018, rbFn: 0.0018, band: UV_BANDS.leather, capMode: 'open', tintHex: 0x33221a
+      }));
+
+      // Flickering Candle Flame (named sub-mesh so idle anim can pulse/sway it subtly)
+      const flameCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.001, 0.072, 0.001),
+        new THREE.Vector3(0.002, 0.088, 0.002),
+        new THREE.Vector3(0.003, 0.112, 0.001)
+      ]);
+      const flameGeom = buildSweptCurveLoft({
+        curve: flameCurve, tubularSegs: isHero ? 6 : 3, radialSegs: isHero ? 6 : 4,
+        rxFn: (s) => 0.0105 * Math.sin(clamp(s, 0.02, 0.98) * Math.PI) * (1.0 - s * 0.45),
+        rbFn: (s) => 0.0105 * Math.sin(clamp(s, 0.02, 0.98) * Math.PI) * (1.0 - s * 0.45),
+        band: UV_BANDS.candleWarm, capMode: 'open', tintHex: 0xffd275
+      });
+      runeGeos.push(flameGeom);
+
+      assemblePartMeshes(grp, { bone: waxGeos, brass: brassGeos, leather: leatherGeos });
+
+      const flameMesh = new THREE.Mesh(safeMerge(runeGeos), MATS.rune);
+      flameMesh.name = 'Candle_FlameMesh';
+      flameMesh.castShadow = false;
+      grp.add(flameMesh);
+
+      const sockCandle = new THREE.Object3D();
+      sockCandle.name = 'Socket_VFX_Candle';
+      sockCandle.position.set(0.002, 0.092, 0.002);
+      grp.add(sockCandle);
+
+      return grp;
+    }
+
+    // E. Torso, Spine, 7 Pairs of Curved Ribs, Clavicles, Scapulae, Pelvis & Guild Medallion
+    function buildPartTorsoRibcage(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Torso_Ribcage';
+      grp.position.set(0, 0.91, -0.015); // Lumbar root pivot
+
+      const boneGeos = [];
+      const brassGeos = [];
+
+      // 1. S-Curved Spine Column (Lumbar -> Thoracic -> Cervical up to Head pivot at (0, 0.495, 0.025))
+      const spineCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, -0.03, -0.015),
+        new THREE.Vector3(0,  0.09, -0.035),
+        new THREE.Vector3(0,  0.25, -0.055),
+        new THREE.Vector3(0,  0.39, -0.022),
+        new THREE.Vector3(0,  0.495, 0.025)
+      ]);
+      // Continuous core spinal cord canal
+      boneGeos.push(buildSweptCurveLoft({
+        curve: spineCurve, tubularSegs: isHero ? 12 : 5, radialSegs: isHero ? 6 : 4,
+        rxFn: (s) => lerp(0.022, 0.015, s),
+        rbFn: (s) => lerp(0.020, 0.014, s),
+        band: UV_BANDS.bone, capMode: 'bevel1', tintHex: 0xe6d9bc,
+        aoFn: (s) => 0.62 + 0.25 * Math.sin(s * Math.PI * 10)
+      }));
+
+      // Individual Vertebral Discs + Rear Spinous Processes
+      const nVert = isHero ? 8 : 4;
+      for (let i = 0; i < nVert; i++) {
+        const s = 0.08 + (i / (nVert - 1)) * 0.84;
+        const vp = spineCurve.getPointAt(s);
+        const discR = lerp(0.025, 0.017, s);
+        const disc = buildSculptedBoneBlob(discR, 0.014, discR * 0.95, isHero ? 7 : 4, isHero ? 4 : 3, UV_BANDS.bone, 0xe8dcc0);
+        disc.translate(vp.x, vp.y, vp.z);
+        boneGeos.push(disc);
+
+        if (isHero) {
+          const spinous = buildSculptedBoneBlob(0.007, 0.009, 0.018, 5, 4, UV_BANDS.bone, 0xd8cab0);
+          spinous.rotateX(0.35);
+          spinous.translate(vp.x, vp.y - 0.005, vp.z - discR - 0.010);
+          boneGeos.push(spinous);
+        }
+      }
+
+      // 2. Sculpted Pelvis Iliac Crests & Sacrum (tucked cleanly inside belt/tunic waist)
+      [-1, 1].forEach((side) => {
+        const iliacCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(side * 0.02, -0.02, -0.025),
+          new THREE.Vector3(side * 0.10,  0.015, -0.010),
+          new THREE.Vector3(side * 0.125, 0.005,  0.055),
+          new THREE.Vector3(side * 0.055, -0.055, 0.070)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: iliacCurve, tubularSegs: isHero ? 7 : 4, radialSegs: isHero ? 5 : 4,
+          rxFn: 0.016, rbFn: 0.026, profileShape: 'squircle',
+          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xddd0b4,
+          aoFn: () => 0.56
+        }));
+      });
+
+      // 3. Sculpted Sternum & Manubrium Shield
+      const sternCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.370, 0.082),
+        new THREE.Vector3(0, 0.310, 0.104),
+        new THREE.Vector3(0, 0.235, 0.106),
+        new THREE.Vector3(0, 0.175, 0.095)
+      ]);
+      boneGeos.push(buildSweptCurveLoft({
+        curve: sternCurve, tubularSegs: isHero ? 6 : 3, radialSegs: isHero ? 6 : 4,
+        profileShape: 'squircle', squirclePower: 2.8,
+        rxFn: (s) => s < 0.3 ? lerp(0.028, 0.022, s / 0.3) : lerp(0.022, 0.010, (s - 0.3) / 0.7),
+        rbFn: 0.011,
+        band: UV_BANDS.bone, capMode: isHero ? 'bevel3' : 'bevel1', tintHex: 0xf4ead4
+      }));
+
+      // 4. 7 Pairs of True 3D Curved Costal Ribs (leaving genuine open air gaps!)
+      const ribSpecs = [
+        { yBack: 0.365, yFront: 0.345, w: 0.108, zFront: 0.088, rad: 0.0082 },
+        { yBack: 0.330, yFront: 0.305, w: 0.132, zFront: 0.100, rad: 0.0090 },
+        { yBack: 0.292, yFront: 0.265, w: 0.145, zFront: 0.105, rad: 0.0092 },
+        { yBack: 0.252, yFront: 0.225, w: 0.148, zFront: 0.103, rad: 0.0090 },
+        { yBack: 0.212, yFront: 0.185, w: 0.140, zFront: 0.095, rad: 0.0085 },
+        { yBack: 0.172, yFront: 0.155, w: 0.125, zFront: 0.075, rad: 0.0078 },
+        { yBack: 0.132, yFront: 0.120, w: 0.104, zFront: 0.048, rad: 0.0072 }
+      ];
+      ribSpecs.forEach((r, idxR) => {
+        const spPt = spineCurve.getPointAt(clamp(0.18 + (6 - idxR) * 0.085, 0.15, 0.78));
+        [-1, 1].forEach((side) => {
+          const ribCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(side * 0.018, r.yBack, spPt.z + 0.004),
+            new THREE.Vector3(side * r.w * 0.82, r.yBack - 0.008, spPt.z + 0.015),
+            new THREE.Vector3(side * r.w, (r.yBack + r.yFront) * 0.5, 0.025),
+            new THREE.Vector3(side * r.w * 0.62, r.yFront + 0.004, r.zFront * 0.92),
+            new THREE.Vector3(side * (idxR < 5 ? 0.018 : 0.045), r.yFront, r.zFront)
+          ]);
+          boneGeos.push(buildSweptCurveLoft({
+            curve: ribCurve,
+            tubularSegs: isHero ? 8 : 4,
+            radialSegs: isHero ? 5 : 4,
+            profileShape: 'squircle', squirclePower: 2.4,
+            rxFn: (s) => r.rad * 1.25 * (isHero ? (0.8 + 0.3 * Math.sin(s * Math.PI)) : Math.max(0.25, Math.sin(clamp(s, 0.03, 0.97) * Math.PI))),
+            rbFn: (s) => r.rad * 0.72 * (isHero ? (0.8 + 0.3 * Math.sin(s * Math.PI)) : Math.max(0.25, Math.sin(clamp(s, 0.03, 0.97) * Math.PI))),
+            band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf2e7ce,
+            aoFn: (s, ang) => {
+              const innerAO = Math.cos(ang) < 0 ? 0.62 : 1.0;
+              const rootAO = smoothstep(0.0, 0.25, s) * 0.32 + 0.68;
+              return clamp(innerAO * rootAO, 0.45, 1.0);
+            }
+          }));
+        });
+      });
+
+      // 5. S-Curved Clavicles & Dorsal Scapulae
+      [-1, 1].forEach((side) => {
+        const clavCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(side * 0.020, 0.382, 0.080),
+          new THREE.Vector3(side * 0.088, 0.398, 0.088),
+          new THREE.Vector3(side * 0.148, 0.396, 0.045),
+          new THREE.Vector3(side * 0.195, 0.392, 0.008)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: clavCurve, tubularSegs: isHero ? 9 : 5, radialSegs: isHero ? 6 : 4,
+          rxFn: (s) => 0.0105 * (1.0 + 0.25 * Math.sin(s * Math.PI)),
+          rbFn: (s) => 0.0085 * (1.0 + 0.25 * Math.sin(s * Math.PI)),
+          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf6ebd4
+        }));
+
+        // Dorsal scapula wing
+        const scap = buildSculptedBoneBlob(0.048, 0.068, 0.012, isHero ? 8 : 5, isHero ? 6 : 4, UV_BANDS.bone, 0xd8cab0);
+        scap.rotateY(side * -0.35);
+        scap.rotateZ(side * 0.18);
+        scap.translate(side * 0.098, 0.315, -0.056);
+        boneGeos.push(scap);
+      });
+
+      // 6. Merchant Guild Brass Medallion & Twisted Neck Chain
+      const chainCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.045, 0.425, 0.035),
+        new THREE.Vector3(-0.072, 0.415, 0.078),
+        new THREE.Vector3(-0.048, 0.355, 0.106),
+        new THREE.Vector3( 0.000, 0.275, 0.120),
+        new THREE.Vector3( 0.048, 0.355, 0.106),
+        new THREE.Vector3( 0.072, 0.415, 0.078),
+        new THREE.Vector3( 0.045, 0.425, 0.035),
+        new THREE.Vector3( 0.000, 0.440, -0.012)
+      ], true);
+      brassGeos.push(buildSweptCurveLoft({
+        curve: chainCurve, tubularSegs: isHero ? 16 : 8, radialSegs: isHero ? 5 : 3,
+        rxFn: (s) => 0.0038 * (0.8 + 0.3 * Math.sin(s * Math.PI * 24)),
+        rbFn: (s) => 0.0038 * (0.8 + 0.3 * Math.sin(s * Math.PI * 24)),
+        band: UV_BANDS.brass, capMode: 'closedLoop', tintHex: 0xdfb660
+      }));
+
+      // Ornate Octagonal/Circular Guild Medallion
+      const medShape = new THREE.Shape();
+      const medSides = isHero ? 12 : 8;
+      for (let i = 0; i < medSides; i++) {
+        const a = (i / medSides) * Math.PI * 2;
+        const r = i % 2 === 0 ? 0.042 : 0.039;
+        if (i === 0) medShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        else medShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      medShape.closePath();
+      const medDisc = buildBeveledExtrude(medShape, { depth: 0.006, bevelSegments: 3, bevelSize: 0.004, bevelThickness: 0.004, curveSegments: 1 }, UV_BANDS.brass, 0xebc46c);
+      medDisc.rotateX(-0.08);
+      medDisc.translate(0, 0.258, 0.124);
+      brassGeos.push(medDisc);
+
+      // Raised Dungeon Guild Balance-Scale / Arch Emblem on Medallion
+      const ringShape = new THREE.Shape();
+      ringShape.absarc(0, 0, 0.024, 0, Math.PI * 2, false);
+      const ringHole = new THREE.Path();
+      ringHole.absarc(0, 0, 0.017, 0, Math.PI * 2, true);
+      ringShape.holes.push(ringHole);
+      const medRelief = buildBeveledExtrude(ringShape, { depth: 0.004, bevelSegments: 3, bevelSize: 0.0025, bevelThickness: 0.0025, curveSegments: isHero ? 10 : 4 }, UV_BANDS.brass, 0xffdd88);
+      medRelief.rotateX(-0.08);
+      medRelief.translate(0, 0.258, 0.129);
+      brassGeos.push(medRelief);
+
+      // Medallion center gem/boss
+      const medBoss = buildSculptedBoneBlob(0.009, 0.009, 0.006, isHero ? 6 : 4, isHero ? 4 : 3, UV_BANDS.brass, 0xffe49c);
+      medBoss.translate(0, 0.258, 0.130);
+      brassGeos.push(medBoss);
+
+      assemblePartMeshes(grp, { bone: boneGeos, brass: brassGeos });
+
+      // Interaction prompt socket on chest front
+      const sockPrompt = new THREE.Object3D();
+      sockPrompt.name = 'Socket_InteractPrompt';
+      sockPrompt.position.set(0, 0.26, 0.30); // World y ≈ 1.17m, z ≈ +0.285m
+      grp.add(sockPrompt);
+
+      return grp;
+    }
+
+    // F. Open Multi-Layered Tattered Merchant Cloak & High Collar (Part_Cloak)
+    function buildPartCloak(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Cloak';
+
+      const cloakGeos = [];
+      const uSegs = isHero ? 20 : 10;
+      const vRows = isHero ? 10 : 5;
+      const thick = 0.014;
+
+      // Sweep angle theta around back (-Z is 0 rad; ~76 deg open chest at +Z so ribcage, belt & coin pouch shine!)
+      const thetaSpan = Math.PI * 0.79;
+
+      const buildCloakLayer = (rows, yTop, yBot, radTop, radBot, colTint, isCapelet = false) => {
+        // Generate double-sided thick watertight mesh: outer ring + inner ring stitched at hem, collar & both lapels
+        const ringSamples = [];
+        for (let iv = 0; iv <= rows; iv++) {
+          const vf = iv / rows; // 0 = top collar, 1 = bottom hem
+          const ring = [];
+          for (let iu = 0; iu <= uSegs; iu++) {
+            const uf = iu / uSegs; // 0 = right lapel, 0.5 = center back, 1 = left lapel
+            const th = lerp(-thetaSpan, thetaSpan, uf);
+            const sT = Math.sin(th), cT = Math.cos(th); // th=0 -> -Z (back), +-thetaSpan -> +Z (front)
+            const frontFrac = Math.abs(uf * 2 - 1);
+
+            // Arch high collar behind nape, tapering gracefully down shoulders to front clavicle lapels
+            const collarDrop = isCapelet
+              ? 0.032 * Math.pow(frontFrac, 1.4)
+              : 0.105 * Math.pow(frontFrac, 1.35);
+            const yBase = lerp(yTop - collarDrop, yBot, vf);
+
+            // Shoulder bulge & waist tuck -> restrained tailored hem (leaves walking cane completely clear)
+            const bell = isCapelet
+              ? lerp(radTop, radBot, Math.pow(vf, 0.72))
+              : lerp(radTop, radBot, Math.pow(vf, 1.15)) - 0.048 * Math.exp(-Math.pow((vf - 0.42) / 0.16, 2));
+
+            // Organic broad vertical cloth drapery pleats (avoids harsh high-frequency striping)
+            const pleatAmp = isCapelet ? 0.015 * vf : 0.028 * smoothstep(0.18, 0.95, vf);
+            const pleats = Math.cos(th * 4.0) * pleatAmp + Math.sin(th * 7.0 + 0.4) * (pleatAmp * 0.25);
+
+            // Soft rolled collar cuff behind skull instead of sharp cylindrical shelf
+            const collarRoll = (!isCapelet && vf < 0.18)
+              ? Math.sin((1.0 - vf / 0.18) * Math.PI * 0.65) * 0.022 * Math.max(0, Math.cos(th * 0.65))
+              : 0;
+
+            // Gentle front lapel drape over chest without flaring into walking cane
+            const lapelFlare = (!isCapelet)
+              ? Math.pow(smoothstep(0.45, 1.0, frontFrac), 1.5) * lerp(0.008, 0.038, vf)
+              : 0;
+
+            const rx = (bell * 1.08 + pleats + collarRoll) * (1.0 + lapelFlare);
+            const rz = bell * 0.86 + pleats * 0.65 + collarRoll;
+
+            // Tattered scalloped lower hem
+            const tat = smoothstep(0.75, 1.0, vf) * (
+              0.038 * Math.sin(th * 6.0 + 0.5)
+              + 0.020 * Math.cos(th * 11.0 - 0.8)
+              - (isCapelet ? 0.0 : 0.024)
+            );
+            const y = clamp(yBase + tat, 0.14, 1.46);
+
+            // Back curve shifts slightly backward around stooped thoracic spine
+            const backOffset = -0.03 * Math.exp(-Math.pow((vf - 0.30) / 0.25, 2));
+            const x = rx * sT;
+            const z = -rz * cT + backOffset - 0.015;
+
+            ring.push({ x, y, z, vf, uf, pleats, th });
+          }
+          ringSamples.push(ring);
+        }
+
+        // Build closed tube around thickness loop at each u station? Even cleaner:
+        // Closed profile loop per u column: Top Collar (0) -> Down Outer (1..rows) -> Bottom Hem -> Up Inner (rows..0) -> Back to Top Collar (2*rows+2)!
+        const profCount = (rows + 1) * 2 + 1;
+        const pos = [], uv = [], col = [], idx = [];
+        const baseC = new THREE.Color(colTint);
+
+        for (let iu = 0; iu <= uSegs; iu++) {
+          const uf = iu / uSegs;
+          const th = lerp(-thetaSpan, thetaSpan, uf);
+          // At the front lapel borders (uf=0 or uf=1), taper thickness smoothly to rounded fold seam
+          const edgePinch = smoothstep(0.0, 0.05, uf) * smoothstep(1.0, 0.95, uf);
+          const colVerts = [];
+
+          // Outer path (top -> bottom)
+          for (let iv = 0; iv <= rows; iv++) {
+            const p = ringSamples[iv][iu];
+            colVerts.push({ x: p.x, y: p.y, z: p.z, vf: p.vf, pleats: p.pleats, inner: false });
+          }
+          // Inner lining path (bottom -> top)
+          for (let iv = rows; iv >= 0; iv--) {
+            const p = ringSamples[iv][iu];
+            const len = Math.max(0.001, Math.hypot(p.x, p.z));
+            const inScale = Math.max(0.15, (len - thick * (0.25 + 0.75 * edgePinch)) / len);
+            const yShift = (iv === 0) ? -0.006 : (iv === rows ? 0.005 : 0);
+            colVerts.push({
+              x: p.x * inScale,
+              y: p.y + yShift,
+              z: p.z * inScale,
+              vf: p.vf,
+              pleats: p.pleats,
+              inner: true
+            });
+          }
+          // Close loop cleanly back to outer top
+          colVerts.push({ ...colVerts[0] });
+
+          const arc = [0];
+          for (let k = 1; k < profCount; k++) {
+            arc.push(arc[k - 1] + Math.hypot(colVerts[k].x - colVerts[k - 1].x, colVerts[k].y - colVerts[k - 1].y, colVerts[k].z - colVerts[k - 1].z));
+          }
+          const totArc = Math.max(0.001, arc[profCount - 1]);
+
+          for (let k = 0; k < profCount; k++) {
+            const cv = colVerts[k];
+            pos.push(cv.x, cv.y, cv.z);
+            uv.push(uf * 2.0, lerp(UV_BANDS.cloak.vMin, UV_BANDS.cloak.vMax, arc[k] / totArc));
+            const pleatAO = 0.89 + 0.11 * clamp(cv.pleats / 0.028, -1, 1);
+            const liningAO = cv.inner ? 0.42 : lerp(1.0, 0.74, Math.pow(cv.vf, 1.4));
+            const ao = clamp(pleatAO * liningAO, 0.30, 1.0);
+            col.push(baseC.r * ao, baseC.g * ao, baseC.b * ao);
+          }
+        }
+
+        const stride = profCount;
+        for (let iu = 0; iu < uSegs; iu++) {
+          for (let k = 0; k < profCount - 1; k++) {
+            const a = iu * stride + k;
+            const b = (iu + 1) * stride + k;
+            const c = (iu + 1) * stride + (k + 1);
+            const d = iu * stride + (k + 1);
+            idx.push(a, b, c, a, c, d);
+          }
+        }
+
+        // Cap the right lapel (iu = 0) & left lapel (iu = uSegs) so no open front edge exists!
+        const addLapelCap = (iuSide, flipWinding) => {
+          const base = iuSide * stride;
+          for (let iv = 0; iv < rows; iv++) {
+            const o0 = base + iv;
+            const o1 = base + iv + 1;
+            const i1 = base + (rows * 2 + 1 - (iv + 1));
+            const i0 = base + (rows * 2 + 1 - iv);
+            if (flipWinding) idx.push(o0, o1, i1, o0, i1, i0);
+            else idx.push(o0, i1, o1, o0, i0, i1);
+          }
+        };
+        addLapelCap(0, false);
+        addLapelCap(uSegs, true);
+
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        averageSeamNormals(g, uSegs, stride, false, true);
+        return normalizeForMerge(g);
+      };
+
+      // Main Long Flowing Cloak + High Collar (y = 1.44 down to y = 0.18)
+      cloakGeos.push(buildCloakLayer(vRows, 1.44, 0.18, 0.155, 0.34, 0x4f454c, false));
+
+      // Layered Scalloped Shoulder Capelet (Pelerine, y = 1.38 down to y = 1.13)
+      cloakGeos.push(buildCloakLayer(isHero ? 5 : 2, 1.38, 1.13, 0.168, 0.268, 0x5c4f54, true));
+
+      return assemblePartMeshes(grp, { cloak: cloakGeos });
+    }
+
+    // G. Right Skeletal Arm + Tattered Sleeve + Articulated Hand ("搓指算帳") + Floating Gold Coin
+    function buildPartArmR(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Arm_R';
+      grp.position.set(-0.205, 0.39, 0.005); // Right shoulder relative to Part_Torso_Ribcage -> World (-0.205, 1.30, -0.01)
+
+      const boneGeos = [];
+      const cloakGeos = [];
+
+      // Humerus (shoulder -> elbow)
+      const humCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(-0.045, -0.115, 0.018),
+        new THREE.Vector3(-0.068, -0.235, 0.045)
+      ]);
+      boneGeos.push(buildSweptCurveLoft({
+        curve: humCurve, tubularSegs: isHero ? 8 : 4, radialSegs: isHero ? 6 : 4,
+        rxFn: (s) => 0.013 * (1.25 - 0.35 * Math.sin(s * Math.PI)),
+        rbFn: (s) => 0.013 * (1.25 - 0.35 * Math.sin(s * Math.PI)),
+        band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xeee2c8
+      }));
+
+      // Draped Merchant Sleeve & Flared Bell Cuff covering upper arm & elbow
+      const sleeveCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.01, 0.01, -0.005),
+        new THREE.Vector3(-0.045, -0.115, 0.018),
+        new THREE.Vector3(-0.066, -0.228, 0.046),
+        new THREE.Vector3(-0.042, -0.215, 0.118)
+      ]);
+      cloakGeos.push(buildSweptCurveLoft({
+        curve: sleeveCurve, tubularSegs: isHero ? 9 : 4, radialSegs: isHero ? 9 : 5,
+        profileShape: 'squircle', squirclePower: 2.6,
+        rxFn: (s) => lerp(0.048, 0.062, Math.pow(s, 1.4)) * (1.0 + 0.12 * Math.sin(s * Math.PI * 3)),
+        rbFn: (s) => lerp(0.044, 0.056, Math.pow(s, 1.4)),
+        band: UV_BANDS.cloak, capMode: 'bevel1', tintHex: 0x574c52,
+        aoFn: (s) => s > 0.85 ? 0.45 : lerp(0.85, 0.96, s)
+      }));
+
+      // Paired Radius & Ulna Forearm Bones reaching forward into inviting merchant gesture
+      const elbowPt = new THREE.Vector3(-0.068, -0.235, 0.045);
+      const wristPt = new THREE.Vector3(-0.008, -0.165, 0.255);
+
+      [-0.009, 0.009].forEach((offset, idxBone) => {
+        const foreCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(elbowPt.x + offset, elbowPt.y, elbowPt.z),
+          new THREE.Vector3(lerp(elbowPt.x, wristPt.x, 0.5) + offset * 1.4, lerp(elbowPt.y, wristPt.y, 0.5) - 0.008, lerp(elbowPt.z, wristPt.z, 0.5)),
+          new THREE.Vector3(wristPt.x + offset * 0.9, wristPt.y, wristPt.z)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: foreCurve, tubularSegs: isHero ? 7 : 3, radialSegs: isHero ? 5 : 4,
+          rxFn: (s) => (idxBone === 0 ? 0.0085 : 0.0075) * (1.15 - 0.25 * Math.sin(s * Math.PI)),
+          rbFn: (s) => (idxBone === 0 ? 0.0080 : 0.0070) * (1.15 - 0.25 * Math.sin(s * Math.PI)),
+          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf0e4ca
+        }));
+      });
+
+      // Skeletal Carpal Palm Cluster (tilted slightly palm-up)
+      const palm = buildSculptedBoneBlob(0.024, 0.012, 0.026, isHero ? 7 : 4, isHero ? 5 : 3, UV_BANDS.bone, 0xf2e6cc);
+      palm.rotateX(-0.22);
+      palm.rotateZ(0.28);
+      palm.translate(wristPt.x + 0.004, wristPt.y + 0.005, wristPt.z + 0.022);
+      boneGeos.push(palm);
+
+      // 5 Articulated Phalanx Fingers in "搓指算帳 / 招攬顧客" Pinch-Rub Pose
+      const fingerSpecs = [
+        // Thumb (opposing upward toward index & middle)
+        [[-0.020, -0.155, 0.268], [-0.024, -0.132, 0.288], [-0.010, -0.114, 0.308]],
+        // Index finger (arched forward rubbing thumb)
+        [[-0.015, -0.152, 0.292], [-0.010, -0.128, 0.318], [-0.005, -0.115, 0.312]],
+        // Middle finger (gently poised next to index)
+        [[ 0.000, -0.154, 0.296], [ 0.006, -0.128, 0.324], [ 0.002, -0.116, 0.318]],
+        // Ring finger (curled inward toward palm)
+        [[ 0.012, -0.158, 0.292], [ 0.018, -0.146, 0.314], [ 0.010, -0.140, 0.298]],
+        // Little finger (curled inward)
+        [[ 0.022, -0.162, 0.286], [ 0.026, -0.154, 0.304], [ 0.018, -0.148, 0.292]]
+      ];
+      fingerSpecs.forEach((pts, fi) => {
+        const fc = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+        boneGeos.push(buildSweptCurveLoft({
+          curve: fc, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 5 : 3,
+          rxFn: (s) => (fi === 0 ? 0.0055 : 0.0044) * (1.0 - s * 0.28) * (0.88 + 0.22 * Math.abs(Math.sin(s * Math.PI * 2))),
+          rbFn: (s) => (fi === 0 ? 0.0052 : 0.0042) * (1.0 - s * 0.28) * (0.88 + 0.22 * Math.abs(Math.sin(s * Math.PI * 2))),
+          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf4e8ce
+        }));
+      });
+
+      assemblePartMeshes(grp, { bone: boneGeos, cloak: cloakGeos });
+
+      // Unity Hand Socket right above the pinching fingertips
+      const sockHandR = new THREE.Object3D();
+      sockHandR.name = 'Socket_Hand_R';
+      sockHandR.position.set(-0.004, -0.078, 0.315); // World ≈ (-0.21, 1.22, +0.30)
+      grp.add(sockHandR);
+
+      // Floating Glowing Ancient Gold Coin hovering above his fingertips
+      const coinGrp = new THREE.Group();
+      coinGrp.name = 'Prop_FloatingCoin';
+      coinGrp.position.copy(sockHandR.position);
+
+      const coinShape = new THREE.Shape();
+      coinShape.absarc(0, 0, 0.024, 0, Math.PI * 2, false);
+      const coinDisc = buildBeveledExtrude(coinShape, { depth: 0.003, bevelSegments: 3, bevelSize: 0.0025, bevelThickness: 0.0025, curveSegments: isHero ? 8 : 4 }, UV_BANDS.brass, 0xffd76e);
+
+      const coinRim = new THREE.Shape();
+      coinRim.absarc(0, 0, 0.021, 0, Math.PI * 2, false);
+      const coinHole = new THREE.Path();
+      coinHole.absarc(0, 0, 0.015, 0, Math.PI * 2, true);
+      coinRim.holes.push(coinHole);
+      const rimMesh = buildBeveledExtrude(coinRim, { depth: 0.006, bevelSegments: 3, bevelSize: 0.0015, bevelThickness: 0.0015, curveSegments: isHero ? 8 : 4 }, UV_BANDS.brass, 0xffe494);
+
+      const coinBrass = new THREE.Mesh(safeMerge([coinDisc, rimMesh]), MATS.brass);
+      coinBrass.name = 'Prop_FloatingCoin_Brass';
+      coinBrass.castShadow = true;
+      coinGrp.add(coinBrass);
+
+      const runeCore = buildSculptedBoneBlob(0.011, 0.011, 0.0045, isHero ? 6 : 4, isHero ? 4 : 3, UV_BANDS.candleWarm, 0xffe288);
+      const coinRune = new THREE.Mesh(runeCore, MATS.rune);
+      coinRune.name = 'Prop_FloatingCoin_Rune';
+      coinGrp.add(coinRune);
+
+      grp.add(coinGrp);
+
+      return grp;
+    }
+
+    // H. Left Skeletal Arm + Gnarled Root-Wood Cane w/ Brass Skull Pommel + Hanging Iron-Cage Soul Lantern
+    function buildPartArmL(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Arm_L';
+      grp.position.set(0.205, 0.39, 0.005); // Left shoulder relative to Part_Torso_Ribcage -> World (+0.205, 1.30, -0.01)
+
+      const boneGeos = [];
+      const cloakGeos = [];
+      const woodGeos = [];
+      const brassGeos = [];
+      const runeGeos = [];
+
+      // Humerus & Elbow
+      const humCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.055, -0.125, 0.025),
+        new THREE.Vector3(0.095, -0.245, 0.068)
+      ]);
+      boneGeos.push(buildSweptCurveLoft({
+        curve: humCurve, tubularSegs: isHero ? 10 : 5, radialSegs: isHero ? 8 : 4,
+        rxFn: (s) => 0.013 * (1.2 - 0.3 * Math.sin(s * Math.PI)),
+        rbFn: (s) => 0.013 * (1.2 - 0.3 * Math.sin(s * Math.PI)),
+        band: UV_BANDS.bone, capMode: 'bevel3', tintHex: 0xeee2c8
+      }));
+
+      // Draped Left Sleeve
+      const sleeveCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.01, 0.01, -0.005),
+        new THREE.Vector3(0.055, -0.125, 0.025),
+        new THREE.Vector3(0.095, -0.238, 0.072),
+        new THREE.Vector3(0.112, -0.252, 0.125)
+      ]);
+      cloakGeos.push(buildSweptCurveLoft({
+        curve: sleeveCurve, tubularSegs: isHero ? 9 : 4, radialSegs: isHero ? 9 : 5,
+        profileShape: 'squircle', squirclePower: 2.6,
+        rxFn: (s) => lerp(0.048, 0.060, Math.pow(s, 1.3)),
+        rbFn: (s) => lerp(0.044, 0.054, Math.pow(s, 1.3)),
+        band: UV_BANDS.cloak, capMode: 'bevel1', tintHex: 0x574c52,
+        aoFn: (s) => s > 0.85 ? 0.45 : 0.90
+      }));
+
+      // Forearm bones reaching cane grip at local (+0.125, -0.265, +0.185) -> World (+0.330, 1.035, +0.175)
+      const elbowPt = new THREE.Vector3(0.095, -0.245, 0.068);
+      const gripPt = new THREE.Vector3(0.125, -0.265, 0.185);
+      [-0.008, 0.008].forEach((offset) => {
+        const fc = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(elbowPt.x + offset, elbowPt.y, elbowPt.z),
+          new THREE.Vector3(lerp(elbowPt.x, gripPt.x, 0.5) + offset * 1.3, lerp(elbowPt.y, gripPt.y, 0.5) - 0.005, lerp(elbowPt.z, gripPt.z, 0.5)),
+          new THREE.Vector3(gripPt.x + offset * 0.8, gripPt.y, gripPt.z)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: fc, tubularSegs: isHero ? 7 : 3, radialSegs: isHero ? 5 : 4,
+          rxFn: 0.008, rbFn: 0.0075, band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf0e4ca
+        }));
+      });
+
+      // Skeletal Fingers wrapping securely around cane shaft
+      const handPalm = buildSculptedBoneBlob(0.020, 0.024, 0.015, isHero ? 6 : 4, isHero ? 5 : 3, UV_BANDS.bone, 0xf2e6cc);
+      handPalm.translate(gripPt.x + 0.008, gripPt.y, gripPt.z);
+      boneGeos.push(handPalm);
+
+      for (let f = 0; f < 4; f++) {
+        const fy = gripPt.y + 0.016 - f * 0.011;
+        const wrapC = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(gripPt.x + 0.018, fy, gripPt.z + 0.004),
+          new THREE.Vector3(gripPt.x + 0.004, fy, gripPt.z + 0.022),
+          new THREE.Vector3(gripPt.x - 0.015, fy, gripPt.z + 0.014),
+          new THREE.Vector3(gripPt.x - 0.016, fy, gripPt.z - 0.004)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: wrapC, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 4 : 3,
+          rxFn: 0.0044, rbFn: 0.0042, band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf2e6cc
+        }));
+      }
+
+      // Gnarled Twisted Root-Wood Walking Cane (Angled gracefully outward clear of cloak down to world y = 0.00)
+      const caneCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.175, -1.300, 0.245), // Ground contact tip (world y = 0.00, clear of cloak)
+        new THREE.Vector3(0.160, -0.950, 0.225),
+        new THREE.Vector3(0.155, -0.600, 0.218),
+        new THREE.Vector3(0.125, -0.290, 0.186), // Hand grip
+        new THREE.Vector3(0.125, -0.175, 0.186)  // Brass collar neck
+      ]);
+      woodGeos.push(buildSweptCurveLoft({
+        curve: caneCurve, tubularSegs: isHero ? 14 : 7, radialSegs: isHero ? 6 : 4,
+        rxFn: (s) => lerp(0.012, 0.019, s) * (1.0 + 0.14 * Math.sin(s * Math.PI * 10)),
+        rbFn: (s) => lerp(0.012, 0.019, s) * (1.0 + 0.14 * Math.cos(s * Math.PI * 10)),
+        band: UV_BANDS.leather, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x8a6d56 // Bog-oak dark wood tint
+      }));
+
+      // Bottom Brass Ferrule Tip resting on y = 0.00 (local y = -1.30)
+      const ferrule = buildArcLengthLathe([
+        new THREE.Vector2(0.002, -1.300),
+        new THREE.Vector2(0.014, -1.298),
+        new THREE.Vector2(0.017, -1.255),
+        new THREE.Vector2(0.013, -1.245),
+        new THREE.Vector2(0.002, -1.245)
+      ], isHero ? 9 : 5, UV_BANDS.brass, 2.0, 0xd8b15c);
+      ferrule.translate(0.175, 0, 0.245);
+      brassGeos.push(ferrule);
+
+      // Ornate Brass Collar + Miniature Brass Skull Cane Pommel at local (0.125, -0.135, 0.186)
+      const pommelCollar = buildArcLengthLathe([
+        new THREE.Vector2(0.012, -0.195),
+        new THREE.Vector2(0.025, -0.185),
+        new THREE.Vector2(0.022, -0.168),
+        new THREE.Vector2(0.027, -0.158),
+        new THREE.Vector2(0.014, -0.152)
+      ], isHero ? 9 : 5, UV_BANDS.brass, 2.0, 0xebc56f);
+      pommelCollar.translate(0.125, 0, 0.186);
+      brassGeos.push(pommelCollar);
+
+      // Miniature Brass Skull Finial
+      const miniSkull = buildSculptedBoneBlob(0.032, 0.036, 0.036, isHero ? 8 : 5, isHero ? 6 : 4, UV_BANDS.brass, 0xefd07c, null, (v) => {
+        if (v.y < -0.012 && v.z > 0.005) { v.x *= 0.68; v.z += 0.008; }
+      });
+      miniSkull.translate(0.125, -0.122, 0.190);
+      brassGeos.push(miniSkull);
+      [-0.012, 0.012].forEach((ex) => {
+        const brow = buildSculptedBoneBlob(0.008, 0.006, 0.008, 4, 3, UV_BANDS.brass, 0x5c4620);
+        brow.translate(0.125 + ex, -0.120, 0.218);
+        brassGeos.push(brow);
+      });
+
+      // Curved Forged Brass Lantern Hook branching forward from upper cane
+      const hookCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.125, -0.215, 0.192),
+        new THREE.Vector3(0.132, -0.178, 0.245),
+        new THREE.Vector3(0.140, -0.185, 0.295),
+        new THREE.Vector3(0.140, -0.228, 0.298)
+      ]);
+      brassGeos.push(buildSweptCurveLoft({
+        curve: hookCurve, tubularSegs: isHero ? 8 : 4, radialSegs: isHero ? 5 : 3,
+        rxFn: 0.0045, rbFn: 0.0045, band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xd9b05a
+      }));
+
+      // Miniature Gothic Iron-Cage Soul Lantern suspended at (0.140, -0.340, 0.298) -> World (+0.345, 0.960, +0.288)
+      const lx = 0.140, ly = -0.345, lz = 0.298;
+      // Lantern Top Cap & Bottom Saucer
+      const lCap = buildArcLengthLathe([
+        new THREE.Vector2(0.001, ly + 0.105),
+        new THREE.Vector2(0.012, ly + 0.088),
+        new THREE.Vector2(0.044, ly + 0.068),
+        new THREE.Vector2(0.048, ly + 0.060),
+        new THREE.Vector2(0.036, ly + 0.056),
+        new THREE.Vector2(0.001, ly + 0.056)
+      ], isHero ? 9 : 5, UV_BANDS.brass, 2.0, 0xd1a854);
+      lCap.translate(lx, 0, lz);
+      brassGeos.push(lCap);
+
+      const lBase = buildArcLengthLathe([
+        new THREE.Vector2(0.001, ly - 0.088),
+        new THREE.Vector2(0.014, ly - 0.068),
+        new THREE.Vector2(0.042, ly - 0.055),
+        new THREE.Vector2(0.046, ly - 0.048),
+        new THREE.Vector2(0.034, ly - 0.044),
+        new THREE.Vector2(0.001, ly - 0.044)
+      ], isHero ? 9 : 5, UV_BANDS.brass, 2.0, 0xc79e4a);
+      lBase.translate(lx, 0, lz);
+      brassGeos.push(lBase);
+
+      // 6 Curved Iron-Cage Ribs
+      const nCage = 6;
+      for (let c = 0; c < nCage; c++) {
+        const ang = (c / nCage) * Math.PI * 2;
+        const dx = Math.cos(ang), dz = Math.sin(ang);
+        const ribC = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(lx + dx * 0.038, ly + 0.058, lz + dz * 0.038),
+          new THREE.Vector3(lx + dx * 0.052, ly + 0.006, lz + dz * 0.052),
+          new THREE.Vector3(lx + dx * 0.038, ly - 0.046, lz + dz * 0.038)
+        ]);
+        brassGeos.push(buildSweptCurveLoft({
+          curve: ribC, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 4 : 3,
+          rxFn: 0.0032, rbFn: 0.0032, band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xb08a3c
+        }));
+      }
+
+      // Spectral Soul-Fire Flame Core inside the Cage Lantern (MAT_Emissive_Rune, Band 5a Cyan)
+      const soulCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(lx, ly - 0.032, lz),
+        new THREE.Vector3(lx + 0.002, ly + 0.002, lz),
+        new THREE.Vector3(lx - 0.001, ly + 0.042, lz)
+      ]);
+      runeGeos.push(buildSweptCurveLoft({
+        curve: soulCurve, tubularSegs: isHero ? 5 : 3, radialSegs: isHero ? 5 : 3,
+        rxFn: (s) => 0.024 * Math.sin(clamp(s, 0.02, 0.98) * Math.PI) * (1.0 - s * 0.38),
+        rbFn: (s) => 0.024 * Math.sin(clamp(s, 0.02, 0.98) * Math.PI) * (1.0 - s * 0.38),
+        band: UV_BANDS.soulCyan, capMode: 'open', tintHex: 0x70f0ff
+      }));
+
+      assemblePartMeshes(grp, { bone: boneGeos, cloak: cloakGeos, leather: woodGeos, brass: brassGeos, rune: runeGeos });
+
+      const sockHandL = new THREE.Object3D();
+      sockHandL.name = 'Socket_Hand_L';
+      sockHandL.position.set(lx, ly, lz); // World ≈ (+0.345, 0.955, +0.288)
+      grp.add(sockHandL);
+
+      return grp;
+    }
+
+    // I. Heavy Merchant Leather Belt, Beveled Buckle, Part_CoinPouch, Part_KeyRing & Rolled Ledger
+    function buildPartBeltAccessories(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Belt_Accessories';
+
+      const leatherGeos = [];
+      const brassGeos = [];
+      const paperGeos = [];
+
+      // 1. Thick Beveled Merchant Waist Belt (y ≈ 0.875)
+      const beltSegs = isHero ? 20 : 10;
+      const beltPts = [];
+      for (let i = 0; i <= beltSegs; i++) {
+        const a = (i / beltSegs) * Math.PI * 2;
+        const sA = Math.sin(a), cA = Math.cos(a);
+        beltPts.push(new THREE.Vector3(cA * 0.168, 0.878 - sA * 0.016, sA * 0.128));
+      }
+      leatherGeos.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3(beltPts, true),
+        tubularSegs: beltSegs, radialSegs: isHero ? 6 : 4,
+        rxFn: 0.011, rbFn: 0.032, profileShape: 'squircle', squirclePower: 3.4,
+        band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0xa27e62
+      }));
+
+      // 2. Heavy Beveled Tarnished-Brass Belt Buckle at Front (+Z)
+      const bShape = new THREE.Shape();
+      bShape.moveTo(-0.036, -0.042); bShape.lineTo(0.036, -0.042);
+      bShape.lineTo(0.042, 0.0);
+      bShape.lineTo(0.036, 0.042); bShape.lineTo(-0.036, 0.042);
+      bShape.lineTo(-0.042, 0.0); bShape.closePath();
+      const bHole = new THREE.Path();
+      bHole.moveTo(-0.020, -0.024); bHole.lineTo(0.020, -0.024);
+      bHole.lineTo(0.020, 0.024); bHole.lineTo(-0.020, 0.024); bHole.closePath();
+      bShape.holes.push(bHole);
+      const beltBuckle = buildBeveledExtrude(bShape, { depth: 0.008, bevelSegments: 3, bevelSize: 0.005, bevelThickness: 0.005, curveSegments: 1 }, UV_BANDS.brass, 0xebc66e);
+      beltBuckle.translate(0, 0.862, 0.138);
+      brassGeos.push(beltBuckle);
+
+      const prong = buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3([new THREE.Vector3(-0.022, 0.862, 0.145), new THREE.Vector3(0.024, 0.862, 0.145)]),
+        tubularSegs: 2, radialSegs: 3, rxFn: 0.004, rbFn: 0.004,
+        band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xd4aa52
+      });
+      brassGeos.push(prong);
+
+      // 3. Rolled Parchment Ledger tucked diagonally into left-rear belt
+      const scrollC = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.115, 0.775, -0.125),
+        new THREE.Vector3(0.145, 0.845, -0.095),
+        new THREE.Vector3(0.175, 0.915, -0.065)
+      ]);
+      paperGeos.push(buildSweptCurveLoft({
+        curve: scrollC, tubularSegs: isHero ? 6 : 3, radialSegs: isHero ? 6 : 4,
+        rxFn: (s) => 0.022 * (1.0 + 0.08 * Math.sin(s * Math.PI * 3)),
+        rbFn: (s) => 0.022 * (1.0 + 0.08 * Math.sin(s * Math.PI * 3)),
+        band: UV_BANDS.bone, capMode: 'bevel1', tintHex: 0xebd9ad
+      }));
+      // Leather strap holding scroll
+      const sStrap = buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0.132, 0.860, -0.112),
+          new THREE.Vector3(0.165, 0.848, -0.082),
+          new THREE.Vector3(0.155, 0.828, -0.098),
+          new THREE.Vector3(0.132, 0.860, -0.112)
+        ], true),
+        tubularSegs: isHero ? 6 : 4, radialSegs: 3,
+        rxFn: 0.005, rbFn: 0.008, band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0x8c6b50
+      });
+      leatherGeos.push(sStrap);
+
+      assemblePartMeshes(grp, { leather: leatherGeos, brass: brassGeos, bone: paperGeos });
+
+      // 4. Dedicated Named Sub-Group: Part_CoinPouch (Right Hip — positioned forward beside cloak opening)
+      const pouchGrp = new THREE.Group();
+      pouchGrp.name = 'Part_CoinPouch';
+      pouchGrp.position.set(-0.172, 0.775, 0.096);
+      pouchGrp.rotation.z = -0.14;
+
+      const pLeather = [], pBrass = [];
+      // Plump gathered coin pouch via multi-ring Lathe with radial pleat ripples
+      const pProf = [
+        new THREE.Vector2(0.001, -0.092),
+        new THREE.Vector2(0.042, -0.086),
+        new THREE.Vector2(0.056, -0.055),
+        new THREE.Vector2(0.048, -0.015),
+        new THREE.Vector2(0.022,  0.022), // Cinched drawstring neck
+        new THREE.Vector2(0.034,  0.046), // Flared ruffle top
+        new THREE.Vector2(0.024,  0.048),
+        new THREE.Vector2(0.001,  0.032)
+      ];
+      const pouchLathe = buildArcLengthLathe(pProf, isHero ? 12 : 6, UV_BANDS.leather, 2.5, 0xb58d6b, [0.65, 0.85, 1.0, 0.92, 0.55, 0.95, 0.78, 0.5]);
+      // Add subtle drawstring wrinkle around waist
+      const pPos = pouchLathe.getAttribute('position');
+      for (let i = 0; i < pPos.count; i++) {
+        const px = pPos.getX(i), py = pPos.getY(i), pz = pPos.getZ(i);
+        const ang = Math.atan2(pz, px);
+        const pleat = 1.0 + 0.14 * Math.sin(ang * 7.0) * smoothstep(-0.04, 0.045, py);
+        pPos.setXYZ(i, px * pleat, py, pz * pleat);
+      }
+      pouchLathe.computeVertexNormals();
+      pLeather.push(pouchLathe);
+
+      // Belt suspension loop + brass cinch ring
+      pLeather.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0.015, 0.082, -0.012),
+          new THREE.Vector3(-0.008, 0.055, -0.005),
+          new THREE.Vector3(-0.010, 0.022, 0.0)
+        ]),
+        tubularSegs: 3, radialSegs: 3, rxFn: 0.006, rbFn: 0.010,
+        band: UV_BANDS.leather, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x997356
+      }));
+
+      const cinchSegs = isHero ? 8 : 5;
+      const cinchPts = [];
+      for (let i = 0; i <= cinchSegs; i++) {
+        const a = (i / cinchSegs) * Math.PI * 2;
+        cinchPts.push(new THREE.Vector3(Math.cos(a) * 0.024, 0.022, Math.sin(a) * 0.024));
+      }
+      pBrass.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3(cinchPts, true),
+        tubularSegs: cinchSegs, radialSegs: 3, rxFn: 0.004, rbFn: 0.004,
+        band: UV_BANDS.brass, capMode: 'closedLoop', tintHex: 0xe2bc64
+      }));
+      assemblePartMeshes(pouchGrp, { leather: pLeather, brass: pBrass });
+      grp.add(pouchGrp);
+
+      // 5. Dedicated Named Sub-Group: Part_KeyRing (Left Hip — shifted forward for crisp visibility)
+      const keyGrp = new THREE.Group();
+      keyGrp.name = 'Part_KeyRing';
+      keyGrp.position.set(0.172, 0.798, 0.090);
+
+      const kLeather = [], kBrass = [];
+      kLeather.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3([
+          new THREE.Vector3(-0.015, 0.068, -0.012),
+          new THREE.Vector3(0.006, 0.040, -0.005),
+          new THREE.Vector3(0.008, 0.012, 0)
+        ]),
+        tubularSegs: 3, radialSegs: 3, rxFn: 0.006, rbFn: 0.010,
+        band: UV_BANDS.leather, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x997356
+      }));
+
+      const keyRingSegs = isHero ? 8 : 5;
+      const ringPts = [];
+      for (let i = 0; i <= keyRingSegs; i++) {
+        const a = (i / keyRingSegs) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(0.008, Math.sin(a) * 0.022, Math.cos(a) * 0.022));
+      }
+      kBrass.push(buildSweptCurveLoft({
+        curve: new THREE.CatmullRomCurve3(ringPts, true),
+        tubularSegs: keyRingSegs, radialSegs: 3, rxFn: 0.0035, rbFn: 0.0035,
+        band: UV_BANDS.brass, capMode: 'closedLoop', tintHex: 0xd6ad54
+      }));
+
+      // 3 Forged Dungeon Skeleton Keys hanging at natural splayed angles
+      [-0.18, 0.02, 0.22].forEach((rotX, ki) => {
+        const len = 0.085 + (ki % 2) * 0.018;
+        const keyShank = buildSweptCurveLoft({
+          curve: new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0.008, -0.020, 0),
+            new THREE.Vector3(0.008, -0.020 - len, 0)
+          ]),
+          tubularSegs: 2, radialSegs: 3, rxFn: 0.0032, rbFn: 0.0032,
+          band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xc29844
+        });
+        const bowShape = new THREE.Shape();
+        bowShape.absarc(0, 0, 0.014, 0, Math.PI * 2, false);
+        const bowHole = new THREE.Path();
+        bowHole.absarc(0, 0, 0.007, 0, Math.PI * 2, true);
+        bowShape.holes.push(bowHole);
+        const bow = buildBeveledExtrude(bowShape, { depth: 0.004, bevelSegments: 3, bevelSize: 0.002, bevelThickness: 0.002, curveSegments: isHero ? 6 : 3 }, UV_BANDS.brass, 0xd8b15c);
+        bow.rotateY(Math.PI * 0.5);
+        bow.translate(0.008, -0.022, 0);
+
+        const bitShape = new THREE.Shape();
+        bitShape.moveTo(0, 0); bitShape.lineTo(0.018, 0);
+        bitShape.lineTo(0.018, 0.008);
+        if (isHero) {
+          bitShape.lineTo(0.012, 0.008);
+          bitShape.lineTo(0.012, 0.004); bitShape.lineTo(0.007, 0.004);
+        }
+        bitShape.lineTo(0.007, 0.011); bitShape.lineTo(0, 0.011);
+        bitShape.closePath();
+        const bit = buildBeveledExtrude(bitShape, { depth: 0.0035, bevelSegments: 3, bevelSize: 0.0012, bevelThickness: 0.0012, curveSegments: 1 }, UV_BANDS.brass, 0xc79e4a);
+        bit.rotateY(Math.PI * 0.5);
+        bit.translate(0.008, -0.020 - len + 0.005, 0.002);
+
+        const kOne = safeMerge([keyShank, bow, bit]);
+        kOne.rotateX(rotX);
+        kOne.rotateZ(ki * 0.08 - 0.06);
+        kBrass.push(kOne);
+      });
+      assemblePartMeshes(keyGrp, { leather: kLeather, brass: kBrass });
+      grp.add(keyGrp);
+
+      return grp;
+    }
+
+    // J. Tattered Trousers & Buckled Cuffed Leather Boots Grounded Strictly at y = 0.00
+    function buildPartLegsBoots(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_Legs_Boots';
+
+      const cloakGeos = [];
+      const leatherGeos = [];
+      const brassGeos = [];
+      const boneGeos = [];
+
+      // Pelvis / Draped Pleated Breeches Transition (tapered cleanly into hip sockets y = 0.70 - 0.89)
+      const waistProf = [
+        new THREE.Vector2(0.002, 0.69),
+        new THREE.Vector2(0.095, 0.70),
+        new THREE.Vector2(0.132, 0.78),
+        new THREE.Vector2(0.132, 0.88),
+        new THREE.Vector2(0.002, 0.89)
+      ];
+      const waist = buildArcLengthLathe(waistProf, isHero ? 12 : 6, UV_BANDS.cloak, 2.5, 0x453c42, [0.42, 0.62, 0.80, 0.72, 0.50]);
+      const wPos = waist.getAttribute('position');
+      for (let i = 0; i < wPos.count; i++) {
+        const wx = wPos.getX(i), wy = wPos.getY(i), wz = wPos.getZ(i);
+        const ang = Math.atan2(wz, wx);
+        const fold = 1.0 + 0.055 * Math.cos(ang * 6.0);
+        wPos.setXYZ(i, wx * 1.02 * fold, wy, wz * 0.76 * fold);
+      }
+      waist.computeVertexNormals();
+      cloakGeos.push(waist);
+
+      const legSpecs = [
+        { side: -1, hipX: -0.095, footX: -0.118, footZ:  0.030, yaw: -0.16 }, // Right leg
+        { side:  1, hipX:  0.095, footX:  0.118, footZ: -0.015, yaw:  0.20 }  // Left leg
+      ];
+
+      legSpecs.forEach((leg) => {
+        const { hipX, footX, footZ, yaw } = leg;
+        const fwdX = Math.sin(yaw), fwdZ = Math.cos(yaw);
+
+        // 1. Baggy Tattered Medieval Breeches (hip y=0.80 -> knee y=0.44)
+        const trouserCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(hipX, 0.80, 0.0),
+          new THREE.Vector3(lerp(hipX, footX, 0.5), 0.62, footZ * 0.5 + 0.015),
+          new THREE.Vector3(footX, 0.44, footZ)
+        ]);
+        cloakGeos.push(buildSweptCurveLoft({
+          curve: trouserCurve, tubularSegs: isHero ? 7 : 4, radialSegs: isHero ? 8 : 5,
+          profileShape: 'squircle', squirclePower: 2.6,
+          rxFn: (s) => lerp(0.070, 0.054, s) * (1.0 + 0.08 * Math.sin(s * Math.PI * 3)),
+          rbFn: (s) => lerp(0.068, 0.052, s),
+          band: UV_BANDS.cloak, capMode: 'bevel1', tintHex: 0x4f454c,
+          aoFn: (s) => lerp(0.65, 0.88, 1.0 - s * 0.4)
+        }));
+
+        // 2. Exposed Skeletal Knee / Tibia Bone Peek (y = 0.36 - 0.46)
+        const tibiaCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(footX, 0.46, footZ),
+          new THREE.Vector3(footX, 0.36, footZ)
+        ]);
+        boneGeos.push(buildSweptCurveLoft({
+          curve: tibiaCurve, tubularSegs: 2, radialSegs: isHero ? 5 : 4,
+          rxFn: 0.022, rbFn: 0.022, band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xe6d9bc,
+          aoFn: () => 0.70
+        }));
+
+        // 3. Sculpted Beveled Leather Boot Sole (strictly grounded at y = 0.000, tight rounded heel welt)
+        const soleShape = new THREE.Shape();
+        soleShape.moveTo(-0.034, -0.042);
+        soleShape.bezierCurveTo(-0.040, -0.002, -0.037, 0.035, -0.043, 0.088);
+        soleShape.bezierCurveTo(-0.041, 0.132, -0.020, 0.154,  0.000, 0.158); // Rounded toe
+        soleShape.bezierCurveTo( 0.020, 0.154,  0.041, 0.132,  0.043, 0.088);
+        soleShape.bezierCurveTo( 0.037, 0.035,  0.040, -0.002, 0.034, -0.042);
+        soleShape.bezierCurveTo( 0.024, -0.058, -0.024, -0.058, -0.034, -0.042);
+        const sole = buildBeveledExtrude(soleShape, {
+          depth: 0.012, bevelSegments: 3, bevelSize: 0.005, bevelThickness: 0.005, curveSegments: isHero ? 5 : 2
+        }, UV_BANDS.leather, 0x5c4232, (vp) => clamp(0.55 + vp.y * 8.0, 0.48, 0.95));
+        sole.rotateX(Math.PI * 0.5);
+        sole.computeBoundingBox();
+        sole.translate(0, -sole.boundingBox.min.y, 0);
+        sole.rotateY(yaw);
+        sole.translate(footX, 0, footZ);
+        leatherGeos.push(sole);
+
+        // 4a. Sculpted Leather Boot Vamp & Heel Counter (seated flush inside sole top at y = 0.018..0.092)
+        const bootFoot = buildSculptedBoneBlob(0.044, 0.034, 0.102, isHero ? 10 : 5, isHero ? 8 : 4, UV_BANDS.leather, 0x916d52, null, (v) => {
+          const t = clamp((v.z / 0.102 + 1) * 0.5, 0, 1);
+          v.x *= lerp(0.92, 1.02, smoothstep(0.15, 0.70, t));
+          if (v.y > 0) {
+            const archLift = 1.0 + 0.55 * Math.exp(-Math.pow((t - 0.28) / 0.22, 2)) - 0.32 * smoothstep(0.65, 1.0, t);
+            v.y *= archLift;
+          } else {
+            v.y *= 0.65;
+          }
+          v.y += 0.008 * smoothstep(0.75, 1.0, t);
+        });
+        bootFoot.translate(0, 0.040, 0.041);
+        bootFoot.rotateY(yaw);
+        bootFoot.translate(footX, 0, footZ);
+        leatherGeos.push(bootFoot);
+
+        // 4b. Tall Cuffed Leather Boot Shaft rising cleanly from heel/ankle block up to y = 0.375
+        const shaftCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(0, 0.046, -0.008),
+          new THREE.Vector3(0, 0.130, -0.014),
+          new THREE.Vector3(0, 0.250, -0.016),
+          new THREE.Vector3(0, 0.375, -0.010)
+        ]);
+        const bootShaft = buildSweptCurveLoft({
+          curve: shaftCurve, tubularSegs: isHero ? 7 : 4, radialSegs: isHero ? 8 : 5,
+          profileShape: 'squircle', squirclePower: 2.8,
+          rxFn: (s) => lerp(0.042, 0.052, s) * (1.0 - 0.06 * Math.exp(-Math.pow((s - 0.38) / 0.16, 2))),
+          rbFn: (s) => lerp(0.044, 0.050, s),
+          band: UV_BANDS.leather, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x9b775b,
+          aoFn: (s) => clamp(0.65 + 0.32 * smoothstep(0.0, 0.5, s), 0.58, 1.0)
+        });
+        bootShaft.rotateY(yaw);
+        bootShaft.translate(footX, 0, footZ);
+        leatherGeos.push(bootShaft);
+
+        // 5. Folded-Over Rolled Leather Boot Cuff at y = 0.36 - 0.41
+        const cuffProf = [
+          new THREE.Vector2(0.042, 0.355),
+          new THREE.Vector2(0.064, 0.352),
+          new THREE.Vector2(0.068, 0.382),
+          new THREE.Vector2(0.058, 0.408),
+          new THREE.Vector2(0.040, 0.398)
+        ];
+        const cuff = buildArcLengthLathe(cuffProf, isHero ? 10 : 5, UV_BANDS.leather, 2.0, 0xaa8364, [0.55, 0.80, 1.0, 0.92, 0.55]);
+        cuff.translate(footX - fwdX * 0.010, 0, footZ - fwdZ * 0.010);
+        leatherGeos.push(cuff);
+
+        // 6. Two Buckled Leather Straps + Beveled Tarnished-Brass Buckles per Boot
+        [0.145, 0.295].forEach((sy, bi) => {
+          const sr = bi === 0 ? 0.049 : 0.052;
+          const sPtsCount = isHero ? 8 : 5;
+          const strapPts = [];
+          for (let k = 0; k <= sPtsCount; k++) {
+            const a = (k / sPtsCount) * Math.PI * 2;
+            strapPts.push(new THREE.Vector3(Math.cos(a) * sr, sy, Math.sin(a) * sr));
+          }
+          const strap = buildSweptCurveLoft({
+            curve: new THREE.CatmullRomCurve3(strapPts, true),
+            tubularSegs: sPtsCount, radialSegs: 3, rxFn: 0.0045, rbFn: 0.0085,
+            band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0x73523b
+          });
+          strap.translate(footX - fwdX * 0.014, 0, footZ - fwdZ * 0.014);
+          leatherGeos.push(strap);
+
+          const bkShape = new THREE.Shape();
+          bkShape.moveTo(-0.012, -0.013); bkShape.lineTo(0.012, -0.013);
+          bkShape.lineTo(0.012,  0.013); bkShape.lineTo(-0.012, 0.013); bkShape.closePath();
+          if (isHero) {
+            const bkHole = new THREE.Path();
+            bkHole.moveTo(-0.006, -0.007); bkHole.lineTo(0.006, -0.007);
+            bkHole.lineTo(0.006,  0.007); bkHole.lineTo(-0.006, 0.007); bkHole.closePath();
+            bkShape.holes.push(bkHole);
+          }
+          const buckle = buildBeveledExtrude(bkShape, { depth: 0.004, bevelSegments: 3, bevelSize: 0.002, bevelThickness: 0.002, curveSegments: 1 }, UV_BANDS.brass, 0xe2bc64);
+          buckle.rotateY(yaw + leg.side * 0.45);
+          buckle.translate(footX + leg.side * 0.046, sy, footZ + fwdZ * 0.016);
+          brassGeos.push(buckle);
+        });
+      });
+
+      return assemblePartMeshes(grp, { cloak: cloakGeos, leather: leatherGeos, brass: brassGeos, bone: boneGeos });
+    }
+
+    // =========================================================================
+    // 7. NON-EXPORTED STAGE COBBLESTONE PLINTH & SOCKET GIZMO PREVIEW
+    // =========================================================================
+    const stageBaseGroup = new THREE.Group();
+    stageBaseGroup.name = 'Stage_StoneBase_NO_EXPORT';
+
+    // Beveled circular medieval cobblestone plinth sitting strictly below y = 0.000
+    (function buildStageStoneBase() {
+      const stoneProfile = [
+        new THREE.Vector2(0.001, -0.085),
+        new THREE.Vector2(0.68,  -0.085),
+        new THREE.Vector2(0.71,  -0.068),
+        new THREE.Vector2(0.69,  -0.022),
+        new THREE.Vector2(0.65,  -0.004),
+        new THREE.Vector2(0.62,   0.000),
+        new THREE.Vector2(0.001,  0.000)
+      ];
+      const stoneGeom = new THREE.LatheGeometry(stoneProfile, 40);
+      stoneGeom.computeVertexNormals();
+      const stoneMat = new THREE.MeshStandardMaterial({
+        color: 0x353139,
+        roughness: 0.88,
+        metalness: 0.06
+      });
+      const stoneMesh = new THREE.Mesh(stoneGeom, stoneMat);
+      stoneMesh.receiveShadow = true;
+      stageBaseGroup.add(stoneMesh);
+
+      // Subtle bevelled stone ring trim
+      const ringShape = new THREE.Shape();
+      ringShape.absarc(0, 0, 0.56, 0, Math.PI * 2, false);
+      const ringHole = new THREE.Path();
+      ringHole.absarc(0, 0, 0.51, 0, Math.PI * 2, true);
+      ringShape.holes.push(ringHole);
+      const ringGeom = new THREE.ExtrudeGeometry(ringShape, { depth: 0.006, bevelEnabled: true, bevelSegments: 3, bevelSize: 0.004, bevelThickness: 0.004, curveSegments: 36 });
+      ringGeom.rotateX(Math.PI * 0.5);
+      ringGeom.translate(0, -0.001, 0);
+      const trimMat = new THREE.MeshStandardMaterial({ color: 0x5c4b32, roughness: 0.58, metalness: 0.55 });
+      const ringMesh = new THREE.Mesh(ringGeom, trimMat);
+      ringMesh.receiveShadow = true;
+      stageBaseGroup.add(ringMesh);
+    })();
+    scene.add(stageBaseGroup);
+
+    const floorShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(3.2, 40).rotateX(-Math.PI / 2),
+      new THREE.ShadowMaterial({ opacity: 0.42 })
+    );
+    floorShadow.position.y = -0.086;
+    floorShadow.receiveShadow = true;
+    scene.add(floorShadow);
+
+    // Visual-only Socket Gizmo Preview Group (NEVER inside assetGroup so zero export pollution!)
+    const socketPreviewGroup = new THREE.Group();
+    socketPreviewGroup.name = 'Socket_Preview_NO_EXPORT';
+    socketPreviewGroup.visible = false;
+    scene.add(socketPreviewGroup);
+
+    // =========================================================================
+    // 8. FULL ASSET ASSEMBLY, SOCKETS, COLLIDER_BODY & LOD SWITCHING
+    // =========================================================================
+    const state = {
+      lod: 'hero',
+      animSpeed: 1.0,
+      glowMultiplier: 1.0,
+      lighting: 'torch',
+      showSocketsCollider: false,
+      showStoneBase: true
+    };
+
+    let assetGroup = null;
+    let colliderMesh = null;
+    let joints = null;
+    let socketNodes = [];
+    let socketGizmos = [];
+
+    function buildSkeletonMerchant(lod = 'hero') {
+      const isHero = (lod === 'hero');
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        assetGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      }
+      while (socketPreviewGroup.children.length > 0) {
+        const c = socketPreviewGroup.children.pop();
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
+      }
+      document.getElementById('socket-labels').innerHTML = '';
+
+      const root = new THREE.Group();
+      root.name = 'NPC_01_SkeletonMerchant';
+
+      const partTorso = buildPartTorsoRibcage(isHero);
+      const partHead  = partTorso.getObjectByName('Part_Head') || buildPartHead(isHero);
+      if (!partTorso.getObjectByName('Part_Head')) {
+        partTorso.add(partHead);
+      }
+      const partArmR = buildPartArmR(isHero);
+      const partArmL = buildPartArmL(isHero);
+      partTorso.add(partArmR);
+      partTorso.add(partArmL);
+
+      const partCloak = buildPartCloak(isHero);
+      const partBelt  = buildPartBeltAccessories(isHero);
+      const partLegs  = buildPartLegsBoots(isHero);
+
+      root.add(partTorso);
+      root.add(partCloak);
+      root.add(partBelt);
+      root.add(partLegs);
+
+      // Smooth Low-Poly Capsule Collider Proxy (Zero BoxGeometry!)
+      const colGeom = new THREE.CapsuleGeometry(0.31, 1.08, 4, 12);
+      const colMesh = new THREE.Mesh(colGeom, MATS.collider);
+      colMesh.name = 'Collider_Body';
+      colMesh.position.set(0, 0.85, 0);
+      colMesh.visible = state.showSocketsCollider;
+      root.add(colMesh);
+
+      assetGroup = root;
+      colliderMesh = colMesh;
+      scene.add(assetGroup);
+
+      // Resolve all dynamic joints for animation & rest-pose reset
+      const partJaw = root.getObjectByName('Part_Jaw');
+      const partHat = root.getObjectByName('Part_Hat');
+      const partCandle = root.getObjectByName('Part_Candle');
+      const flameMesh = root.getObjectByName('Candle_FlameMesh');
+      const coinProp = root.getObjectByName('Prop_FloatingCoin');
+
+      joints = {
+        Part_Torso_Ribcage: { obj: partTorso, restPos: partTorso.position.clone(), restRot: partTorso.rotation.clone() },
+        Part_Head:          { obj: partHead,  restPos: partHead.position.clone(),  restRot: partHead.rotation.clone() },
+        Part_Jaw:           { obj: partJaw,   restPos: partJaw.position.clone(),   restRot: partJaw.rotation.clone() },
+        Part_Hat:           { obj: partHat,   restPos: partHat.position.clone(),   restRot: partHat.rotation.clone() },
+        Part_Candle:        { obj: partCandle, restPos: partCandle.position.clone(), restRot: partCandle.rotation.clone() },
+        Candle_FlameMesh:   { obj: flameMesh, restPos: flameMesh.position.clone(), restRot: flameMesh.rotation.clone(), restScale: flameMesh.scale.clone() },
+        Part_Arm_R:         { obj: partArmR,  restPos: partArmR.position.clone(),  restRot: partArmR.rotation.clone() },
+        Part_Arm_L:         { obj: partArmL,  restPos: partArmL.position.clone(),  restRot: partArmL.rotation.clone() },
+        Prop_FloatingCoin:  { obj: coinProp,  restPos: coinProp.position.clone(),  restRot: coinProp.rotation.clone() }
+      };
+
+      // Collect all 7 required Unity Socket_* Transform nodes and create visual preview gizmos outside assetGroup
+      const expectedSockets = [
+        'Socket_Head',
+        'Socket_InteractPrompt',
+        'Socket_Hand_R',
+        'Socket_Hand_L',
+        'Socket_VFX_SoulEye_L',
+        'Socket_VFX_SoulEye_R',
+        'Socket_VFX_Candle'
+      ];
+      socketNodes = [];
+      socketGizmos = [];
+      const labelsRoot = document.getElementById('socket-labels');
+
+      expectedSockets.forEach((sName) => {
+        const node = root.getObjectByName(sName);
+        if (!node) return;
+        socketNodes.push(node);
+
+        const isVfx = sName.includes('VFX');
+        const gCol = isVfx ? 0x38bdf8 : 0xfbbf24;
+        const gMesh = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.022, 1),
+          new THREE.MeshBasicMaterial({ color: gCol, wireframe: true })
+        );
+        socketPreviewGroup.add(gMesh);
+
+        const labelEl = document.createElement('div');
+        labelEl.className = 'sock-tag';
+        labelEl.textContent = sName;
+        labelsRoot.appendChild(labelEl);
+
+        socketGizmos.push({ node, gizmo: gMesh, labelEl });
+      });
+
+      applyLightingPreset(state.lighting);
+      applyLiveAnimation(0, 0);
+      updateHUDStats();
+    }
+
+    // =========================================================================
+    // 9. LIGHTING PRESETS, LIVE ANIMATION & PRE-EXPORT REST-POSE RESET
+    // =========================================================================
+    const LIGHTING_PRESETS = {
+      torch: {
+        bg: 0x161218, fogDensity: 0.032, envIntensity: 0.68, exposure: 1.12,
+        hemiSky: 0x9b8db8, hemiGround: 0x382418, hemiInt: 0.72,
+        keyColor: 0xffad5c, keyInt: 2.35, keyPos: [-2.4, 3.6, 2.8],
+        rimColor: 0x5ea6eb, rimInt: 1.10,
+        pointColor: 0x4ce2ff, pointBase: 2.7
+      },
+      moon: {
+        bg: 0x0b111e, fogDensity: 0.036, envIntensity: 0.56, exposure: 1.08,
+        hemiSky: 0x6b8cc7, hemiGround: 0x161420, hemiInt: 0.65,
+        keyColor: 0xa4c8ff, keyInt: 1.85, keyPos: [2.2, 4.0, 2.4],
+        rimColor: 0x6590d6, rimInt: 0.95,
+        pointColor: 0x3ee8ff, pointBase: 3.1
+      },
+      studio: {
+        bg: 0x262b33, fogDensity: 0.012, envIntensity: 1.05, exposure: 1.08,
+        hemiSky: 0xe6edf7, hemiGround: 0x484038, hemiInt: 0.95,
+        keyColor: 0xfff1dc, keyInt: 2.15, keyPos: [-2.2, 3.8, 3.2],
+        rimColor: 0x9ec0e8, rimInt: 0.95,
+        pointColor: 0x62e5ff, pointBase: 1.8
+      }
+    };
+
+    function applyLightingPreset(key) {
+      state.lighting = key;
+      const p = LIGHTING_PRESETS[key] || LIGHTING_PRESETS.torch;
+      scene.background.setHex(p.bg);
+      scene.fog.color.setHex(p.bg);
+      scene.fog.density = p.fogDensity;
+      scene.environmentIntensity = p.envIntensity;
+      renderer.toneMappingExposure = p.exposure;
+      hemiLight.color.setHex(p.hemiSky);
+      hemiLight.groundColor.setHex(p.hemiGround);
+      hemiLight.intensity = p.hemiInt;
+      keyLight.color.setHex(p.keyColor);
+      keyLight.intensity = p.keyInt;
+      keyLight.position.set(...p.keyPos);
+      rimLight.color.setHex(p.rimColor);
+      rimLight.intensity = p.rimInt;
+      soulPointLight.color.setHex(p.pointColor);
+      document.querySelectorAll('[data-light]').forEach(b => b.classList.toggle('active', b.dataset.light === key));
+    }
+
+    let animTime = 0;
+    const tmpV = new THREE.Vector3();
+
+    function applyLiveAnimation(dt, wallTime) {
+      if (!joints) return;
+
+      if (dt > 0 && state.animSpeed > 0.0001) {
+        animTime += dt * state.animSpeed;
+        const t = animTime;
+
+        // 1. Torso subtle breathing & crafty merchant hunch sway
+        const torso = joints.Part_Torso_Ribcage;
+        const breath = Math.sin(t * 1.45);
+        torso.obj.position.y = torso.restPos.y + breath * 0.0045;
+        torso.obj.rotation.set(
+          torso.restRot.x + breath * 0.020,
+          torso.restRot.y + Math.sin(t * 0.65) * 0.019,
+          torso.restRot.z
+        );
+
+        // 2. Head curious shopkeeper scan & tilt
+        const head = joints.Part_Head;
+        head.obj.rotation.set(
+          head.restRot.x + Math.sin(t * 1.56 + 0.5) * 0.025,
+          head.restRot.y + Math.sin(t * 0.78) * 0.056,
+          head.restRot.z + Math.cos(t * 0.52) * 0.022
+        );
+
+        // 3. Jaw whispered chattering bursts
+        const jaw = joints.Part_Jaw;
+        const gate = smoothstep(0.15, 0.9, 0.5 + 0.5 * Math.sin(t * 0.85));
+        const syllable = Math.pow(Math.max(0, Math.sin(t * 7.2) * 0.7 + Math.sin(t * 11.4) * 0.3), 1.3);
+        jaw.obj.rotation.x = jaw.restRot.x + syllable * gate * 0.135;
+
+        // 4. Right arm coin-rubbing / beckoning sway + floating gold coin bob & spin
+        const armR = joints.Part_Arm_R;
+        armR.obj.rotation.set(
+          armR.restRot.x + Math.sin(t * 1.9) * 0.065,
+          armR.restRot.y + Math.cos(t * 3.8) * 0.028,
+          armR.restRot.z + Math.sin(t * 1.2) * 0.022
+        );
+
+        const coin = joints.Prop_FloatingCoin;
+        coin.obj.position.y = coin.restPos.y + Math.sin(t * 2.8) * 0.008;
+        coin.obj.rotation.set(
+          Math.sin(t * 1.8) * 0.12,
+          coin.restRot.y + t * 1.15,
+          Math.sin(t * 2.1) * 0.10
+        );
+
+        // 5. Candle flame subtle organic dance
+        const fl = joints.Candle_FlameMesh;
+        fl.obj.scale.set(
+          1.0 + Math.sin(t * 9.5) * 0.06,
+          1.0 + Math.sin(t * 12.2 + 0.7) * 0.12,
+          1.0 + Math.cos(t * 8.4) * 0.06
+        );
+      }
+
+      // Soul-fire & Candle Emission Pulse (MAT_Emissive_Rune + single PointLight)
+      const p = LIGHTING_PRESETS[state.lighting] || LIGHTING_PRESETS.torch;
+      const pulse = 1.0 + 0.16 * (0.68 * Math.sin(wallTime * 2.6) + 0.32 * Math.sin(wallTime * 9.8 + 0.8));
+      const gain = state.glowMultiplier * pulse;
+      MATS.rune.emissiveIntensity = 1.95 * gain;
+      soulPointLight.intensity = p.pointBase * gain;
+
+      const handLSock = assetGroup ? assetGroup.getObjectByName('Socket_Hand_L') : null;
+      if (handLSock) {
+        handLSock.getWorldPosition(tmpV);
+        soulPointLight.position.copy(tmpV);
+      }
+    }
+
+    function resetAllPosesForRest() {
+      if (!assetGroup || !joints) return;
+      assetGroup.position.set(0, 0, 0);
+      assetGroup.rotation.set(0, 0, 0);
+      assetGroup.scale.set(1, 1, 1);
+
+      for (const j of Object.values(joints)) {
+        if (!j.obj) continue;
+        j.obj.position.copy(j.restPos);
+        j.obj.rotation.copy(j.restRot);
+        if (j.restScale) j.obj.scale.copy(j.restScale);
+      }
+      assetGroup.updateMatrixWorld(true);
+    }
+
+    function updateSocketPreviewOverlay() {
+      if (!state.showSocketsCollider || !socketGizmos.length) return;
+      const w = window.innerWidth, h = window.innerHeight;
+      for (const item of socketGizmos) {
+        item.node.getWorldPosition(tmpV);
+        item.gizmo.position.copy(tmpV);
+        item.gizmo.rotation.y += 0.02;
+
+        const proj = tmpV.clone().project(camera);
+        if (proj.z > 1) {
+          item.labelEl.style.display = 'none';
+        } else {
+          item.labelEl.style.display = 'block';
+          item.labelEl.style.left = `${(proj.x * 0.5 + 0.5) * w}px`;
+          item.labelEl.style.top  = `${(-proj.y * 0.5 + 0.5) * h - 8}px`;
+        }
+      }
+    }
+
+    // =========================================================================
+    // 10. LIVE HUD BUDGET STATS & CAMERA PRESETS
+    // =========================================================================
+    function updateHUDStats() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, calls = 0;
+      const mats = new Set();
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.visible) {
+          calls++;
+          const g = obj.geometry;
+          const pos = g.getAttribute('position');
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+          if (obj.material && obj.material.name !== 'MAT_Collider_Proxy') {
+            mats.add(obj.material.name || obj.material.uuid);
+          }
+        }
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-calls').textContent = calls;
+      document.getElementById('stat-mats').textContent = mats.size;
+      document.getElementById('lod-badge').textContent = state.lod === 'hero' ? 'HERO LOD' : 'GAME-READY LOD';
+    }
+
+    const CAM_PRESETS = {
+      hero:    { pos: [0.75, 1.38, 2.95],   target: [0.02, 0.94, 0.02] },
+      skull:   { pos: [-0.28, 1.62, 0.72],  target: [-0.02, 1.54, 0.06] },
+      chest:   { pos: [0.22, 1.24, 0.85],   target: [0.00, 1.15, 0.08] },
+      hand:    { pos: [-0.42, 1.28, 0.76],  target: [-0.18, 1.18, 0.28] },
+      lantern: { pos: [0.68, 1.04, 0.96],   target: [0.22, 0.88, 0.16] },
+      back:    { pos: [-0.85, 1.25, -2.35], target: [0.00, 0.92, -0.05] }
+    };
+
+    let camAnim = null;
+    function goToCameraPreset(key) {
+      const p = CAM_PRESETS[key];
+      if (!p) return;
+      const isNarrow = (window.innerWidth / window.innerHeight) < 0.85;
+      const zScale = (key === 'hero' && isNarrow) ? 1.20 : 1.0;
+      camAnim = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        toPos: new THREE.Vector3(p.pos[0], p.pos[1], p.pos[2] * zScale),
+        fromTgt: controls.target.clone(),
+        toTgt: new THREE.Vector3(...p.target)
+      };
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.cam === key));
+    }
+
+    // =========================================================================
+    // 11. EXPORTS (.GLB, .OBJ, .PNG SCREENSHOT & PBR MAPS) WITH REST-POSE HOOK
+    // =========================================================================
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function setExportStatus(msg) { document.getElementById('export-status').textContent = msg; }
+
+    function captureSnapshot() {
+      const jointStates = {};
+      for (const [k, j] of Object.entries(joints || {})) {
+        if (!j.obj) continue;
+        jointStates[k] = {
+          pos: j.obj.position.clone(),
+          rot: j.obj.rotation.clone(),
+          scale: j.obj.scale.clone()
+        };
+      }
+      return {
+        animSpeed: state.animSpeed,
+        colVis: colliderMesh ? colliderMesh.visible : false,
+        wire: MATS.bone.wireframe,
+        jointStates
+      };
+    }
+
+    function restoreSnapshot(snap) {
+      for (const m of solidMaterials) m.wireframe = snap.wire;
+      if (colliderMesh) colliderMesh.visible = snap.colVis;
+      state.animSpeed = snap.animSpeed;
+      for (const [k, st] of Object.entries(snap.jointStates)) {
+        const j = joints[k];
+        if (!j || !j.obj) continue;
+        j.obj.position.copy(st.pos);
+        j.obj.rotation.copy(st.rot);
+        j.obj.scale.copy(st.scale);
+      }
+      assetGroup.updateMatrixWorld(true);
+      updateHUDStats();
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      setExportStatus('重置 Rest-Pose 並烘焙 NPC_01_SkeletonMerchant.glb...');
+      const snap = captureSnapshot();
+      state.animSpeed = 0;
+      for (const m of solidMaterials) m.wireframe = false;
+      // Keep Collider_Body visible during GLB export so Unity receives the collision proxy mesh!
+      if (colliderMesh) colliderMesh.visible = true;
+      resetAllPosesForRest();
+
+      new GLTFExporter().parse(
+        assetGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'model/gltf-binary' });
+          triggerBlobDownload(blob, 'NPC_01_SkeletonMerchant.glb');
+          restoreSnapshot(snap);
+          setExportStatus(`已匯出 NPC_01_SkeletonMerchant.glb (${(blob.size / 1024).toFixed(1)} KB) · Rest-Pose + Collider_Body`);
+        },
+        (err) => {
+          console.error(err);
+          restoreSnapshot(snap);
+          setExportStatus('GLB 匯出失敗，請查看主控台');
+        },
+        { binary: true, onlyVisible: true }
+      );
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      setExportStatus('重置 Rest-Pose 並生成 .OBJ...');
+      const snap = captureSnapshot();
+      state.animSpeed = 0;
+      for (const m of solidMaterials) m.wireframe = false;
+      if (colliderMesh) colliderMesh.visible = false;
+      resetAllPosesForRest();
+
+      try {
+        const objText = new OBJExporter().parse(assetGroup);
+        const blob = new Blob([objText], { type: 'text/plain' });
+        triggerBlobDownload(blob, 'NPC_01_SkeletonMerchant.obj');
+        setExportStatus(`已匯出 NPC_01_SkeletonMerchant.obj (${(blob.size / 1024).toFixed(1)} KB) · Rest-Pose`);
+      } finally {
+        restoreSnapshot(snap);
+      }
+    });
+
+    document.getElementById('btn-export-shot').addEventListener('click', () => {
+      const prevRatio = renderer.getPixelRatio();
+      const targetRatio = Math.max(prevRatio, 2);
+      renderer.setPixelRatio(targetRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.render(scene, camera);
+      renderer.domElement.toBlob((blob) => {
+        if (blob) triggerBlobDownload(blob, `NPC_01_SkeletonMerchant_${state.lod}.png`);
+        renderer.setPixelRatio(prevRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.render(scene, camera);
+        setExportStatus(`已匯出高畫質截圖 (${renderer.domElement.width}×${renderer.domElement.height} .PNG)`);
+      }, 'image/png');
+    });
+
+    function downloadCanvasPNG(canvas, name) {
+      canvas.toBlob((blob) => { if (blob) triggerBlobDownload(blob, name); }, 'image/png');
+    }
+    document.getElementById('card-albedo').addEventListener('click', () => { downloadCanvasPNG(TEX.albedoCanvas, 'NPC_01_SkeletonMerchant_Albedo.png'); setExportStatus('已下載 Albedo.png'); });
+    document.getElementById('card-normal').addEventListener('click', () => { downloadCanvasPNG(TEX.normalCanvas, 'NPC_01_SkeletonMerchant_Normal.png'); setExportStatus('已下載 Normal.png (3×3 Sobel)'); });
+    document.getElementById('card-rough').addEventListener('click', () => { downloadCanvasPNG(TEX.roughCanvas, 'NPC_01_SkeletonMerchant_Roughness.png'); setExportStatus('已下載 Roughness.png'); });
+    document.getElementById('card-metal').addEventListener('click', () => { downloadCanvasPNG(TEX.metalCanvas, 'NPC_01_SkeletonMerchant_Metalness.png'); setExportStatus('已下載 Metalness.png'); });
+    document.getElementById('card-emissive').addEventListener('click', () => { downloadCanvasPNG(TEX.emissiveCanvas, 'NPC_01_SkeletonMerchant_Emissive.png'); setExportStatus('已下載 Emissive.png'); });
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvas, 'NPC_01_SkeletonMerchant_Albedo.png');
+      downloadCanvasPNG(TEX.normalCanvas, 'NPC_01_SkeletonMerchant_Normal.png');
+      downloadCanvasPNG(TEX.roughCanvas, 'NPC_01_SkeletonMerchant_Roughness.png');
+      downloadCanvasPNG(TEX.metalCanvas, 'NPC_01_SkeletonMerchant_Metalness.png');
+      downloadCanvasPNG(TEX.emissiveCanvas, 'NPC_01_SkeletonMerchant_Emissive.png');
+      setExportStatus('已批次下載 5 張 1024×1024 PBR 貼圖 (.png)');
+    });
+
+    // =========================================================================
+    // 12. COMPANION UNITY URP C# SCRIPT VIEWER / DOWNLOADER
+    // =========================================================================
+    const UNITY_CS_SOURCE = `using System.Collections.Generic;
+using UnityEngine;
+
+namespace Dungeon.NPC
+{
+    /// <summary>
+    /// Unity URP runtime controller for NPC_01_SkeletonMerchant (Dark Medieval ARPG Dungeon).
+    /// Attach directly to the imported NPC_01_SkeletonMerchant Prefab root GameObject.
+    /// Automatically binds Part_Torso_Ribcage, Part_Head, Part_Jaw, and Part_Arm_R via transform.Find,
+    /// drives subtle merchant breathing, whispering jaw chatter, and coin-beckoning arm motion,
+    /// and modulates MAT_Emissive_Rune _EmissionColor using zero-allocation MaterialPropertyBlock.
+    /// </summary>
+    [DisallowMultipleComponent]
+    public class SkeletonMerchantIdleController : MonoBehaviour
+    {
+        [Header("Merchant Idle Animation")]
+        [Range(0f, 2.5f)] public float idleSpeed = 1.0f;
+        [Range(0f, 0.025f)] public float breathVerticalAmplitude = 0.0045f;
+        [Range(0f, 4f)] public float breathPitchDegrees = 1.15f;
+        [Range(0f, 10f)] public float headSwayDegrees = 3.2f;
+        [Range(0f, 16f)] public float jawChatterMaxDegrees = 7.5f;
+        [Range(0f, 12f)] public float rightArmBeckonDegrees = 3.8f;
+
+        [Header("Floating Gold Coin (Optional Child Under Part_Arm_R)")]
+        [Range(0f, 0.03f)] public float coinBobAmplitude = 0.008f;
+        public float coinSpinDegPerSec = 55f;
+
+        [Header("Soul-Fire & Candle Emission (MAT_Emissive_Rune)")]
+        [Range(0f, 3f)] public float emissionIntensity = 1.65f;
+        [Range(0f, 0.5f)] public float soulPulseAmplitude = 0.22f;
+        [Range(0.2f, 8f)] public float soulPulseFrequency = 2.6f;
+        [ColorUsage(false, true)] public Color fallbackRuneEmission = new Color(0.55f, 0.92f, 1.0f, 1.0f);
+        [SerializeField] private Light merchantLanternLight;
+        public float baseLightIntensity = 2.4f;
+
+        [Header("Auto-Bound Sub-Parts (Resolved via transform.Find)")]
+        [SerializeField] private Transform partTorsoRibcage;
+        [SerializeField] private Transform partHead;
+        [SerializeField] private Transform partJaw;
+        [SerializeField] private Transform partArmR;
+        [SerializeField] private Transform propFloatingCoin;
+
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        private MaterialPropertyBlock _mpb;
+        private float _animClock;
+
+        private Vector3 _torsoRestPos, _coinRestPos;
+        private Quaternion _torsoRestRot, _headRestRot, _jawRestRot, _armRRestRot, _coinRestRot;
+
+        private struct EmissiveSlot { public Renderer Renderer; public int MaterialIndex; public Color BaseEmission; }
+        private readonly List<EmissiveSlot> _emissiveSlots = new List<EmissiveSlot>(8);
+
+        private void Awake()
+        {
+            _mpb = new MaterialPropertyBlock();
+            BindMerchantParts();
+            CacheRestTransforms();
+            CacheEmissiveRuneRenderers();
+        }
+
+        public void BindMerchantParts()
+        {
+            if (partTorsoRibcage == null)
+                partTorsoRibcage = transform.Find("Part_Torso_Ribcage") ?? FindDeepChild(transform, "Part_Torso_Ribcage");
+            if (partHead == null)
+                partHead = transform.Find("Part_Torso_Ribcage/Part_Head") ?? transform.Find("Part_Head") ?? FindDeepChild(transform, "Part_Head");
+            if (partJaw == null)
+                partJaw = transform.Find("Part_Torso_Ribcage/Part_Head/Part_Jaw") ?? transform.Find("Part_Head/Part_Jaw") ?? transform.Find("Part_Jaw") ?? FindDeepChild(transform, "Part_Jaw");
+            if (partArmR == null)
+                partArmR = transform.Find("Part_Torso_Ribcage/Part_Arm_R") ?? transform.Find("Part_Arm_R") ?? FindDeepChild(transform, "Part_Arm_R");
+            if (propFloatingCoin == null)
+                propFloatingCoin = transform.Find("Part_Torso_Ribcage/Part_Arm_R/Prop_FloatingCoin") ?? FindDeepChild(transform, "Prop_FloatingCoin");
+            if (merchantLanternLight == null)
+                merchantLanternLight = GetComponentInChildren<Light>(true);
+        }
+
+        private void CacheRestTransforms()
+        {
+            if (partTorsoRibcage != null) { _torsoRestPos = partTorsoRibcage.localPosition; _torsoRestRot = partTorsoRibcage.localRotation; }
+            if (partHead != null) _headRestRot = partHead.localRotation;
+            if (partJaw != null) _jawRestRot = partJaw.localRotation;
+            if (partArmR != null) _armRRestRot = partArmR.localRotation;
+            if (propFloatingCoin != null) { _coinRestPos = propFloatingCoin.localPosition; _coinRestRot = propFloatingCoin.localRotation; }
+        }
+
+        private void CacheEmissiveRuneRenderers()
+        {
+            _emissiveSlots.Clear();
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] mats = r.sharedMaterials;
+                for (int m = 0; m < mats.Length; m++)
+                {
+                    Material mat = mats[m];
+                    if (mat == null || (!mat.name.Contains("MAT_Emissive_Rune") && !mat.name.Contains("Emissive_Rune"))) continue;
+                    Color baseCol = mat.HasProperty(EmissionColorId) ? mat.GetColor(EmissionColorId) : fallbackRuneEmission;
+                    if (baseCol.maxColorComponent < 0.05f) baseCol = fallbackRuneEmission;
+                    _emissiveSlots.Add(new EmissiveSlot { Renderer = r, MaterialIndex = m, BaseEmission = baseCol });
+                }
+            }
+        }
+
+        private void Update()
+        {
+            if (idleSpeed > 0.0001f)
+            {
+                _animClock += Time.deltaTime * idleSpeed;
+                UpdateIdlePose(_animClock);
+            }
+            ApplyEmissionBlock(Time.time);
+        }
+
+        private void UpdateIdlePose(float t)
+        {
+            if (partTorsoRibcage != null)
+            {
+                float breath = Mathf.Sin(t * 1.45f);
+                Vector3 pos = _torsoRestPos; pos.y += breath * breathVerticalAmplitude;
+                partTorsoRibcage.localPosition = pos;
+                partTorsoRibcage.localRotation = _torsoRestRot * Quaternion.Euler(breath * breathPitchDegrees, Mathf.Sin(t * 0.65f) * 1.1f, 0f);
+            }
+            if (partHead != null)
+            {
+                partHead.localRotation = _headRestRot * Quaternion.Euler(
+                    Mathf.Sin(t * 1.56f + 0.5f) * (headSwayDegrees * 0.45f),
+                    Mathf.Sin(t * 0.78f) * headSwayDegrees,
+                    Mathf.Cos(t * 0.52f) * (headSwayDegrees * 0.38f)
+                );
+            }
+            if (partJaw != null)
+            {
+                float gate = Mathf.SmoothStep(0.15f, 0.9f, 0.5f + 0.5f * Mathf.Sin(t * 0.85f));
+                float syllable = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(t * 7.2f) * 0.7f + Mathf.Sin(t * 11.4f) * 0.3f), 1.3f);
+                partJaw.localRotation = _jawRestRot * Quaternion.Euler(syllable * gate * jawChatterMaxDegrees, 0f, 0f);
+            }
+            if (partArmR != null)
+            {
+                partArmR.localRotation = _armRRestRot * Quaternion.Euler(
+                    Mathf.Sin(t * 1.9f) * rightArmBeckonDegrees,
+                    Mathf.Cos(t * 3.8f) * (rightArmBeckonDegrees * 0.27f),
+                    Mathf.Sin(t * 1.2f) * (rightArmBeckonDegrees * 0.35f)
+                );
+            }
+            if (propFloatingCoin != null)
+            {
+                Vector3 cPos = _coinRestPos; cPos.y += Mathf.Sin(t * 2.8f) * coinBobAmplitude;
+                propFloatingCoin.localPosition = cPos;
+                propFloatingCoin.localRotation = _coinRestRot * Quaternion.Euler(0f, t * coinSpinDegPerSec, Mathf.Sin(t * 2.1f) * 6f);
+            }
+        }
+
+        private void ApplyEmissionBlock(float t)
+        {
+            float pulse = 1f + soulPulseAmplitude * (0.68f * Mathf.Sin(t * soulPulseFrequency) + 0.32f * Mathf.Sin(t * soulPulseFrequency * 3.7f + 0.9f));
+            float gain = emissionIntensity * Mathf.Max(0.05f, pulse);
+            for (int i = 0; i < _emissiveSlots.Count; i++)
+            {
+                EmissiveSlot slot = _emissiveSlots[i];
+                if (slot.Renderer == null || !slot.Renderer.gameObject.activeInHierarchy) continue;
+                slot.Renderer.GetPropertyBlock(_mpb, slot.MaterialIndex);
+                _mpb.SetColor(EmissionColorId, slot.BaseEmission * gain);
+                slot.Renderer.SetPropertyBlock(_mpb, slot.MaterialIndex);
+            }
+            if (merchantLanternLight != null) merchantLanternLight.intensity = baseLightIntensity * Mathf.Max(0.1f, pulse);
+        }
+
+        [ContextMenu("Reset To Rest Pose")]
+        public void ResetToRestPose()
+        {
+            if (partTorsoRibcage != null) { partTorsoRibcage.localPosition = _torsoRestPos; partTorsoRibcage.localRotation = _torsoRestRot; }
+            if (partHead != null) partHead.localRotation = _headRestRot;
+            if (partJaw != null) partJaw.localRotation = _jawRestRot;
+            if (partArmR != null) partArmR.localRotation = _armRRestRot;
+            if (propFloatingCoin != null) { propFloatingCoin.localPosition = _coinRestPos; propFloatingCoin.localRotation = _coinRestRot; }
+        }
+
+        private static Transform FindDeepChild(Transform parent, string targetName)
+        {
+            if (parent == null) return null;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                if (child.name == targetName) return child;
+                Transform nested = FindDeepChild(child, targetName);
+                if (nested != null) return nested;
+            }
+            return null;
+        }
+    }
+}`;
+
+    document.getElementById('cs-code').textContent = UNITY_CS_SOURCE;
+    const csModal = document.getElementById('cs-modal');
+    document.getElementById('btn-open-cs').addEventListener('click', () => csModal.classList.add('open'));
+    document.getElementById('btn-close-cs').addEventListener('click', () => csModal.classList.remove('open'));
+    csModal.addEventListener('click', (e) => { if (e.target === csModal) csModal.classList.remove('open'); });
+    document.getElementById('btn-copy-cs').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(UNITY_CS_SOURCE);
+        setExportStatus('已複製 SkeletonMerchantIdleController.cs 至剪貼簿');
+      } catch {
+        setExportStatus('請使用下載 .CS 按鈕取得腳本');
+      }
+    });
+    document.getElementById('btn-dl-cs').addEventListener('click', () => {
+      triggerBlobDownload(new Blob([UNITY_CS_SOURCE], { type: 'text/plain;charset=utf-8' }), 'SkeletonMerchantIdleController.cs');
+      setExportStatus('已下載 SkeletonMerchantIdleController.cs');
+    });
+
+    // =========================================================================
+    // 13. UI WIRING & MOBILE BOTTOM DRAWER
+    // =========================================================================
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => goToCameraPreset(btn.dataset.cam));
+    });
+
+    document.getElementById('btn-lod-hero').addEventListener('click', () => {
+      if (state.lod === 'hero') return;
+      state.lod = 'hero';
+      document.getElementById('btn-lod-hero').classList.add('active');
+      document.getElementById('btn-lod-game').classList.remove('active');
+      buildSkeletonMerchant('hero');
+    });
+
+    document.getElementById('btn-lod-game').addEventListener('click', () => {
+      if (state.lod === 'game') return;
+      state.lod = 'game';
+      document.getElementById('btn-lod-game').classList.add('active');
+      document.getElementById('btn-lod-hero').classList.remove('active');
+      buildSkeletonMerchant('game');
+    });
+
+    document.getElementById('sl-anim').addEventListener('input', (e) => {
+      state.animSpeed = Number(e.target.value);
+      document.getElementById('val-anim').textContent = `${state.animSpeed.toFixed(2)}x`;
+    });
+
+    document.getElementById('sl-glow').addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      state.glowMultiplier = pct / 100;
+      document.getElementById('val-glow').textContent = `${pct}%`;
+      applyLiveAnimation(0, performance.now() * 0.001);
+    });
+
+    document.querySelectorAll('[data-light]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        applyLightingPreset(btn.dataset.light);
+        applyLiveAnimation(0, performance.now() * 0.001);
+      });
+    });
+
+    document.getElementById('btn-sockets-col').addEventListener('click', (e) => {
+      state.showSocketsCollider = !state.showSocketsCollider;
+      if (colliderMesh) colliderMesh.visible = state.showSocketsCollider;
+      socketPreviewGroup.visible = state.showSocketsCollider;
+      document.getElementById('socket-labels').style.display = state.showSocketsCollider ? 'block' : 'none';
+      e.currentTarget.classList.toggle('active', state.showSocketsCollider);
+      updateHUDStats();
+    });
+
+    document.getElementById('btn-stone-base').addEventListener('click', (e) => {
+      state.showStoneBase = !state.showStoneBase;
+      stageBaseGroup.visible = state.showStoneBase;
+      e.currentTarget.classList.toggle('active', state.showStoneBase);
+    });
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      const next = !MATS.bone.wireframe;
+      for (const m of solidMaterials) m.wireframe = next;
+      e.currentTarget.classList.toggle('active', next);
+    });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => {
+      state.animSpeed = 0;
+      document.getElementById('sl-anim').value = 0;
+      document.getElementById('val-anim').textContent = '0.00x';
+      resetAllPosesForRest();
+      setExportStatus('已重置為 Rest-Pose (所有關節歸零)');
+    });
+
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlsPanel = document.getElementById('controls-panel');
+    if (mobileFab && controlsPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlsPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // =========================================================================
+    // 14. BOOTSTRAP & RENDER LOOP
+    // =========================================================================
+    buildSkeletonMerchant('hero');
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.5);
+        const s = smoothstep(0, 1, camAnim.t);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      applyLiveAnimation(dt, elapsed);
+      controls.update();
+      updateSocketPreviewOverlay();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
