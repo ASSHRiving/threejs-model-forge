@@ -15,7 +15,7 @@
 | **Sovereign's Oath (3A ARPG Forge)** | 3A ARPG 視角君王誓約祭壇 | [sovereign_s_oath_3a_arpg_asset_forge.html](./sovereigns-oath-arpg-forge/Tools/ModelForge/sovereign_s_oath_3a_arpg_asset_forge.html) | `SovereignsOathController.cs` |
 | **Sovereign's Oath (Gothic Altar)** | 哥德皇家大劍聖壇 | [sovereign_s_oath_royal_greatsword_gothic_altar_forge.html](./sovereigns-oath-gothic-altar-forge/Tools/ModelForge/sovereign_s_oath_royal_greatsword_gothic_altar_forge.html) | `SovereignsOathGothicController.cs` |
 | **AEGIS-VII Orbital Drop Mech** | 近未來重型軌道空降作戰機甲 | [aegis_vii_orbital_mech_forge.html](./aegis-vii-orbital-mech-forge/Tools/ModelForge/aegis_vii_orbital_mech_forge.html) | `OrbitalMechController.cs` |
-| **AERO-900X Widebody Commercial Airliner** | 次世代雙發廣體長程客機（含駕駛艙與客艙剖視） | [aero_900x_airliner_forge.html](./aero-900x-airliner-forge/Tools/ModelForge/aero_900x_airliner_forge.html) | `AirlinerFlightSystemsController.cs` |
+| **AERO-900X Widebody Commercial Airliner** | 次世代雙發廣體長程客機（含駕駛艙與客艙剖視） | [aero_900x_airliner_forge.html](./aero-900x-airliner-forge/aero_900x_airliner_forge.html) | `AirlinerFlightSystemsController.cs` |
 
 ## 本機預覽方式
 

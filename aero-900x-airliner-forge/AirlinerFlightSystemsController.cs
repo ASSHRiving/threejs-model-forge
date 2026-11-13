@@ -37,6 +37,8 @@ namespace ModelForge.Aero900X
         [Header("High-Lift & Control Surface Nodes (Auto-Resolved)")]
         [SerializeField] private Transform flapLeft;
         [SerializeField] private Transform flapRight;
+        [SerializeField] private Transform flapInboardLeft;
+        [SerializeField] private Transform flapInboardRight;
         [SerializeField] private Transform slatLeft;
         [SerializeField] private Transform slatRight;
         [SerializeField] private Transform spoilerLeft;
@@ -65,8 +67,8 @@ namespace ModelForge.Aero900X
 
         private Quaternion _noseGearRest, _mainGearLRest, _mainGearRRest;
         private Quaternion _doorNoseLRest, _doorNoseRRest, _doorMainLRest, _doorMainRRest, _doorStrutLRest, _doorStrutRRest;
-        private Vector3 _flapLPosRest, _flapRPosRest, _slatLPosRest, _slatRPosRest;
-        private Quaternion _flapLRotRest, _flapRRotRest, _slatLRotRest, _slatRRotRest;
+        private Vector3 _flapLPosRest, _flapRPosRest, _flapInbLPosRest, _flapInbRPosRest, _slatLPosRest, _slatRPosRest;
+        private Quaternion _flapLRotRest, _flapRRotRest, _flapInbLRotRest, _flapInbRRotRest, _slatLRotRest, _slatRRotRest;
         private Quaternion _spoilerLRest, _spoilerRRest, _aileronLRest, _aileronRRest;
         private Quaternion _elevatorLRest, _elevatorRRest, _rudderRest;
         private Vector3 _revLPosRest, _revRPosRest;
@@ -90,6 +92,8 @@ namespace ModelForge.Aero900X
 
             if (flapLeft == null) flapLeft = FindDeepChild(transform, "Part_Flap_L");
             if (flapRight == null) flapRight = FindDeepChild(transform, "Part_Flap_R");
+            if (flapInboardLeft == null) flapInboardLeft = FindDeepChild(transform, "Part_Flap_Inboard_L");
+            if (flapInboardRight == null) flapInboardRight = FindDeepChild(transform, "Part_Flap_Inboard_R");
             if (slatLeft == null) slatLeft = FindDeepChild(transform, "Part_Slat_L");
             if (slatRight == null) slatRight = FindDeepChild(transform, "Part_Slat_R");
             if (spoilerLeft == null) spoilerLeft = FindDeepChild(transform, "Part_Spoiler_L");
@@ -125,6 +129,8 @@ namespace ModelForge.Aero900X
 
             if (flapLeft) { _flapLPosRest = flapLeft.localPosition; _flapLRotRest = flapLeft.localRotation; }
             if (flapRight) { _flapRPosRest = flapRight.localPosition; _flapRRotRest = flapRight.localRotation; }
+            if (flapInboardLeft) { _flapInbLPosRest = flapInboardLeft.localPosition; _flapInbLRotRest = flapInboardLeft.localRotation; }
+            if (flapInboardRight) { _flapInbRPosRest = flapInboardRight.localPosition; _flapInbRRotRest = flapInboardRight.localRotation; }
             if (slatLeft) { _slatLPosRest = slatLeft.localPosition; _slatLRotRest = slatLeft.localRotation; }
             if (slatRight) { _slatRPosRest = slatRight.localPosition; _slatRRotRest = slatRight.localRotation; }
             if (spoilerLeft) _spoilerLRest = spoilerLeft.localRotation;
@@ -187,29 +193,41 @@ namespace ModelForge.Aero900X
 
         private void UpdateAerodynamicSurfaces()
         {
+            float flapsSlatsPhase = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(flapsSlatsDeploy / 0.75f));
+            float spoilerPhase = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((flapsSlatsDeploy - 0.75f) / 0.25f));
+
             if (flapLeft)
             {
-                flapLeft.localPosition = _flapLPosRest + new Vector3(0f, -flapsSlatsDeploy * 0.28f, -flapsSlatsDeploy * 0.72f);
-                flapLeft.localRotation = _flapLRotRest * Quaternion.Euler(-flapsSlatsDeploy * 34f, 0f, 0f);
+                flapLeft.localPosition = _flapLPosRest + new Vector3(0f, -flapsSlatsPhase * 0.24f, -flapsSlatsPhase * 0.56f);
+                flapLeft.localRotation = _flapLRotRest * Quaternion.Euler(-flapsSlatsPhase * 32f, 0f, 0f);
             }
             if (flapRight)
             {
-                flapRight.localPosition = _flapRPosRest + new Vector3(0f, -flapsSlatsDeploy * 0.28f, -flapsSlatsDeploy * 0.72f);
-                flapRight.localRotation = _flapRRotRest * Quaternion.Euler(-flapsSlatsDeploy * 34f, 0f, 0f);
+                flapRight.localPosition = _flapRPosRest + new Vector3(0f, -flapsSlatsPhase * 0.24f, -flapsSlatsPhase * 0.56f);
+                flapRight.localRotation = _flapRRotRest * Quaternion.Euler(-flapsSlatsPhase * 32f, 0f, 0f);
+            }
+            if (flapInboardLeft)
+            {
+                flapInboardLeft.localPosition = _flapInbLPosRest + new Vector3(0f, -flapsSlatsPhase * 0.26f, -flapsSlatsPhase * 0.62f);
+                flapInboardLeft.localRotation = _flapInbLRotRest * Quaternion.Euler(-flapsSlatsPhase * 32f, 0f, 0f);
+            }
+            if (flapInboardRight)
+            {
+                flapInboardRight.localPosition = _flapInbRPosRest + new Vector3(0f, -flapsSlatsPhase * 0.26f, -flapsSlatsPhase * 0.62f);
+                flapInboardRight.localRotation = _flapInbRRotRest * Quaternion.Euler(-flapsSlatsPhase * 32f, 0f, 0f);
             }
 
             if (slatLeft)
             {
-                slatLeft.localPosition = _slatLPosRest + new Vector3(0f, -flapsSlatsDeploy * 0.16f, flapsSlatsDeploy * 0.42f);
-                slatLeft.localRotation = _slatLRotRest * Quaternion.Euler(flapsSlatsDeploy * 22f, 0f, 0f);
+                slatLeft.localPosition = _slatLPosRest + new Vector3(0f, -flapsSlatsPhase * 0.14f, flapsSlatsPhase * 0.36f);
+                slatLeft.localRotation = _slatLRotRest * Quaternion.Euler(flapsSlatsPhase * 20f, 0f, 0f);
             }
             if (slatRight)
             {
-                slatRight.localPosition = _slatRPosRest + new Vector3(0f, -flapsSlatsDeploy * 0.16f, flapsSlatsDeploy * 0.42f);
-                slatRight.localRotation = _slatRRotRest * Quaternion.Euler(flapsSlatsDeploy * 22f, 0f, 0f);
+                slatRight.localPosition = _slatRPosRest + new Vector3(0f, -flapsSlatsPhase * 0.14f, flapsSlatsPhase * 0.36f);
+                slatRight.localRotation = _slatRRotRest * Quaternion.Euler(flapsSlatsPhase * 20f, 0f, 0f);
             }
 
-            float spoilerPhase = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((flapsSlatsDeploy - 0.45f) / 0.55f));
             if (spoilerLeft) spoilerLeft.localRotation = _spoilerLRest * Quaternion.Euler(spoilerPhase * 42f, 0f, 0f);
             if (spoilerRight) spoilerRight.localRotation = _spoilerRRest * Quaternion.Euler(spoilerPhase * 42f, 0f, 0f);
 

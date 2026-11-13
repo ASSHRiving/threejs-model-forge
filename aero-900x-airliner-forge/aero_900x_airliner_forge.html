@@ -280,7 +280,7 @@
         <input id="sl-gear" type="range" min="0" max="100" value="100" />
       </div>
       <div class="slider-row">
-        <div class="slider-head"><span>襟翼・縫翼・擾流板 (Flaps / Slats / Spoilers)</span><span id="val-flaps" class="val">0%</span></div>
+        <div class="slider-head"><span>襟翼縫翼 (0-75%)．擾流 (&gt;75%)</span><span id="val-flaps" class="val">0%</span></div>
         <input id="sl-flaps" type="range" min="0" max="100" value="0" />
       </div>
       <div class="slider-row">
@@ -655,6 +655,71 @@
       g.setIndex(idx);
       g.computeVertexNormals();
       return g;
+    }
+
+    // Split outer aerodynamic skin vs dark anodized inner pan + lip for landing gear bay doors
+    function buildCurvedBayDoorPair(zStart, zEnd, thA, thB, refPt, thickness = 0.048, nzD = 5, ntD = 5) {
+      const posO = [], uvO = [], idxO = [];
+      const posI = [], uvI = [], idxI = [];
+      const zHi = Math.max(zStart, zEnd), zLo = Math.min(zStart, zEnd);
+      const thMin = Math.min(thA, thB), thMax = Math.max(thA, thB);
+      const ox = refPt ? refPt.x : 0, oy = refPt ? refPt.y : 0, oz = refPt ? refPt.z : 0;
+      const outDirs = [];
+      for (let iz = 0; iz <= nzD; iz++) {
+        const z = lerp(zHi, zLo, iz / nzD);
+        for (let it = 0; it <= ntD; it++) {
+          const th = lerp(thMin, thMax, it / ntD);
+          const pt = evalFuselagePoint(z, th);
+          const radial = new THREE.Vector3(Math.cos(th), Math.sin(th), 0).normalize();
+          outDirs.push(radial);
+          const px = pt.x - ox, py = pt.y - oy, pz = pt.z - oz;
+          const u = (th + Math.PI * 0.5) / (Math.PI * 2), v = 1.0 - (31.0 - z) / 62.0;
+          posO.push(px, py, pz); uvO.push(u, v);
+          posI.push(px, py, pz); uvI.push(u, v);
+        }
+      }
+      const stride = ntD + 1;
+      for (let iz = 0; iz < nzD; iz++) {
+        for (let it = 0; it < ntD; it++) {
+          const a = iz * stride + it, b = (iz + 1) * stride + it, c = (iz + 1) * stride + it + 1, d = iz * stride + it + 1;
+          idxO.push(a, b, d, b, c, d);
+        }
+      }
+      const nCount = outDirs.length;
+      for (let i = 0; i < nCount; i++) {
+        const n = outDirs[i];
+        posI.push(posI[i * 3] - n.x * thickness, posI[i * 3 + 1] - n.y * thickness, posI[i * 3 + 2]);
+        uvI.push(uvI[i * 2], uvI[i * 2 + 1]);
+      }
+      // Inner face (inward facing toward fuselage interior / bay interior) + perimeter lip in dark anodized aluminum
+      for (let iz = 0; iz < nzD; iz++) {
+        for (let it = 0; it < ntD; it++) {
+          const a = nCount + iz * stride + it, b = nCount + (iz + 1) * stride + it;
+          const c = nCount + (iz + 1) * stride + it + 1, d = nCount + iz * stride + it + 1;
+          idxI.push(a, d, b, b, d, c);
+        }
+      }
+      for (let it = 0; it < ntD; it++) {
+        const f0 = it, f1 = it + 1, b0 = nCount + f0, b1 = nCount + f1;
+        idxI.push(f0, f1, b0, f1, b1, b0);
+        const f2 = nzD * stride + it, f3 = nzD * stride + it + 1, b2 = nCount + f2, b3 = nCount + f3;
+        idxI.push(f2, b2, f3, f3, b2, b3);
+      }
+      for (let iz = 0; iz < nzD; iz++) {
+        const f0 = iz * stride, f1 = (iz + 1) * stride, b0 = nCount + f0, b1 = nCount + f1;
+        idxI.push(f0, b0, f1, f1, b0, b1);
+        const f2 = iz * stride + ntD, f3 = (iz + 1) * stride + ntD, b2 = nCount + f2, b3 = nCount + f3;
+        idxI.push(f2, f3, b2, f3, b3, b2);
+      }
+      const gOut = new THREE.BufferGeometry();
+      gOut.setAttribute('position', new THREE.Float32BufferAttribute(posO, 3));
+      gOut.setAttribute('uv', new THREE.Float32BufferAttribute(uvO, 2));
+      gOut.setIndex(idxO); gOut.computeVertexNormals();
+      const gIn = new THREE.BufferGeometry();
+      gIn.setAttribute('position', new THREE.Float32BufferAttribute(posI, 3));
+      gIn.setAttribute('uv', new THREE.Float32BufferAttribute(uvI, 2));
+      gIn.setIndex(idxI); gIn.computeVertexNormals();
+      return { outer: gOut, inner: gIn };
     }
 
     // Radial profiled aircraft tire via LatheGeometry (smooth rounded sidewall shoulders, zero 90-deg edges)
@@ -1264,53 +1329,74 @@
       eCtx.fillRect(195, 860, 165, 164);
       eCtx.fillRect(664, 860, 165, 164);
 
-      // C. Wing / Stabilizer Composite PBR Texture (1024x1024) with Corogard Center Box + Wing Walk Warning Lines
+      // C. Main Wing & Vertical Fin Composite PBR Texture (1024x1024)
+      // Note: CanvasTexture flipY=true -> canvas y=0 is v=1.0 (wingtip / fin tip), canvas y=1024 is v=0.0 (root)
       const wingCanvases = {};
+      const aeroCanvases = {};
       for (const [key, pal] of Object.entries(liveries)) {
         const wc = document.createElement('canvas');
         wc.width = TEX_SIZE; wc.height = TEX_SIZE;
         const wctx = wc.getContext('2d');
-        wctx.fillStyle = '#ecf1f7';
+        wctx.fillStyle = '#edf2f7';
         wctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
 
-        // Corogard metallic-grey upper center wing box walk zone (u in [0.18..0.44] = upper airfoil chord)
-        wctx.fillStyle = '#98a4b5';
-        wctx.fillRect(190, 0, 260, TEX_SIZE);
+        // Inboard Corogard metallic-grey walk zone (u in [0.185..0.44], v in [0.05..0.44] => y in [573..972])
+        wctx.fillStyle = '#9aa6b8';
+        wctx.fillRect(190, 573, 260, 400);
 
-        // Yellow / Dark Wing-Walk Warning Stripes (`NO STEP`)
+        // Yellow / Dark Wing-Walk Warning Stripes (`NO STEP`) around Corogard box
         wctx.fillStyle = '#eab308';
-        wctx.fillRect(184, 0, 8, TEX_SIZE);
-        wctx.fillRect(446, 0, 8, TEX_SIZE);
+        wctx.fillRect(184, 573, 8, 400);
+        wctx.fillRect(446, 573, 8, 400);
+        wctx.fillRect(184, 573, 270, 8);
         wctx.fillStyle = '#1e293b';
-        for (let y = 16; y < TEX_SIZE; y += 44) {
-          wctx.fillRect(184, y, 8, 18);
-          wctx.fillRect(446, y, 8, 18);
+        for (let y = 580; y < 968; y += 40) {
+          wctx.fillRect(184, y, 8, 16);
+          wctx.fillRect(446, y, 8, 16);
         }
 
         // Brushed leading-edge de-icing boot band around u = 0.50 (airfoil leading edge!)
-        wctx.fillStyle = '#cbd5e1';
+        wctx.fillStyle = '#d4dce6';
         wctx.fillRect(486, 0, 52, TEX_SIZE);
 
-        // Cobalt-teal livery wingtip / tail stripe band near v = 0.85..1.0
+        // Cobalt-teal livery wingtip / vertical fin tip stripe band near v = 0.86..1.0 (y = 0..143)
         wctx.fillStyle = pal.primary;
-        wctx.fillRect(0, 875, TEX_SIZE, 95);
+        wctx.fillRect(0, 0, TEX_SIZE, 88);
         wctx.fillStyle = pal.teal;
-        wctx.fillRect(0, 825, TEX_SIZE, 52);
+        wctx.fillRect(0, 88, TEX_SIZE, 46);
         wctx.fillStyle = pal.accent;
-        wctx.fillRect(0, 814, TEX_SIZE, 10);
+        wctx.fillRect(0, 134, TEX_SIZE, 9);
 
         // Rib & Spar Panel Lines
-        wctx.strokeStyle = 'rgba(30, 41, 59, 0.34)';
-        wctx.lineWidth = 1.6;
+        wctx.strokeStyle = 'rgba(30, 41, 59, 0.28)';
+        wctx.lineWidth = 1.5;
         for (let y = 0; y < TEX_SIZE; y += 85) { wctx.beginPath(); wctx.moveTo(0, y); wctx.lineTo(TEX_SIZE, y); wctx.stroke(); }
         for (let x = 0; x < TEX_SIZE; x += 128) { wctx.beginPath(); wctx.moveTo(x, 0); wctx.lineTo(x, TEX_SIZE); wctx.stroke(); }
 
         wctx.fillStyle = '#334155';
-        wctx.font = 'bold 14px monospace';
-        wctx.fillText('NO STEP // COROGARD ZONE', 235, 165);
-        wctx.fillText('NO STEP // FLAP TRACK', 235, 510);
+        wctx.font = 'bold 13px monospace';
+        wctx.fillText('NO STEP // COROGARD ZONE', 230, 740);
+        wctx.fillText('NO STEP // OVERWING EXIT', 230, 880);
 
         wingCanvases[key] = wc;
+
+        // Clean Composite Aero Surface Texture (Nacelles, Flaps, Spoilers, Ailerons, Canoes, HStab)
+        const ac = document.createElement('canvas');
+        ac.width = TEX_SIZE; ac.height = TEX_SIZE;
+        const actx = ac.getContext('2d');
+        actx.fillStyle = pal.hull;
+        actx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+        for (let i = 0; i < 1600; i++) {
+          const rx = seededNoise(i, 3.1) * TEX_SIZE;
+          const ry = seededNoise(i, 8.9) * TEX_SIZE;
+          actx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.02)';
+          actx.fillRect(rx, ry, 3, 2);
+        }
+        actx.strokeStyle = 'rgba(30, 41, 59, 0.22)';
+        actx.lineWidth = 1.4;
+        for (let y = 0; y < TEX_SIZE; y += 128) { actx.beginPath(); actx.moveTo(0, y); actx.lineTo(TEX_SIZE, y); actx.stroke(); }
+        for (let x = 0; x < TEX_SIZE; x += 128) { actx.beginPath(); actx.moveTo(x, 0); actx.lineTo(x, TEX_SIZE); actx.stroke(); }
+        aeroCanvases[key] = ac;
       }
 
       // D. Brushed Titanium Intake & Nacelle Texture (1024x1024)
@@ -1401,6 +1487,7 @@
       return {
         albedoCanvases,
         wingCanvases,
+        aeroCanvases,
         normalCanvas,
         roughCanvas,
         metalCanvas,
@@ -1414,6 +1501,11 @@
           pearl:  createCanvasTex(wingCanvases.pearl, true),
           slate:  createCanvasTex(wingCanvases.slate, true),
           sunset: createCanvasTex(wingCanvases.sunset, true)
+        },
+        aeroTex: {
+          pearl:  createCanvasTex(aeroCanvases.pearl, true),
+          slate:  createCanvasTex(aeroCanvases.slate, true),
+          sunset: createCanvasTex(aeroCanvases.sunset, true)
         },
         normalTex:   createCanvasTex(normalCanvas, false),
         roughTex:    createCanvasTex(roughCanvas, false),
@@ -1482,6 +1574,22 @@
         normalScale: new THREE.Vector2(0.45, 0.45),
         roughness: 0.34,
         metalness: 0.28,
+        vertexColors: true
+      }),
+      aeroSurface: new THREE.MeshStandardMaterial({
+        name: 'MAT_Aero_Surface',
+        map: TEX.aeroTex.pearl,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.42, 0.42),
+        roughness: 0.34,
+        metalness: 0.28,
+        vertexColors: true
+      }),
+      darkAnodized: new THREE.MeshStandardMaterial({
+        name: 'MAT_Dark_Anodized_Alum',
+        color: 0x334155,
+        roughness: 0.46,
+        metalness: 0.65,
         vertexColors: true
       }),
       titanium: new THREE.MeshStandardMaterial({
@@ -1622,8 +1730,8 @@
     };
 
     const solidMatList = [
-      MATS.fuselageLower, MATS.fuselageUpper, MATS.wingSkin, MATS.titanium,
-      MATS.darkComposite, MATS.tireRubber, MATS.spinnerSpiral, MATS.cabinInterior,
+      MATS.fuselageLower, MATS.fuselageUpper, MATS.wingSkin, MATS.aeroSurface, MATS.titanium,
+      MATS.darkComposite, MATS.darkAnodized, MATS.tireRubber, MATS.spinnerSpiral, MATS.cabinInterior,
       MATS.seatFabric, MATS.avionicsGlow, MATS.cabinLedStrip,
       MATS.navPort, MATS.navStbd, MATS.beaconRed, MATS.strobeWhite, MATS.landingLight
     ];
@@ -1782,19 +1890,19 @@
       return geom;
     }
 
-      // Blended Raked Wingtip / Winglet spline curve via THREE.CatmullRomCurve3
+      // Blended Raked Wingtip / Winglet spline curve via THREE.CatmullRomCurve3 (tangent-continuous at x=25.80)
       const wingletSpanCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(25.80, 0.52, -9.60),
-        new THREE.Vector3(27.10, 0.85, -10.95),
-        new THREE.Vector3(28.50, 1.58, -12.65),
-        new THREE.Vector3(29.45, 2.28, -13.95),
+        new THREE.Vector3(27.00, 0.68, -10.65),
+        new THREE.Vector3(28.35, 1.38, -12.30),
+        new THREE.Vector3(29.38, 2.20, -13.85),
         new THREE.Vector3(30.00, 2.82, -14.70)
       ]);
       const wingletTeCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(25.80, 0.52, -12.60),
-        new THREE.Vector3(27.20, 0.85, -13.38),
-        new THREE.Vector3(28.60, 1.58, -14.28),
-        new THREE.Vector3(29.50, 2.28, -14.88),
+        new THREE.Vector3(27.05, 0.68, -13.22),
+        new THREE.Vector3(28.45, 1.38, -14.12),
+        new THREE.Vector3(29.44, 2.20, -14.84),
         new THREE.Vector3(30.00, 2.82, -15.32)
       ]);
 
@@ -1830,6 +1938,7 @@
           const t = clamp((absX - 25.80) / (30.00 - 25.80), 0, 1);
           const pLE = wingletSpanCurve.getPoint(t);
           const pTE = wingletTeCurve.getPoint(t);
+          const tan = wingletSpanCurve.getTangent(t);
           return {
             x: pLE.x,
             y: pLE.y,
@@ -1838,7 +1947,7 @@
             chord: Math.max(0.58, pLE.z - pTE.z),
             thickness: lerp(0.088, 0.065, t),
             camber: lerp(0.014, 0.004, t),
-            cant: lerp(0.095, 0.85, smoothstep(0.0, 0.8, t)),
+            cant: Math.max(0.095, Math.atan2(tan.y, Math.max(0.001, tan.x))),
             twist: lerp(-0.02, -0.04, t)
           };
         }
@@ -1876,13 +1985,13 @@
       const thBelly = Math.max(3, Math.round(thHalf * 0.42));
       const thetaList = [];
       const keyThetas = [
-        -Math.PI * 0.5, -Math.PI * 0.5 + 0.22, -Math.PI * 0.5 + 0.76,
-        ...Array.from({ length: thBelly }, (_, i) => lerp(-Math.PI * 0.5 + 0.76, 0.0, (i + 1) / (thBelly + 1))),
+        -Math.PI * 0.5, -Math.PI * 0.5 + 0.22, -Math.PI * 0.5 + 0.54,
+        ...Array.from({ length: thBelly }, (_, i) => lerp(-Math.PI * 0.5 + 0.54, 0.0, (i + 1) / (thBelly + 1))),
         0.0, 0.14, 0.24, 0.44,
         ...Array.from({ length: thHalf }, (_, i) => lerp(0.44, Math.PI - 0.44, (i + 1) / (thHalf + 1))),
         Math.PI - 0.44, Math.PI - 0.24, Math.PI - 0.14, Math.PI,
-        ...Array.from({ length: thBelly }, (_, i) => lerp(Math.PI, Math.PI * 1.5 - 0.76, (i + 1) / (thBelly + 1))),
-        Math.PI * 1.5 - 0.76, Math.PI * 1.5 - 0.22, Math.PI * 1.5
+        ...Array.from({ length: thBelly }, (_, i) => lerp(Math.PI, Math.PI * 1.5 - 0.54, (i + 1) / (thBelly + 1))),
+        Math.PI * 1.5 - 0.54, Math.PI * 1.5 - 0.22, Math.PI * 1.5
       ];
       for (const th of keyThetas) {
         if (thetaList.length === 0 || th - thetaList[thetaList.length - 1] > 0.008) thetaList.push(th);
@@ -2007,8 +2116,8 @@
 
           // Skip Nose Wheel Well cutout (z in [21.0 .. 24.6], |x| < 0.58, bottom)
           if (zMid <= 24.6 && zMid >= 21.0 && Math.abs(pMid.x) < 0.58 && pMid.y < -1.5) continue;
-          // Skip Main Belly Wheel Well cutout (z in [-3.1 .. -0.4], |x| < 2.25, bottom)
-          if (zMid <= -0.4 && zMid >= -3.1 && Math.abs(pMid.x) < 2.25 && pMid.y < -1.5) continue;
+          // Skip Main Belly Wheel Well cutout (z in [-3.1 .. -0.4], th inside +-0.54 keel bay, bottom)
+          if (zMid <= -0.4 && zMid >= -3.1 && (thMid < -Math.PI * 0.5 + 0.54 || thMid > Math.PI * 1.5 - 0.54)) continue;
 
           // Cockpit Windshield Cutout Zone (z in [24.6 .. 26.8], upper brow)
           const isWindshield = (zMid <= 26.8 && zMid >= 24.6 && thMid >= 0.24 && thMid <= Math.PI - 0.24);
@@ -2199,18 +2308,18 @@
         addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.09, 1.88, 3.65, 0.02, s * 0.58, -1.98, 22.8), 0x222b3b);
       }
 
-      // Main Belly Wheel Well (z: -0.4..-3.1, x: -2.28..2.28, y: -3.36..-0.95)
-      addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(4.60, 0.09, 2.74, 0.02, 0, -0.96, -1.75), 0x1a2230);
-      addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(4.60, 2.44, 0.09, 0.02, 0, -2.14, -0.38), 0x222b3b);
-      addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(4.60, 2.44, 0.09, 0.02, 0, -2.14, -3.12), 0x222b3b);
-      addBucketMesh(buckets, 'titanium', buildBeveledBoxLoft(0.15, 2.38, 2.70, 0.02, 0, -2.14, -1.75), 0x64748b);
+      // Main Belly Wheel Well (z: -0.4..-3.1, x: -1.68..1.68, y: -2.92..-0.95)
+      addBucketMesh(buckets, 'darkAnodized', buildBeveledBoxLoft(3.44, 0.09, 2.74, 0.02, 0, -0.96, -1.75), 0x263140);
+      addBucketMesh(buckets, 'darkAnodized', buildBeveledBoxLoft(3.44, 1.98, 0.09, 0.02, 0, -1.92, -0.38), 0x2e394a);
+      addBucketMesh(buckets, 'darkAnodized', buildBeveledBoxLoft(3.44, 1.98, 0.09, 0.02, 0, -1.92, -3.12), 0x2e394a);
+      addBucketMesh(buckets, 'titanium', buildBeveledBoxLoft(0.15, 1.94, 2.70, 0.02, 0, -1.92, -1.75), 0x64748b);
       for (const s of [1, -1]) {
-        addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.09, 2.44, 2.74, 0.02, s * 2.28, -2.14, -1.75), 0x222b3b);
+        addBucketMesh(buckets, 'darkAnodized', buildBeveledBoxLoft(0.09, 1.98, 2.74, 0.02, s * 1.68, -1.92, -1.75), 0x2e394a);
         // Hydraulic pipe lines inside main bay via CatmullRomCurve3
         const pipeCurve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(s * 0.35, -1.15, -0.48),
-          new THREE.Vector3(s * 1.10, -1.12, -1.25),
-          new THREE.Vector3(s * 2.05, -1.22, -1.80)
+          new THREE.Vector3(s * 0.95, -1.12, -1.25),
+          new THREE.Vector3(s * 1.55, -1.22, -1.80)
         ]);
         addBucketMesh(buckets, 'titanium', new THREE.TubeGeometry(pipeCurve, isHero ? 10 : 5, 0.032, 6, false), 0x94a3b8);
       }
@@ -2389,30 +2498,57 @@
     // 8. SWEPT SUPERCRITICAL WINGS, WINGLETS, EMPENNAGE & HIGH-LIFT SURFACES
     // =========================================================================
     function buildWingsAndEmpennage(buckets, parts, rootGroup, isHero) {
-      const wingChordSegs = isHero ? 12 : 5;
+      const wingChordSegs = isHero ? 14 : 6;
       const ctrlChordSegs = isHero ? 7 : 3;
-      const spanDiv = isHero ? 12 : 5;
 
-      // Helper to create an oriented wrapper Mount_* so child Part_* rotates cleanly around local axis at rest (0,0,0)
-      const makeMountedPart = (partGroup, mountPos, eulerRot) => {
+      // Exact 3D swept + dihedral hinge axis alignment: maps local (0,0,0)->pStart and (side*L,0,0)->pEnd!
+      const mountSweptSurface = (partGroup, pStart, pEnd, side) => {
+        const dx = Math.max(0.001, Math.abs(pEnd.x - pStart.x));
+        const dy = pEnd.y - pStart.y;
+        const dz = pEnd.z - pStart.z;
+        const spanL = Math.hypot(dx, dy, dz);
+        const rz = side * Math.asin(clamp(dy / spanL, -0.99, 0.99));
+        const ry = -side * Math.atan2(dz, dx);
         const mount = new THREE.Group();
         mount.name = `Mount_${partGroup.name}`;
-        mount.position.copy(mountPos);
-        mount.rotation.copy(eulerRot);
+        mount.position.copy(pStart);
+        mount.rotation.set(0, ry, rz, 'YXZ');
         rootGroup.add(mount);
         mount.add(partGroup);
         partGroup.position.set(0, 0, 0);
         partGroup.rotation.set(0, 0, 0);
-        return partGroup;
+        return spanL;
+      };
+
+      // Streamlined Teardrop/Cone Under-Wing Flap Track Canoe Fairing via LatheGeometry
+      const buildCanoeTeardrop = (len, rad) => {
+        const prof = [
+          new THREE.Vector2(0.004,  len * 0.48),
+          new THREE.Vector2(rad * 0.52,  len * 0.42),
+          new THREE.Vector2(rad * 0.88,  len * 0.30),
+          new THREE.Vector2(rad * 1.00,  len * 0.14),
+          new THREE.Vector2(rad * 0.86, -len * 0.08),
+          new THREE.Vector2(rad * 0.56, -len * 0.28),
+          new THREE.Vector2(rad * 0.26, -len * 0.42),
+          new THREE.Vector2(0.008, -len * 0.50)
+        ];
+        const g = new THREE.LatheGeometry(prof, isHero ? 14 : 8);
+        g.rotateX(Math.PI * 0.5); // Nose at +Z, tapered cone tail at -Z
+        g.scale(0.76, 1.0, 1.0);
+        g.computeVertexNormals();
+        return g;
       };
 
       for (const side of [1, -1]) {
         const sLabel = side > 0 ? 'L' : 'R';
 
         // --- A. Main Swept Wing + Blended Raked Winglet (`60.0m` total span) ---
-        const xs = [];
-        for (let i = 0; i <= spanDiv; i++) xs.push(lerp(2.65, 25.80, i / spanDiv));
-        const tipSteps = isHero ? 5 : 3;
+        // Explicit station locking at fuselage bury (2.15), root (3.25), Yehudi/pylon kink (9.40), winglet entry (25.80)
+        const baseXs = isHero
+          ? [2.15, 3.25, 4.80, 6.40, 8.00, 9.40, 10.20, 12.60, 15.60, 18.80, 22.40, 25.80]
+          : [2.15, 3.25, 6.20, 9.40, 14.00, 19.20, 25.80];
+        const tipSteps = isHero ? 6 : 3;
+        const xs = [...baseXs];
         for (let i = 1; i <= tipSteps; i++) xs.push(lerp(25.80, 30.00, i / tipSteps));
 
         const wingStations = xs.map((ax) => {
@@ -2431,72 +2567,102 @@
         addBucketMesh(buckets, 'wingSkin', buildAirfoilLoft(wingStations, wingChordSegs), 0xffffff,
           (p) => 0.78 + 0.22 * smoothstep(2.6, 5.5, Math.abs(p.x)));
 
-        // Wing-Root Aerodynamic Fillet Collar & Flap-Track Canoe Fairings
-        const fillet = new THREE.SphereGeometry(1.15, isHero ? 12 : 6, isHero ? 8 : 6);
-        fillet.scale(0.85, 0.55, 6.2);
-        fillet.translate(side * 2.85, -1.68, 2.2);
-        addBucketMesh(buckets, 'fuselageLower', fillet, 0xe8edf4);
+        // Sculpted Karman Wing-to-Body Root Collar Fairing (replaces detached sphere wedge)
+        const karman = buildAirfoilLoft([
+          { x: side * 2.35, y: -1.72, zLE: 9.25, chord: 13.9, thickness: 0.145, camber: 0.015, twist: 0.02 },
+          { x: side * 3.05, y: -1.68, zLE: 8.65, chord: 12.7, thickness: 0.130, camber: 0.020, twist: 0.028 },
+          { x: side * 3.65, y: -1.62, zLE: 8.00, chord: 11.7, thickness: 0.122, camber: 0.022, twist: 0.026 }
+        ], isHero ? 12 : 6);
+        addBucketMesh(buckets, 'aeroSurface', karman, 0xeef2f7);
 
-        for (const fx of [5.8, 12.4, 16.8, 20.6]) {
+        // Clean Recessed Landing Light Housing Pocket inside Wing-Root Leading Edge
+        addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.56, 0.26, 0.42, 0.04, side * 3.45, -1.68, 8.40, 0, side * 0.62, 0), 0x1e2532);
+
+        // --- 3 Under-Wing Streamlined Teardrop/Cone Flap Track Fairings (Canoe Fairings) ---
+        // fx = 6.0 (Inboard Flap) + 12.6, 16.8 (Outboard Flap) — nested seamlessly into wing underside!
+        for (const [fx, canoeLen, canoeRad, zPush] of [
+          [6.0,  2.95, 0.22, -0.35],
+          [12.6, 2.55, 0.19, -0.30],
+          [16.8, 2.25, 0.17, -0.26]
+        ]) {
           const sec = queryMainWingSection(fx);
-          const canoe = new THREE.ConeGeometry(0.24, 2.8, isHero ? 10 : 6);
-          canoe.rotateX(-Math.PI * 0.5);
-          canoe.scale(0.85, 0.90, 1.0);
-          canoe.translate(side * fx, sec.y - 0.34, sec.zTE + 0.35);
-          addBucketMesh(buckets, 'wingSkin', canoe, 0xdce4ef);
+          const airTE = evalSupercriticalAirfoil(0.88, sec.thickness, sec.camber);
+          const ySkinLow = sec.y + airTE.yLow * sec.chord;
+          const zAnchor = sec.zTE + canoeLen * 0.16 + zPush;
+          // Sculpted teardrop pod hanging directly beneath wing trailing edge
+          const canoeBody = buildCanoeTeardrop(canoeLen, canoeRad);
+          canoeBody.rotateX(0.075); // Slight nose-up alignment matching local wing camber/washout
+          canoeBody.translate(side * fx, ySkinLow - canoeRad * 0.92, zAnchor);
+          addBucketMesh(buckets, 'aeroSurface', canoeBody, 0xe6ecf4);
+
+          // Upper fairing pylon collar bridging canoe top seamlessly INTO wing underside (0.00m gap)
+          const collar = buildAirfoilLoft([
+            { x: ySkinLow - canoeRad * 1.15, y: 0, zLE: zAnchor + canoeLen * 0.42, chord: canoeLen * 0.72, thickness: 0.18, camber: 0 },
+            { x: ySkinLow + 0.16,            y: 0, zLE: zAnchor + canoeLen * 0.45, chord: canoeLen * 0.76, thickness: 0.20, camber: 0 }
+          ], 5);
+          collar.rotateZ(Math.PI * 0.5);
+          collar.translate(side * fx, 0, 0);
+          addBucketMesh(buckets, 'aeroSurface', collar, 0xdce4ef);
+
+          // Internal dark anodized flap carriage rail tucked cleanly under wing trailing edge inside canoe top
+          const rail = buildBeveledBoxLoft(0.05, 0.055, canoeLen * 0.34, 0.012, side * fx, ySkinLow - 0.06, sec.zTE - canoeLen * 0.04);
+          addBucketMesh(buckets, 'darkAnodized', rail, 0x334155);
         }
 
-        // --- B. Articulated Slotted Fowler Flaps (`Part_Flap_L/R`) ---
-        // Mounted parallel to airflow (-Z aft) along wing dihedral so inboard & outboard flaps extend cleanly along flap-track canoes!
-        const flapPivot = side > 0 ? parts.Part_Flap_L : parts.Part_Flap_R;
-        const secFlapIn = queryMainWingSection(10.0), secFlapOut = queryMainWingSection(19.2);
-        const flapDihedral = Math.atan2(secFlapOut.y - secFlapIn.y, 19.2 - 10.0);
-        makeMountedPart(
-          flapPivot,
-          new THREE.Vector3(side * 10.0, secFlapIn.y - 0.05, secFlapIn.zTE + 0.28),
-          new THREE.Euler(0, 0, side * flapDihedral, 'YXZ')
+        // --- B. Articulated Slotted Fowler Flaps: Dual Inboard (`Part_Flap_Inboard_*`) + Outboard (`Part_Flap_*`) ---
+        // B1. Inboard Flap (x: 3.45 -> 8.65 along exact inboard swept TE axis)
+        const flapInbPivot = side > 0 ? parts.Part_Flap_Inboard_L : parts.Part_Flap_Inboard_R;
+        const secIn0 = queryMainWingSection(3.45), secIn1 = queryMainWingSection(8.65);
+        const inbFlapSpan = mountSweptSurface(
+          flapInbPivot,
+          new THREE.Vector3(side * 3.45, secIn0.y - 0.03, secIn0.zTE + 0.55),
+          new THREE.Vector3(side * 8.65, secIn1.y - 0.03, secIn1.zTE + 0.55),
+          side
         );
-        const mountMatInv = new THREE.Matrix4().compose(
-          flapPivot.parent.position,
-          new THREE.Quaternion().setFromEuler(flapPivot.parent.rotation),
-          new THREE.Vector3(1, 1, 1)
-        ).invert();
-        const toFlapLocal = (wx, wy, wz) => new THREE.Vector3(wx, wy, wz).applyMatrix4(mountMatInv);
-        const secInb0 = queryMainWingSection(3.3), secInb1 = queryMainWingSection(8.6);
-        const pIn0 = toFlapLocal(side * 3.3, secInb0.y - 0.05, secInb0.zTE + 0.26);
-        const pIn1 = toFlapLocal(side * 8.6, secInb1.y - 0.05, secInb1.zTE + 0.26);
-        const pOut0 = toFlapLocal(side * 10.0, secFlapIn.y - 0.05, secFlapIn.zTE + 0.28);
-        const pOut1 = toFlapLocal(side * 19.2, secFlapOut.y - 0.05, secFlapOut.zTE + 0.28);
-        const flapGeomList = [
+        const flapInbMesh = new THREE.Mesh(
           normalizeForMerge(buildAirfoilLoft([
-            { x: pOut0.x, y: pOut0.y, zLE: pOut0.z + 0.35, chord: 1.35, thickness: 0.10, camber: 0.025 },
-            { x: pOut1.x, y: pOut1.y, zLE: pOut1.z + 0.24, chord: 0.96, thickness: 0.09, camber: 0.020 }
-          ], ctrlChordSegs), 0xe2e8f0),
-          normalizeForMerge(buildAirfoilLoft([
-            { x: pIn0.x, y: pIn0.y, zLE: pIn0.z + 0.42, chord: 1.55, thickness: 0.11, camber: 0.025 },
-            { x: pIn1.x, y: pIn1.y, zLE: pIn1.z + 0.36, chord: 1.40, thickness: 0.10, camber: 0.022 }
-          ], ctrlChordSegs), 0xe2e8f0)
-        ];
-        const flapMesh = new THREE.Mesh(safeMerge(flapGeomList), MATS.wingSkin);
-        flapMesh.name = `Flap_Assembly_${sLabel}`;
-        flapMesh.castShadow = true; flapMesh.receiveShadow = true;
-        flapPivot.add(flapMesh);
+            { x: 0,                  y: 0, zLE: 0.40, chord: 0.98, thickness: 0.10, camber: 0.025 },
+            { x: side * inbFlapSpan, y: 0, zLE: 0.36, chord: 0.90, thickness: 0.095, camber: 0.022 }
+          ], ctrlChordSegs), 0xf1f5f9),
+          MATS.aeroSurface
+        );
+        flapInbMesh.name = `Flap_Inboard_${sLabel}`;
+        flapInbMesh.castShadow = true; flapInbMesh.receiveShadow = true;
+        flapInbPivot.add(flapInbMesh);
 
-        // --- C. Articulated Leading-Edge Slats (`Part_Slat_L/R`) ---
-        const slatPivot = side > 0 ? parts.Part_Slat_L : parts.Part_Slat_R;
-        const secSlIn = queryMainWingSection(10.3), secSlOut = queryMainWingSection(25.2);
-        const slatSweep = Math.atan2(secSlOut.zLE - secSlIn.zLE, 25.2 - 10.3);
-        const slatDihedral = Math.atan2(secSlOut.y - secSlIn.y, 25.2 - 10.3);
-        makeMountedPart(
-          slatPivot,
-          new THREE.Vector3(side * 10.3, secSlIn.y, secSlIn.zLE - 0.15),
-          new THREE.Euler(0, -side * slatSweep, side * slatDihedral, 'YXZ')
+        // B2. Outboard Flap (x: 10.10 -> 19.20 along exact 25.8 deg swept TE axis!)
+        const flapOutPivot = side > 0 ? parts.Part_Flap_L : parts.Part_Flap_R;
+        const secFl0 = queryMainWingSection(10.10), secFl1 = queryMainWingSection(19.20);
+        const outFlapSpan = mountSweptSurface(
+          flapOutPivot,
+          new THREE.Vector3(side * 10.10, secFl0.y - 0.02, secFl0.zTE + 0.44),
+          new THREE.Vector3(side * 19.20, secFl1.y - 0.01, secFl1.zTE + 0.32),
+          side
         );
-        const slatSpan = Math.hypot(25.2 - 10.3, secSlOut.zLE - secSlIn.zLE);
+        const flapOutMesh = new THREE.Mesh(
+          normalizeForMerge(buildAirfoilLoft([
+            { x: 0,                   y: 0, zLE: 0.38, chord: 0.88, thickness: 0.095, camber: 0.024 },
+            { x: side * outFlapSpan,  y: 0, zLE: 0.28, chord: 0.64, thickness: 0.088, camber: 0.020 }
+          ], ctrlChordSegs), 0xf1f5f9),
+          MATS.aeroSurface
+        );
+        flapOutMesh.name = `Flap_Outboard_${sLabel}`;
+        flapOutMesh.castShadow = true; flapOutMesh.receiveShadow = true;
+        flapOutPivot.add(flapOutMesh);
+
+        // --- C. Articulated Leading-Edge Slats (`Part_Slat_L/R`) strictly locked onto LE curve ---
+        const slatPivot = side > 0 ? parts.Part_Slat_L : parts.Part_Slat_R;
+        const secSlIn = queryMainWingSection(10.10), secSlOut = queryMainWingSection(25.40);
+        const slatSpan = mountSweptSurface(
+          slatPivot,
+          new THREE.Vector3(side * 10.10, secSlIn.y - 0.01, secSlIn.zLE - 0.14),
+          new THREE.Vector3(side * 25.40, secSlOut.y - 0.01, secSlOut.zLE - 0.08),
+          side
+        );
         const slatMesh = new THREE.Mesh(
           normalizeForMerge(buildAirfoilLoft([
-            { x: 0, y: 0, zLE: 0.24, chord: 0.65, thickness: 0.14, camber: 0.03 },
-            { x: side * slatSpan, y: 0, zLE: 0.14, chord: 0.36, thickness: 0.12, camber: 0.025 }
+            { x: 0,              y: 0, zLE: 0.18, chord: 0.56, thickness: 0.13, camber: 0.028 },
+            { x: side * slatSpan, y: 0, zLE: 0.10, chord: 0.32, thickness: 0.11, camber: 0.022 }
           ], ctrlChordSegs), 0xdce4ef),
           MATS.titanium
         );
@@ -2504,49 +2670,55 @@
         slatMesh.castShadow = true; slatMesh.receiveShadow = true;
         slatPivot.add(slatMesh);
 
-        // --- D. Articulated Upper-Wing Spoilers (`Part_Spoiler_L/R`) ---
+        // --- D. Articulated Upper-Wing Spoilers (`Part_Spoiler_L/R`) seated flush onto upper airfoil skin (0%..75% flush, >75% deploy) ---
         const spPivot = side > 0 ? parts.Part_Spoiler_L : parts.Part_Spoiler_R;
-        const secSpIn = queryMainWingSection(10.3), secSpOut = queryMainWingSection(18.8);
-        const spSweep = Math.atan2(secSpOut.zTE - secSpIn.zTE, 18.8 - 10.3);
-        const spDihedral = Math.atan2(secSpOut.y - secSpIn.y, 18.8 - 10.3);
-        makeMountedPart(
+        const secSpIn = queryMainWingSection(10.25), secSpOut = queryMainWingSection(18.80);
+        const airSpIn = evalSupercriticalAirfoil(0.70, secSpIn.thickness, secSpIn.camber);
+        const airSpOut = evalSupercriticalAirfoil(0.70, secSpOut.thickness, secSpOut.camber);
+        const spSpan = mountSweptSurface(
           spPivot,
-          new THREE.Vector3(side * 10.3, secSpIn.y + 0.24, secSpIn.zTE + 1.55),
-          new THREE.Euler(0, -side * spSweep, side * spDihedral, 'YXZ')
+          new THREE.Vector3(side * 10.25, secSpIn.y + airSpIn.yUp * secSpIn.chord - 0.018, lerp(secSpIn.zLE, secSpIn.zTE, 0.70)),
+          new THREE.Vector3(side * 18.80, secSpOut.y + airSpOut.yUp * secSpOut.chord - 0.018, lerp(secSpOut.zLE, secSpOut.zTE, 0.70)),
+          side
         );
         const spList = [];
-        for (let p = 0; p < 4; p++) {
-          const px = side * lerp(0.3, 8.2, p / 3.5);
+        const panelGap = 0.18;
+        const nPanels = 4;
+        const usableSpan = spSpan - 0.32;
+        const panelW = (usableSpan - (nPanels - 1) * panelGap) / nPanels;
+        for (let p = 0; p < nPanels; p++) {
+          const x0 = side * (0.16 + p * (panelW + panelGap));
+          const x1 = side * (0.16 + p * (panelW + panelGap) + panelW);
+          const tMid = (p + 0.5) / nPanels;
+          const chordP = lerp(0.76, 0.52, tMid);
           const spGeom = isHero
-            ? buildChamferedBlock(1.85, 0.052, 0.88, 0.05, 0.016, 3, 1, px + side * 0.92, 0.02, -0.44)
+            ? buildChamferedBlock(panelW, 0.044, chordP, 0.04, 0.014, 3, 1, (x0 + x1) * 0.5, 0.015, -chordP * 0.5)
             : buildAirfoilLoft([
-                { x: px, y: 0.02, zLE: 0.0, chord: 0.88, thickness: 0.06, camber: 0.005 },
-                { x: px + side * 1.85, y: 0.02, zLE: 0.0, chord: 0.88, thickness: 0.06, camber: 0.005 }
+                { x: x0, y: 0.015, zLE: 0.0, chord: chordP, thickness: 0.06, camber: 0.005 },
+                { x: x1, y: 0.015, zLE: 0.0, chord: chordP * 0.94, thickness: 0.06, camber: 0.005 }
               ], 2);
-          spList.push(normalizeForMerge(spGeom, 0xcbd5e1));
+          spList.push(normalizeForMerge(spGeom, 0xd8e0ec));
         }
-        const spMesh = new THREE.Mesh(safeMerge(spList), MATS.wingSkin);
+        const spMesh = new THREE.Mesh(safeMerge(spList), MATS.aeroSurface);
         spMesh.name = `Spoilers_Array_${sLabel}`;
         spMesh.castShadow = true;
         spPivot.add(spMesh);
 
         // --- E. Articulated Outboard Ailerons (`Part_Aileron_L/R`) ---
         const ailPivot = side > 0 ? parts.Part_Aileron_L : parts.Part_Aileron_R;
-        const secAilIn = queryMainWingSection(19.6), secAilOut = queryMainWingSection(25.2);
-        const ailSweep = Math.atan2(secAilOut.zTE - secAilIn.zTE, 25.2 - 19.6);
-        const ailDihedral = Math.atan2(secAilOut.y - secAilIn.y, 25.2 - 19.6);
-        makeMountedPart(
+        const secAilIn = queryMainWingSection(19.35), secAilOut = queryMainWingSection(25.40);
+        const ailSpan = mountSweptSurface(
           ailPivot,
-          new THREE.Vector3(side * 19.6, secAilIn.y, secAilIn.zTE + 0.20),
-          new THREE.Euler(0, -side * ailSweep, side * ailDihedral, 'YXZ')
+          new THREE.Vector3(side * 19.35, secAilIn.y, secAilIn.zTE + 0.30),
+          new THREE.Vector3(side * 25.40, secAilOut.y, secAilOut.zTE + 0.22),
+          side
         );
-        const ailSpan = Math.hypot(25.2 - 19.6, secAilOut.zTE - secAilIn.zTE);
         const ailMesh = new THREE.Mesh(
           normalizeForMerge(buildAirfoilLoft([
-            { x: 0, y: 0, zLE: 0.14, chord: 0.85, thickness: 0.085, camber: 0.01 },
-            { x: side * ailSpan, y: 0, zLE: 0.10, chord: 0.58, thickness: 0.075, camber: 0.01 }
+            { x: 0,              y: 0, zLE: 0.24, chord: 0.68, thickness: 0.085, camber: 0.01 },
+            { x: side * ailSpan, y: 0, zLE: 0.16, chord: 0.44, thickness: 0.075, camber: 0.01 }
           ], ctrlChordSegs), 0xf1f5f9),
-          MATS.wingSkin
+          MATS.aeroSurface
         );
         ailMesh.name = `Aileron_${sLabel}`;
         ailMesh.castShadow = true;
@@ -2554,26 +2726,24 @@
 
         // --- F. Horizontal Stabilizers & Articulated Elevators (`Part_Elevator_L/R`) ---
         const hStab = buildAirfoilLoft([
-          { x: side * 0.75, y: 1.52, zLE: -23.6, chord: 4.85, thickness: 0.095, camber: -0.008 },
+          { x: side * 0.70, y: 1.52, zLE: -23.6, chord: 4.85, thickness: 0.095, camber: -0.008 },
           { x: side * 10.40, y: 2.65, zLE: -29.8, chord: 1.55, thickness: 0.075, camber: -0.005 }
         ], isHero ? 10 : 6);
-        addBucketMesh(buckets, 'wingSkin', hStab, 0xffffff);
+        addBucketMesh(buckets, 'aeroSurface', hStab, 0xf1f5f9);
 
         const elPivot = side > 0 ? parts.Part_Elevator_L : parts.Part_Elevator_R;
-        const elSweep = Math.atan2(-29.8 - (-23.6), 10.40 - 0.75);
-        const elDih = Math.atan2(2.65 - 1.52, 10.40 - 0.75);
-        makeMountedPart(
+        const elSpan = mountSweptSurface(
           elPivot,
           new THREE.Vector3(side * 1.45, 1.59, -27.75),
-          new THREE.Euler(0, -side * elSweep, side * elDih, 'YXZ')
+          new THREE.Vector3(side * 9.85, 2.58, -31.10),
+          side
         );
-        const elSpan = Math.hypot(9.8 - 1.45, -5.8);
         const elMesh = new THREE.Mesh(
           normalizeForMerge(buildAirfoilLoft([
-            { x: 0, y: 0, zLE: 0.16, chord: 1.15, thickness: 0.08, camber: 0 },
-            { x: side * elSpan, y: 0, zLE: 0.10, chord: 0.48, thickness: 0.07, camber: 0 }
+            { x: 0,             y: 0, zLE: 0.26, chord: 1.05, thickness: 0.08, camber: 0 },
+            { x: side * elSpan, y: 0, zLE: 0.16, chord: 0.46, thickness: 0.07, camber: 0 }
           ], ctrlChordSegs), 0xe8edf4),
-          MATS.wingSkin
+          MATS.aeroSurface
         );
         elMesh.name = `Elevator_${sLabel}`;
         elMesh.castShadow = true;
@@ -2581,7 +2751,6 @@
       }
 
       // --- G. Swept Vertical Stabilizer + Dorsal Fin Fillet + Hinged Rudder (`Part_Rudder`) ---
-      // Tail height: ground = -5.25m, fin tip = +11.75m -> exact 17.0m total tail height!
       const buildFinPlate = (y0, y1, zLE0, zLE1, ch0, ch1) => {
         const g = buildAirfoilLoft([
           { x: y0, y: 0, zLE: zLE0, chord: ch0, thickness: 0.095, camber: 0 },
@@ -2590,21 +2759,22 @@
         g.rotateZ(Math.PI * 0.5);
         return g;
       };
-      // Dorsal Fin Fillet ramping from z = -15.0 up to main fin root
-      addBucketMesh(buckets, 'wingSkin', buildFinPlate(2.35, 3.35, -15.2, -20.2, 6.2, 7.6), 0xf4f7fb);
-      // Main Vertical Fin up to y = +11.75m
-      addBucketMesh(buckets, 'wingSkin', buildFinPlate(2.20, 11.75, -19.8, -28.0, 9.2, 3.15), 0xffffff);
+      addBucketMesh(buckets, 'aeroSurface', buildFinPlate(1.90, 3.35, -15.2, -20.2, 6.4, 7.6), 0xf4f7fb);
+      addBucketMesh(buckets, 'wingSkin', buildFinPlate(2.05, 11.75, -19.8, -28.0, 9.2, 3.15), 0xffffff);
 
       const rudderPivot = parts.Part_Rudder;
       const rudSweep = Math.atan2(-28.0 - (-19.8), 11.75 - 2.20);
-      makeMountedPart(
-        rudderPivot,
-        new THREE.Vector3(0, 2.35, -26.8),
-        new THREE.Euler(rudSweep * 0.65, 0, 0, 'YXZ')
-      );
+      const rudMount = new THREE.Group();
+      rudMount.name = 'Mount_Part_Rudder';
+      rudMount.position.set(0, 2.35, -26.8);
+      rudMount.rotation.set(rudSweep * 0.65, 0, 0, 'YXZ');
+      rootGroup.add(rudMount);
+      rudMount.add(rudderPivot);
+      rudderPivot.position.set(0, 0, 0);
+      rudderPivot.rotation.set(0, 0, 0);
       const rudMesh = new THREE.Mesh(
-        normalizeForMerge(buildFinPlate(0, 9.15, 0.15, -0.35, 2.25, 0.95), 0xf1f5f9),
-        MATS.wingSkin
+        normalizeForMerge(buildFinPlate(0, 9.15, 0.25, -0.35, 2.15, 0.92), 0xf1f5f9),
+        MATS.aeroSurface
       );
       rudMesh.name = 'Vertical_Rudder';
       rudMesh.castShadow = true;
@@ -2624,23 +2794,32 @@
         const fanGroup = side > 0 ? parts.Part_FanBlades_L : parts.Part_FanBlades_R;
         const revGroup = side > 0 ? parts.Part_ThrustReverser_L : parts.Part_ThrustReverser_R;
 
-        const ex = side * 9.40, ey = -2.35, ez = 4.45;
+        const ex = side * 9.40, ey = -2.45, ez = 4.55;
         engGroup.position.set(ex, ey, ez);
         rootGroup.add(engGroup);
 
-        // Swept Aerodynamic Engine Pylon joining nacelle to wing underside
+        // Swept Aerodynamic Engine Pylon joining nacelle cleanly to wing underside (zero upper-wing poke-through!)
         const pylonG = buildAirfoilLoft([
-          { x: ey + 1.35, y: 0, zLE: 1.05, chord: 4.9, thickness: 0.14, camber: 0 },
-          { x: ey + 2.45, y: 0, zLE: -0.65, chord: 6.2, thickness: 0.16, camber: 0 }
+          { x: -1.35, y: 0, zLE: ez + 0.45, chord: 4.50, thickness: 0.14, camber: 0 },
+          { x: -0.92, y: 0, zLE: ez - 0.35, chord: 4.65, thickness: 0.15, camber: 0 },
+          { x: -0.74, y: 0, zLE: 3.15,      chord: 4.05, thickness: 0.13, camber: 0 }
         ], isHero ? 8 : 5);
         pylonG.rotateZ(Math.PI * 0.5);
-        pylonG.translate(ex, 0, ez);
-        addBucketMesh(buckets, 'wingSkin', pylonG, 0xe2e8f0);
+        pylonG.translate(ex, 0, 0);
+        addBucketMesh(buckets, 'aeroSurface', pylonG, 0xe8edf4);
 
-        // Sculpted Aerodynamic Pylon Aft Core Exhaust Fairing
+        // Under-wing sculpted pylon leading-edge glove fairing + aft titanium core heat-shield fairing
+        const leFairing = buildAirfoilLoft([
+          { x: -1.38, y: 0, zLE: 3.45, chord: 4.20, thickness: 0.18, camber: 0 },
+          { x: -1.04, y: 0, zLE: 3.30, chord: 4.45, thickness: 0.16, camber: 0 }
+        ], 5);
+        leFairing.rotateZ(Math.PI * 0.5);
+        leFairing.translate(ex, 0, 0);
+        addBucketMesh(buckets, 'aeroSurface', leFairing, 0xdce4ef);
+
         const heatShield = buildAirfoilLoft([
-          { x: ey + 1.15, y: 0, zLE: ez - 1.05, chord: 2.65, thickness: 0.24, camber: 0 },
-          { x: ey + 1.62, y: 0, zLE: ez - 1.40, chord: 1.95, thickness: 0.18, camber: 0 }
+          { x: -1.55, y: 0, zLE: 2.55, chord: 2.65, thickness: 0.24, camber: 0 },
+          { x: -1.10, y: 0, zLE: 2.35, chord: 2.25, thickness: 0.18, camber: 0 }
         ], isHero ? 6 : 4);
         heatShield.rotateZ(Math.PI * 0.5);
         heatShield.translate(ex, 0, 0);
@@ -2731,7 +2910,7 @@
         exhaustPlug.translate(0, 0, -3.62);
         engTiList.push(normalizeForMerge(exhaustPlug, 0x4b5563));
 
-        const nacMainMesh = new THREE.Mesh(safeMerge(engStaticList), MATS.wingSkin);
+        const nacMainMesh = new THREE.Mesh(safeMerge(engStaticList), MATS.aeroSurface);
         nacMainMesh.name = `Engine_Intake_Cowl_${sLabel}`;
         nacMainMesh.castShadow = true; nacMainMesh.receiveShadow = true;
         engGroup.add(nacMainMesh);
@@ -2759,7 +2938,7 @@
         ];
         const revGeom = new THREE.LatheGeometry(revProf, segs);
         revGeom.rotateX(Math.PI * 0.5);
-        const revMesh = new THREE.Mesh(normalizeForMerge(revGeom, 0xf4f7fb), MATS.wingSkin);
+        const revMesh = new THREE.Mesh(normalizeForMerge(revGeom, 0xf4f7fb), MATS.aeroSurface);
         revMesh.name = `ThrustReverser_Sleeve_${sLabel}`;
         revMesh.castShadow = true; revMesh.receiveShadow = true;
         revGroup.add(revMesh);
@@ -2865,7 +3044,7 @@
       nosePivot.add(Object.assign(new THREE.Mesh(safeMerge(nRubber), MATS.tireRubber), { name: 'NoseGear_TwinTires', castShadow: true }));
       nosePivot.add(Object.assign(new THREE.Mesh(safeMerge(nLight), MATS.landingLight), { name: 'NoseGear_TaxiLight' }));
 
-      // --- Nose Gear Bay Doors (`Part_GearDoor_Nose_L/R`) ---
+      // --- Nose Gear Bay Doors (`Part_GearDoor_Nose_L/R`, outer hull + dark anodized structural interior) ---
       for (const side of [1, -1]) {
         const doorGrp = side > 0 ? parts.Part_GearDoor_Nose_L : parts.Part_GearDoor_Nose_R;
         const thOuter = side > 0 ? (-Math.PI * 0.5 + 0.22) : (Math.PI * 1.5 - 0.22);
@@ -2873,13 +3052,14 @@
         const hingePt = evalFuselagePoint(22.80, thOuter);
         doorGrp.position.copy(hingePt);
         rootGroup.add(doorGrp);
-        const doorMesh = new THREE.Mesh(
-          normalizeForMerge(buildCurvedShellPatch(24.60, 21.00, thInner, thOuter, hingePt, 0.0, 0.045, doorNz, doorNt), 0xffffff),
-          MATS.fuselageLower
-        );
-        doorMesh.name = side > 0 ? 'GearDoor_Nose_L' : 'GearDoor_Nose_R';
-        doorMesh.castShadow = true;
-        doorGrp.add(doorMesh);
+        const nosePair = buildCurvedBayDoorPair(24.60, 21.00, thInner, thOuter, hingePt, 0.045, doorNz, doorNt);
+        const doorOut = new THREE.Mesh(normalizeForMerge(nosePair.outer, 0xffffff), MATS.fuselageLower);
+        doorOut.name = side > 0 ? 'GearDoor_Nose_L' : 'GearDoor_Nose_R';
+        doorOut.castShadow = true;
+        doorGrp.add(doorOut);
+        const doorIn = new THREE.Mesh(normalizeForMerge(nosePair.inner, 0x2b3544), MATS.darkAnodized);
+        doorIn.name = side > 0 ? 'GearDoor_Nose_Inner_L' : 'GearDoor_Nose_Inner_R';
+        doorGrp.add(doorIn);
       }
 
       // --- B. Main Landing Gear 4-Wheel Bogies (`Part_MainGear_L`, `Part_MainGear_R`) ---
@@ -2896,10 +3076,10 @@
         mTi.push(normalizeForMerge(buildStrut(new THREE.Vector3(-side * 1.65, 0, -0.05), new THREE.Vector3(-side * 2.45, 0.22, -0.18), 0.05, 0.045, 6), 0x94a3b8));
 
         const bx = -side * 2.90;
-        mTi.push(normalizeForMerge(lgBlock(0.26, 0.24, 1.94, 0.055, 0.028, 1, bx, 0, 0), 0x94a3b8));
+        mTi.push(normalizeForMerge(lgBlock(0.26, 0.24, 1.72, 0.055, 0.028, 1, bx, 0, 0), 0x94a3b8));
         mTi.push(normalizeForMerge(buildBeveledBoxLoft(0.32, 0.32, 0.38, 0.028, bx + side * 0.08, 0, 0), 0xe2e8f0));
         mTi.push(normalizeForMerge(buildStrut(new THREE.Vector3(bx + side * 0.65, 0.12, 0), new THREE.Vector3(bx + side * 0.10, 0, -0.58), 0.042, 0.035, 6), 0xcbd5e1));
-        for (const bz of [-0.82, 0.82]) {
+        for (const bz of [-0.72, 0.72]) {
           mTi.push(normalizeForMerge(buildStrut(new THREE.Vector3(bx, -0.46, bz), new THREE.Vector3(bx, 0.46, bz), 0.075, 0.075, 6), 0xdce4ef));
           for (const wy of [-0.38, 0.38]) {
             const w = buildWheel(0.60, 0.36, new THREE.Vector3(bx, wy, bz), true);
@@ -2925,32 +3105,86 @@
         mainPivot.add(Object.assign(new THREE.Mesh(safeMerge(mBrake), MATS.darkComposite), { name: `MainGear_Brakes_${sLabel}` }));
 
         // Centerline-Hinged Curved Main Belly Bay Doors (`Part_GearDoor_Main_L/R`)
+        // Dark anodized structural aluminum interior ribs & 3 circular flanged lightening holes (zero bright white rims!)
         const mDoorGrp = side > 0 ? parts.Part_GearDoor_Main_L : parts.Part_GearDoor_Main_R;
         const thKeel = side > 0 ? (-Math.PI * 0.5) : (Math.PI * 1.5);
-        const thOuterM = side > 0 ? (-Math.PI * 0.5 + 0.76) : (Math.PI * 1.5 - 0.76);
+        const thOuterM = side > 0 ? (-Math.PI * 0.5 + 0.54) : (Math.PI * 1.5 - 0.54);
         const mHingePt = evalFuselagePoint(-1.75, thKeel);
         mHingePt.x += side * 0.06;
         mDoorGrp.position.copy(mHingePt);
         rootGroup.add(mDoorGrp);
-        const mDoorMesh = new THREE.Mesh(
-          normalizeForMerge(buildCurvedShellPatch(-0.40, -3.10, thKeel, thOuterM, mHingePt, 0.0, 0.055, doorNz, doorNt), 0xffffff),
-          MATS.fuselageLower
-        );
+
+        const mainPair = buildCurvedBayDoorPair(-0.40, -3.10, thKeel, thOuterM, mHingePt, 0.050, doorNz, doorNt);
+        const mDoorMesh = new THREE.Mesh(normalizeForMerge(mainPair.outer, 0xffffff), MATS.fuselageLower);
         mDoorMesh.name = `GearDoor_Main_${sLabel}`;
         mDoorMesh.castShadow = true;
         mDoorGrp.add(mDoorMesh);
 
-        // Strut-Mounted Wing-Root Fairing Door (`Part_GearDoor_Strut_L/R`)
+        const doorRibList = [normalizeForMerge(mainPair.inner, 0x2b3442)];
+        const thRib = lerp(thKeel, thOuterM, 0.52);
+        const holeSegs = isHero ? 16 : 10;
+        const holeProf = [
+          new THREE.Vector2(0.22, 0.0),
+          new THREE.Vector2(0.32, 0.0),
+          new THREE.Vector2(0.32, 0.032),
+          new THREE.Vector2(0.24, 0.044),
+          new THREE.Vector2(0.20, 0.034),
+          new THREE.Vector2(0.20, 0.0)
+        ];
+        const bayCoreList = [];
+        for (const zHole of [-0.90, -1.75, -2.60]) {
+          const pSurf = evalFuselagePoint(zHole, thRib).sub(mHingePt);
+          const nIn = new THREE.Vector3(-Math.cos(thRib), -Math.sin(thRib), 0).normalize();
+          const pCenter = pSurf.clone().addScaledVector(nIn, 0.048);
+          const qAlign = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), nIn);
+          const mMat = new THREE.Matrix4().compose(pCenter, qAlign, new THREE.Vector3(1, 1, 1));
+
+          // Flanged circular lightening hole rim in dark anodized structural aluminum (#2f3a4a)
+          const holeFlange = new THREE.LatheGeometry(holeProf, holeSegs);
+          holeFlange.computeVertexNormals();
+          holeFlange.applyMatrix4(mMat);
+          doorRibList.push(normalizeForMerge(holeFlange, 0x2f3a4a));
+
+          // Recessed matte anodized backing plate inside each lightening hole (looks like deep bay rib, NOT a glowing window)
+          const recessDisc = new THREE.CylinderGeometry(0.21, 0.21, 0.018, holeSegs);
+          recessDisc.applyMatrix4(new THREE.Matrix4().compose(
+            pSurf.clone().addScaledVector(nIn, 0.056), qAlign, new THREE.Vector3(1, 1, 1)
+          ));
+          bayCoreList.push(normalizeForMerge(recessDisc, 0x1a212c));
+        }
+        // Longitudinal inner stiffening rib beams along bay door pan
+        for (const fTh of [0.22, 0.84]) {
+          const pBeam = evalFuselagePoint(-1.75, lerp(thKeel, thOuterM, fTh)).sub(mHingePt);
+          const nInB = new THREE.Vector3(-Math.cos(thRib), -Math.sin(thRib), 0).normalize();
+          pBeam.addScaledVector(nInB, 0.058);
+          doorRibList.push(normalizeForMerge(buildBeveledBoxLoft(0.06, 0.05, 2.52, 0.01, pBeam.x, pBeam.y, pBeam.z), 0x293240));
+        }
+        mDoorGrp.add(Object.assign(new THREE.Mesh(safeMerge(doorRibList), MATS.darkAnodized), {
+          name: `GearDoor_Main_Ribs_${sLabel}`
+        }));
+        mDoorGrp.add(Object.assign(new THREE.Mesh(safeMerge(bayCoreList), MATS.darkComposite), {
+          name: `GearDoor_Main_LighteningBays_${sLabel}`
+        }));
+
+        // Strut-Mounted Wing-Root Fairing Door (`Part_GearDoor_Strut_L/R`) cleanly bridging x = 1.66 .. 3.92
         const sDoorGrp = side > 0 ? parts.Part_GearDoor_Strut_L : parts.Part_GearDoor_Strut_R;
-        sDoorGrp.position.set(side * 3.92, -1.80, -1.80);
+        sDoorGrp.position.set(side * 3.92, -1.78, -1.80);
         rootGroup.add(sDoorGrp);
         const sDoorMesh = new THREE.Mesh(
-          normalizeForMerge(lgBlock(1.55, 0.068, 1.92, 0.16, 0.022, 2, -side * 0.85, -0.35, 0, 0, 0, -side * 0.16), 0xdce4ef),
-          MATS.wingSkin
+          normalizeForMerge(lgBlock(2.24, 0.054, 2.02, 0.16, 0.020, 2, -side * 1.12, -0.53, 0, 0, 0, -side * 0.22), 0xe6ecf4),
+          MATS.aeroSurface
         );
         sDoorMesh.name = `GearDoor_Strut_${sLabel}`;
         sDoorMesh.castShadow = true;
         sDoorGrp.add(sDoorMesh);
+        const sDoorRibList = [
+          normalizeForMerge(buildBeveledBoxLoft(2.14, 0.042, 1.92, 0.016, -side * 1.12, -0.495, 0, 0, 0, -side * 0.22), 0x2b3442),
+          normalizeForMerge(buildBeveledBoxLoft(1.86, 0.046, 0.07, 0.012, -side * 1.12, -0.465, -0.58, 0, 0, -side * 0.22), 0x222a36),
+          normalizeForMerge(buildBeveledBoxLoft(1.86, 0.046, 0.07, 0.012, -side * 1.12, -0.465,  0.58, 0, 0, -side * 0.22), 0x222a36)
+        ];
+        const sDoorRib = new THREE.Mesh(safeMerge(sDoorRibList), MATS.darkAnodized);
+        sDoorRib.name = `GearDoor_Strut_InnerRib_${sLabel}`;
+        sDoorGrp.add(sDoorRib);
       }
     }
 
@@ -2987,9 +3221,9 @@
         strobe.translate(side * 30.02, 2.86, -15.05);
         whiteLights.push(normalizeForMerge(strobe, 0xffffff));
 
-        const lnd = new THREE.SphereGeometry(0.14, 10, 6);
-        lnd.scale(1.0, 1.0, 0.45);
-        lnd.translate(side * 3.35, -1.78, 8.62);
+        const lnd = new THREE.SphereGeometry(0.11, 10, 6);
+        lnd.scale(1.2, 0.85, 0.45);
+        lnd.translate(side * 3.45, -1.68, 8.58);
         landLights.push(normalizeForMerge(lnd, 0xffffff));
       }
       addLightMesh('Strobe_And_Tail_White', safeMerge(whiteLights), MATS.strobeWhite);
@@ -3018,8 +3252,8 @@
         ['Collider_Fuselage', 5.8, 6.0, 62.0, 0, 0.0, 0.0],
         ['Collider_Wings',    60.0, 2.6, 18.0, 0, -0.5, -2.5],
         ['Collider_Tail',     20.8, 10.5, 11.5, 0, 6.2, -25.8],
-        ['Collider_Engine_L', 3.4, 3.4, 5.8,  9.4, -2.35, 4.45],
-        ['Collider_Engine_R', 3.4, 3.4, 5.8, -9.4, -2.35, 4.45]
+        ['Collider_Engine_L', 3.4, 3.4, 5.8,  9.4, -2.45, 4.55],
+        ['Collider_Engine_R', 3.4, 3.4, 5.8, -9.4, -2.45, 4.55]
       ]) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), MATS.collider);
         m.name = name;
@@ -3069,6 +3303,8 @@
         Part_Rudder:              new THREE.Group(),
         Part_Elevator_L:          new THREE.Group(),
         Part_Elevator_R:          new THREE.Group(),
+        Part_Flap_Inboard_L:      new THREE.Group(),
+        Part_Flap_Inboard_R:      new THREE.Group(),
         Part_Flap_L:              new THREE.Group(),
         Part_Flap_R:              new THREE.Group(),
         Part_Slat_L:              new THREE.Group(),
@@ -3110,8 +3346,10 @@
       const bucketMatMap = {
         fuselageLower: MATS.fuselageLower,
         wingSkin: MATS.wingSkin,
+        aeroSurface: MATS.aeroSurface,
         titanium: MATS.titanium,
         darkComposite: MATS.darkComposite,
+        darkAnodized: MATS.darkAnodized,
         cabinInterior: MATS.cabinInterior,
         seatFabric: MATS.seatFabric,
         avionicsGlow: MATS.avionicsGlow,
@@ -3159,20 +3397,25 @@
       articulated.Part_GearDoor_Strut_L.rotation.z = gearPhase * (Math.PI * 0.5);
       articulated.Part_GearDoor_Strut_R.rotation.z = -gearPhase * (Math.PI * 0.5);
 
-      // 2. High-Lift Flaps, Slats & Spoilers
+      // 2. High-Lift Flaps, Slats (0%..75%) & Ground Rollout Spoilers (>75%)
       const fT = flightState.flapsPct / 100;
+      const flapsSlatsPhase = smoothstep(0.0, 0.75, fT);
+      const spoilerPhase = smoothstep(0.75, 1.0, fT);
       for (const s of ['L', 'R']) {
-        const flap = articulated[`Part_Flap_${s}`];
-        flap.position.set(0, -fT * 0.28, -fT * 0.72);
-        flap.rotation.x = -deg(fT * 34);
+        const flapOut = articulated[`Part_Flap_${s}`];
+        flapOut.position.set(0, -flapsSlatsPhase * 0.24, -flapsSlatsPhase * 0.56);
+        flapOut.rotation.x = -deg(flapsSlatsPhase * 32);
+
+        const flapInb = articulated[`Part_Flap_Inboard_${s}`];
+        flapInb.position.set(0, -flapsSlatsPhase * 0.26, -flapsSlatsPhase * 0.62);
+        flapInb.rotation.x = -deg(flapsSlatsPhase * 32);
 
         const slat = articulated[`Part_Slat_${s}`];
-        slat.position.set(0, -fT * 0.16, fT * 0.42);
-        slat.rotation.x = deg(fT * 22);
+        slat.position.set(0, -flapsSlatsPhase * 0.14, flapsSlatsPhase * 0.36);
+        slat.rotation.x = deg(flapsSlatsPhase * 20);
 
         const spoiler = articulated[`Part_Spoiler_${s}`];
-        const spPhase = smoothstep(0.45, 1.0, fT);
-        spoiler.rotation.x = deg(spPhase * 42);
+        spoiler.rotation.x = deg(spoilerPhase * 42);
       }
 
       // 3. Thrust Reverser Sleeves & Fan Blade RPM Rotation
@@ -3307,12 +3550,12 @@
     }
 
     const CAM_PRESETS = {
-      overview: { pos: [64, 21, 60],     target: [4, -0.5, -2] },
-      cutaway:  { pos: [16, 12.5, 22],   target: [0.5, 0.8, 12] },
-      gear:     { pos: [15.5, -3.2, 14], target: [2.2, -3.3, 4.5] },
-      engine:   { pos: [15.5, -1.6, 12], target: [9.4, -2.35, 4.2] },
-      wing:     { pos: [26, 7.5, -14],   target: [14, -0.2, -4.5] },
-      top:      { pos: [2.5, 86, 0.1],   target: [2.5, 0, -2.0] }
+      overview: { pos: [64, 21, 60],       target: [4, -0.5, -2] },
+      cutaway:  { pos: [16, 12.5, 22],     target: [0.5, 0.8, 12] },
+      gear:     { pos: [11.5, -3.7, -10.8], target: [1.8, -3.3, -1.6] },
+      engine:   { pos: [15.5, -1.6, 12],   target: [9.4, -2.45, 4.55] },
+      wing:     { pos: [26, 7.5, -14],     target: [14, -0.2, -4.5] },
+      top:      { pos: [2.5, 86, 0.1],     target: [2.5, 0, -2.0] }
     };
 
     let camAnim = null;
@@ -3478,9 +3721,11 @@
         MATS.fuselageLower.map = TEX.albedoTex[currentLivery];
         MATS.fuselageUpper.map = TEX.albedoTex[currentLivery];
         MATS.wingSkin.map = TEX.wingTex[currentLivery];
+        MATS.aeroSurface.map = TEX.aeroTex[currentLivery];
         MATS.fuselageLower.needsUpdate = true;
         MATS.fuselageUpper.needsUpdate = true;
         MATS.wingSkin.needsUpdate = true;
+        MATS.aeroSurface.needsUpdate = true;
         refreshTextureThumbnails(currentLivery);
       });
     });
