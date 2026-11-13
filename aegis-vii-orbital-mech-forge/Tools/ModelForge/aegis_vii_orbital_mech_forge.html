@@ -1,0 +1,2637 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AEGIS-VII Orbital Drop Mech — Three.js to Unity URP Forge</title>
+  <style>
+    :root {
+      --bg-deep: #070a0f;
+      --panel-bg: rgba(11, 16, 24, 0.90);
+      --panel-border: rgba(56, 189, 248, 0.25);
+      --accent: #38bdf8;
+      --accent-amber: #f59e0b;
+      --accent-hot: #ef4444;
+      --text-main: #e2e8f0;
+      --text-dim: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none;
+      background: radial-gradient(circle at 42% 45%, #121c2a 0%, #05080c 100%);
+      color: var(--text-main);
+      font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
+      font-size: 11px;
+      user-select: none;
+    }
+    #viewport, #viewport canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      touch-action: none;
+      display: block;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.58);
+    }
+
+    /* Top Left Identity + Live Stats HUD */
+    #hud-header {
+      position: fixed; top: 12px; left: 12px; z-index: 20;
+      padding: 10px 14px; min-width: 300px;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 7px;
+    }
+    .brand-title {
+      font-size: 13px; font-weight: 800; letter-spacing: 0.06em;
+      color: #f8fafc; display: flex; align-items: center; gap: 7px;
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--accent); box-shadow: 0 0 10px var(--accent);
+    }
+    .badge-lod {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+      background: rgba(56, 189, 248, 0.16); color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.42);
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px; padding: 4px 6px; text-align: center;
+    }
+    .stat-val { font-size: 12px; font-weight: 700; color: #f8fafc; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 8.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Bottom Left Camera Presets */
+    #camera-bar {
+      position: fixed; bottom: 12px; left: 12px; right: 302px; z-index: 20;
+      padding: 7px 8px; display: flex; flex-wrap: wrap; gap: 5px;
+      width: fit-content; max-width: calc(100vw - 314px);
+    }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      color: var(--text-main); border-radius: 6px;
+      padding: 5px 10px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.16s ease;
+    }
+    .cam-btn:hover { background: rgba(56, 189, 248, 0.18); border-color: var(--accent); color: #fff; }
+    .cam-btn.active { background: var(--accent); border-color: var(--accent); color: #04101a; }
+
+    /* Right Control Panel */
+    #controls-panel {
+      position: fixed; top: 12px; right: 12px; bottom: 12px; width: 282px; z-index: 20;
+      padding: 11px 12px; display: flex; flex-direction: column; gap: 8px;
+      overflow-y: auto;
+    }
+    #controls-panel::-webkit-scrollbar { width: 4px; }
+    #controls-panel::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 4px; }
+
+    .sec-title {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--accent);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      padding-bottom: 3px; margin-bottom: 5px;
+    }
+    .seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .seg-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 6px 4px; font-size: 10.5px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; text-align: center;
+    }
+    .pill-btn:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.12); }
+    .pill-btn.active {
+      background: rgba(56, 189, 248, 0.24); border-color: var(--accent); color: #fff;
+      box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.2);
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-dim); }
+    .slider-head span.val { color: #f8fafc; font-weight: 700; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; cursor: pointer; }
+
+    .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .chk-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px; padding: 6px 6px;
+      font-size: 10.5px; font-weight: 600; cursor: pointer;
+    }
+    .chk-btn.active {
+      background: rgba(245, 158, 11, 0.22); border-color: var(--accent-amber); color: #fef3c7;
+    }
+
+    .btn-fire {
+      background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
+      border: 1px solid rgba(254, 215, 170, 0.35);
+      color: #fff; font-weight: 800; font-size: 11px; letter-spacing: 0.04em;
+      padding: 7px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.32);
+      transition: transform 0.1s ease, filter 0.15s ease;
+    }
+    .btn-fire:hover { filter: brightness(1.12); }
+    .btn-fire:active { transform: scale(0.98); }
+
+    /* Texture Thumbnails (5 Maps) */
+    .tex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .tex-card {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: rgba(0, 0, 0, 0.38); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px; padding: 2.5px; cursor: pointer;
+    }
+    .tex-card:hover { border-color: var(--accent); }
+    .tex-card canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; }
+    .tex-card span { font-size: 7.5px; color: var(--text-dim); text-align: center; }
+
+    /* Export Buttons */
+    .export-stack { display: flex; flex-direction: column; gap: 5px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      border: none; color: #fff; font-weight: 700; font-size: 11.5px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main); font-weight: 600; font-size: 10.5px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
+
+    #export-status { font-size: 9.5px; color: #7dd3fc; min-height: 14px; text-align: center; }
+
+    .mobile-drawer-fab { display: none; }
+
+    /* Mandatory Mobile RWD (<= 768px) */
+    @media (max-width: 768px) {
+      #hud-header {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        min-width: 0;
+        padding: 7px 10px;
+      }
+      .brand-row {
+        margin-bottom: 5px;
+        gap: 6px;
+      }
+      .brand-title {
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        min-width: 0;
+      }
+      .brand-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .stat-box { padding: 3px 4px; }
+      .stat-val { font-size: 11px; }
+      .stat-lbl { font-size: 8px; }
+      #camera-bar {
+        top: 82px;
+        left: 8px;
+        right: 8px;
+        bottom: auto;
+        width: auto;
+        max-width: calc(100vw - 16px);
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 5px 6px;
+      }
+      #camera-bar::-webkit-scrollbar { display: none; }
+      .cam-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 11px;
+        padding: 6px 9px;
+      }
+      #controls-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        max-height: 50vh;
+        border-radius: 16px 16px 0 0;
+        overflow-y: auto;
+        z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      #controls-panel.mobile-drawer-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      input[type="range"] {
+        min-height: 40px;
+        height: 40px;
+      }
+      .pill-btn, .chk-btn, .btn-primary, .btn-secondary, .btn-fire {
+        min-height: 40px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        position: fixed;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50;
+        min-height: 44px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid #bae6fd;
+        background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+        color: #f8fafc;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72), 0 0 16px rgba(56, 189, 248, 0.38);
+      }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <!-- Top Left Identity & Live Telemetry HUD -->
+  <div id="hud-header" class="glass-panel">
+    <div class="brand-row">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>AEGIS-VII ORBITAL DROP MECH</span>
+      </div>
+      <span id="lod-badge" class="badge-lod">HERO LOD</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div id="stat-tris" class="stat-val">--</div><div class="stat-lbl">Triangles</div></div>
+      <div class="stat-box"><div id="stat-verts" class="stat-val">--</div><div class="stat-lbl">Vertices</div></div>
+      <div class="stat-box"><div id="stat-draws" class="stat-val">--</div><div class="stat-lbl">Draw Calls</div></div>
+      <div class="stat-box"><div id="stat-mats" class="stat-val">--</div><div class="stat-lbl">Materials</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom Left Camera Angle Presets -->
+  <div id="camera-bar" class="glass-panel">
+    <button class="cam-btn active" data-cam="overview">3/4 總覽</button>
+    <button class="cam-btn" data-cam="cockpit">駕駛艙開啟特寫</button>
+    <button class="cam-btn" data-cam="railgun">肩部電磁砲</button>
+    <button class="cam-btn" data-cam="legs">逆關節液壓腿</button>
+    <button class="cam-btn" data-cam="thruster">背部再入推進器</button>
+  </div>
+
+  <!-- Right Interactive Forge Panel -->
+  <aside id="controls-panel" class="glass-panel">
+    <div>
+      <div class="sec-title">LOD 與戰術塗裝 (Budget &amp; Livery)</div>
+      <div class="seg-row" style="margin-bottom:5px;">
+        <button id="btn-lod-hero" class="pill-btn active">Hero (~20k tris)</button>
+        <button id="btn-lod-game" class="pill-btn">Game (~6k tris)</button>
+      </div>
+      <div class="seg-row-3">
+        <button class="pill-btn active" data-livery="olive">軌道橄欖灰</button>
+        <button class="pill-btn" data-livery="gunmetal">深空槍鐵</button>
+        <button class="pill-btn" data-livery="vanguard">先鋒沙暴</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">機甲機構與武裝控制 (Articulation)</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>Chest Cockpit Hatch (胸甲艙蓋)</span><span id="val-hatch" class="val">0%</span></div>
+        <input id="sl-hatch" type="range" min="0" max="100" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>Drop-Crouch Stance (降落蹲伏)</span><span id="val-crouch" class="val">0%</span></div>
+        <input id="sl-crouch" type="range" min="0" max="100" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>Railgun Pitch (電磁砲俯仰)</span><span id="val-pitch" class="val">0°</span></div>
+        <input id="sl-pitch" type="range" min="-15" max="35" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>Core &amp; Thruster Overdrive (過載)</span><span id="val-overdrive" class="val">65%</span></div>
+        <input id="sl-overdrive" type="range" min="0" max="100" value="65" />
+      </div>
+      <div style="display:flex; gap:5px; margin-top:4px;">
+        <button id="btn-fire-railgun" class="btn-fire" style="flex:1.25;">⚡ 發射電磁砲 Fire</button>
+        <button id="btn-idle-loop" class="btn-secondary" style="flex:1;">待機呼吸: 開</button>
+      </div>
+      <div style="display:flex; gap:5px; margin-top:5px;">
+        <button id="btn-reset-pose" class="btn-secondary" style="flex:1;">歸零 Reset Rest-Pose</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">拓撲檢測 (Debug Overlays)</div>
+      <div class="toggle-row">
+        <button id="btn-wireframe" class="chk-btn">線框 Wireframe</button>
+        <button id="btn-colliders" class="chk-btn">碰撞體 Collider_*</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">1024×1024 PBR 貼圖 (點擊下載 PNG)</div>
+      <div class="tex-grid">
+        <div class="tex-card" id="card-albedo" title="Download Albedo_Map.png"><canvas id="prev-albedo" width="96" height="96"></canvas><span>Albedo</span></div>
+        <div class="tex-card" id="card-normal" title="Download Normal_Sobel.png"><canvas id="prev-normal" width="96" height="96"></canvas><span>Normal</span></div>
+        <div class="tex-card" id="card-rough" title="Download Roughness_Map.png"><canvas id="prev-rough" width="96" height="96"></canvas><span>Rough</span></div>
+        <div class="tex-card" id="card-metal" title="Download Metalness_Map.png"><canvas id="prev-metal" width="96" height="96"></canvas><span>Metal</span></div>
+        <div class="tex-card" id="card-emissive" title="Download Emissive_Map.png"><canvas id="prev-emissive" width="96" height="96"></canvas><span>Emiss</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">無損導出 Unity URP / Blender</div>
+      <div class="export-stack">
+        <button id="btn-export-glb" class="btn-primary">⬇ 導出 .GLB (Rest-Pose + PBR)</button>
+        <div class="seg-row">
+          <button id="btn-export-obj" class="btn-secondary">⬇ 導出 .OBJ</button>
+          <button id="btn-export-snapshot" class="btn-secondary">📷 截圖 .PNG</button>
+        </div>
+        <button id="btn-export-pngs" class="btn-secondary">⬇ 全部 1024×1024 PBR .PNG</button>
+        <div id="export-status">Ready — 1 unit = 1m (~6.8m Tall, +Z Forward)</div>
+      </div>
+    </div>
+  </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    // =========================================================================
+    // 1. RENDERER, SCENE, PMREM STUDIO LIGHTING & POST-PROCESSING
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070a0f);
+    scene.fog = new THREE.FogExp2(0x070a0f, 0.015);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
+    scene.environmentIntensity = 1.15;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const isMobileViewport = () => window.innerWidth <= 768;
+    const computeResponsiveFov = () => {
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      return aspect < 1.0 ? Math.min(58, Math.max(38, 36 / Math.pow(aspect, 0.5))) : 36;
+    };
+
+    const camera = new THREE.PerspectiveCamera(computeResponsiveFov(), window.innerWidth / window.innerHeight, 0.06, 160);
+    camera.position.set(isMobileViewport() ? 8.2 : 8.8, 5.0, isMobileViewport() ? 10.8 : 10.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.target.set(isMobileViewport() ? 0.0 : 0.85, 3.25, 0.0);
+    controls.minDistance = 1.4;
+    controls.maxDistance = 32;
+    controls.maxPolarAngle = Math.PI * 0.495;
+
+    // Studio key directional (with shadow) + hemisphere fill + cool rim + strictly <= 1 dynamic PointLight!
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x1e293b, 0.55);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff4e6, 2.35);
+    keyLight.position.set(9.5, 14.0, 9.0);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 2;
+    keyLight.shadow.camera.far = 36;
+    keyLight.shadow.camera.left = -7.5;
+    keyLight.shadow.camera.right = 7.5;
+    keyLight.shadow.camera.top = 9.0;
+    keyLight.shadow.camera.bottom = -2.0;
+    keyLight.shadow.bias = -0.0004;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.15);
+    rimLight.position.set(-9.0, 6.5, -10.5);
+    scene.add(rimLight);
+
+    // Strictly ONE dynamic PointLight illuminating cockpit interior & chest core!
+    const cockpitCoreLight = new THREE.PointLight(0x38e8ff, 1.8, 4.8, 1.7);
+    cockpitCoreLight.position.set(0, 4.75, 0.55);
+    scene.add(cockpitCoreLight);
+
+    // Hangar Drop-Bay Floor Display Stage (NEVER exported inside assetGroup)
+    const stageGroup = new THREE.Group();
+    stageGroup.name = 'Studio_DropBay_Stage_NO_EXPORT';
+    const floorGeom = new THREE.CircleGeometry(14, 64);
+    floorGeom.rotateX(-Math.PI / 2);
+    const floorMesh = new THREE.Mesh(
+      floorGeom,
+      new THREE.MeshStandardMaterial({ color: 0x0b1018, roughness: 0.78, metalness: 0.25 })
+    );
+    floorMesh.receiveShadow = true;
+    stageGroup.add(floorMesh);
+
+    const grid = new THREE.GridHelper(24, 24, 0x264b73, 0x122031);
+    grid.position.y = 0.004;
+    stageGroup.add(grid);
+
+    const padRing1 = new THREE.Mesh(
+      new THREE.RingGeometry(2.65, 2.74, 72).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+    );
+    padRing1.position.y = 0.006;
+    stageGroup.add(padRing1);
+
+    const padRing2 = new THREE.Mesh(
+      new THREE.RingGeometry(3.45, 3.49, 72).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+    );
+    padRing2.position.y = 0.006;
+    stageGroup.add(padRing2);
+    scene.add(stageGroup);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.26, 0.44, 1.12);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 2. 1024x1024 PROCEDURAL PBR TEXTURES & 3x3 SOBEL NORMAL BAKING
+    // =========================================================================
+    const TEX_SIZE = 1024;
+
+    function seededNoise(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    function bakeNormalFromHeightCanvas(heightCanvas, strength = 2.4) {
+      const w = heightCanvas.width, h = heightCanvas.height;
+      const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      const outImg = outCtx.createImageData(w, h);
+      const dst = outImg.data;
+
+      const sampleH = (px, py) => {
+        const cx = ((px % w) + w) % w;
+        const cy = ((py % h) + h) % h;
+        return src[(cy * w + cx) * 4] / 255.0;
+      };
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tl = sampleH(x - 1, y - 1), tc = sampleH(x, y - 1), tr = sampleH(x + 1, y - 1);
+          const ml = sampleH(x - 1, y),                             mr = sampleH(x + 1, y);
+          const bl = sampleH(x - 1, y + 1), bc = sampleH(x, y + 1), br = sampleH(x + 1, y + 1);
+
+          const dx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+          const dy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+          let nx = -dx * strength, ny = -dy * strength, nz = 1.0;
+          const invLen = 1.0 / Math.hypot(nx, ny, nz);
+          nx *= invLen; ny *= invLen; nz *= invLen;
+
+          const idx = (y * w + x) * 4;
+          dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+          dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          dst[idx + 3] = 255;
+        }
+      }
+      outCtx.putImageData(outImg, 0, 0);
+      return outCanvas;
+    }
+
+    function createCanvasTex(canvas, isSRGB) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function drawHazardBand(ctx, x, y, w, h, stripeW = 24) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = '#18181b';
+      for (let sx = x - h; sx < x + w + h; sx += stripeW * 2) {
+        ctx.beginPath();
+        ctx.moveTo(sx, y + h);
+        ctx.lineTo(sx + stripeW, y + h);
+        ctx.lineTo(sx + stripeW + h, y);
+        ctx.lineTo(sx + h, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function buildMechTextureBundle() {
+      const liveries = {
+        olive:    { base: '#465149', panel: '#363f39', trim: '#2b313a', stripe: '#f59e0b', stencil: '#e2e8f0', accent: '#38bdf8' },
+        gunmetal: { base: '#3d4652', panel: '#2b323d', trim: '#1f252e', stripe: '#38bdf8', stencil: '#f1f5f9', accent: '#22d3ee' },
+        vanguard: { base: '#8c7a62', panel: '#6f5f4b', trim: '#2e343d', stripe: '#ea580c', stencil: '#1e293b', accent: '#fbbf24' }
+      };
+
+      const albedoCanvases = {};
+      for (const [key, pal] of Object.entries(liveries)) {
+        const c = document.createElement('canvas');
+        c.width = TEX_SIZE; c.height = TEX_SIZE;
+        const ctx = c.getContext('2d');
+
+        // Base tactical composite paint
+        ctx.fillStyle = pal.base;
+        ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+
+        // Staggered ceramic armor plates
+        const plates = [
+          [0, 0, 512, 320, pal.panel],
+          [512, 64, 512, 384, pal.base],
+          [64, 384, 448, 320, pal.trim],
+          [512, 480, 460, 280, pal.panel],
+          [0, 740, 520, 284, pal.panel],
+          [540, 780, 484, 244, pal.trim]
+        ];
+        for (const [px, py, pw, ph, col] of plates) {
+          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.55;
+          ctx.fillRect(px, py, pw, ph);
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Carbon-composite micro-weave diagonal twill across entire armor surface
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+        for (let wy = 0; wy < TEX_SIZE; wy += 8) {
+          for (let wx = (wy % 16 === 0 ? 0 : 4); wx < TEX_SIZE; wx += 8) {
+            ctx.fillRect(wx, wy, 4, 3);
+          }
+        }
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+        for (let i = 0; i < 6500; i++) {
+          const rx = seededNoise(i, 2.7) * TEX_SIZE;
+          const ry = seededNoise(i, 7.3) * TEX_SIZE;
+          ctx.fillRect(rx, ry, 2, 2);
+        }
+
+        // Recessed panel seams with bright edge wear chamfer highlight
+        const drawPanelBox = (bx, by, bw, bh) => {
+          ctx.strokeStyle = 'rgba(10, 14, 20, 0.72)';
+          ctx.lineWidth = 3.5;
+          ctx.strokeRect(bx, by, bw, bh);
+          ctx.strokeStyle = 'rgba(226, 232, 240, 0.14)';
+          ctx.lineWidth = 1.4;
+          ctx.strokeRect(bx + 2, by + 2, bw - 4, bh - 4);
+        };
+        drawPanelBox(24, 24, 464, 296);
+        drawPanelBox(528, 36, 468, 360);
+        drawPanelBox(36, 360, 452, 316);
+        drawPanelBox(528, 432, 468, 304);
+        drawPanelBox(24, 712, 476, 286);
+        drawPanelBox(528, 768, 468, 230);
+
+        // Tactical hazard warning bands & accent trim
+        drawHazardBand(ctx, 48, 326, 320, 24, 18);
+        drawHazardBand(ctx, 560, 728, 360, 24, 18);
+        ctx.fillStyle = pal.stripe;
+        ctx.fillRect(546, 244, 412, 10);
+
+        // Crisp stenciled military serial markings
+        ctx.fillStyle = pal.stencil;
+        ctx.globalAlpha = 0.88;
+        ctx.font = 'bold 42px monospace';
+        ctx.fillText('AEGIS-07', 64, 114);
+        ctx.font = 'bold 20px monospace';
+        ctx.fillText('ORBITAL DROP // HEAVY ASSAULT', 66, 148);
+        ctx.fillText('CAUTION: HIGH VOLTAGE RAIL', 556, 118);
+        ctx.fillText('NO STEP // THERMAL TILE', 556, 512);
+        ctx.font = 'bold 34px monospace';
+        ctx.fillText('07 // VII', 66, 818);
+        ctx.globalAlpha = 1.0;
+
+        // Hex rivets & inspection latches
+        ctx.fillStyle = '#cbd5e1';
+        for (let rx = 44; rx <= 468; rx += 54) {
+          ctx.fillRect(rx, 38, 4, 4);
+          ctx.fillRect(rx, 302, 4, 4);
+        }
+        for (let rx = 548; rx <= 976; rx += 54) {
+          ctx.fillRect(rx, 50, 4, 4);
+          ctx.fillRect(rx, 380, 4, 4);
+        }
+
+        albedoCanvases[key] = c;
+      }
+
+      // 1024x1024 Height map -> 3x3 Sobel Normal Map
+      const hCanvas = document.createElement('canvas');
+      hCanvas.width = TEX_SIZE; hCanvas.height = TEX_SIZE;
+      const hCtx = hCanvas.getContext('2d');
+      hCtx.fillStyle = '#808080';
+      hCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+
+      // Carbon weave relief
+      hCtx.fillStyle = '#787878';
+      for (let wy = 0; wy < TEX_SIZE; wy += 8) {
+        for (let wx = (wy % 16 === 0 ? 0 : 4); wx < TEX_SIZE; wx += 8) {
+          hCtx.fillRect(wx, wy, 4, 3);
+        }
+      }
+      // Deep panel grooves
+      hCtx.strokeStyle = '#323232';
+      hCtx.lineWidth = 4;
+      hCtx.strokeRect(24, 24, 464, 296);
+      hCtx.strokeRect(528, 36, 468, 360);
+      hCtx.strokeRect(36, 360, 452, 316);
+      hCtx.strokeRect(528, 432, 468, 304);
+      hCtx.strokeRect(24, 712, 476, 286);
+      hCtx.strokeRect(528, 768, 468, 230);
+
+      // Raised armor bosses & rivets
+      hCtx.fillStyle = '#a4a4a4';
+      hCtx.fillRect(62, 180, 380, 96);
+      hCtx.fillRect(558, 175, 390, 128);
+      hCtx.fillStyle = '#d0d0d0';
+      for (let rx = 44; rx <= 468; rx += 54) {
+        hCtx.beginPath(); hCtx.arc(rx + 2, 40, 3.5, 0, Math.PI * 2); hCtx.fill();
+        hCtx.beginPath(); hCtx.arc(rx + 2, 304, 3.5, 0, Math.PI * 2); hCtx.fill();
+      }
+      for (let rx = 548; rx <= 976; rx += 54) {
+        hCtx.beginPath(); hCtx.arc(rx + 2, 52, 3.5, 0, Math.PI * 2); hCtx.fill();
+        hCtx.beginPath(); hCtx.arc(rx + 2, 382, 3.5, 0, Math.PI * 2); hCtx.fill();
+      }
+      // Cooling louver ribs in height map
+      for (let lx = 68; lx < 430; lx += 22) {
+        hCtx.fillStyle = '#424242';
+        hCtx.fillRect(lx, 560, 12, 92);
+      }
+      const normalCanvas = bakeNormalFromHeightCanvas(hCanvas, 2.35);
+
+      // 1024x1024 Roughness map (NoColorSpace)
+      const roughCanvas = document.createElement('canvas');
+      roughCanvas.width = TEX_SIZE; roughCanvas.height = TEX_SIZE;
+      const rCtx = roughCanvas.getContext('2d');
+      rCtx.fillStyle = '#8e8e8e'; // ~0.56 ceramic composite satin
+      rCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      rCtx.fillStyle = '#b4b4b4'; // Matte carbon-composite inserts
+      rCtx.fillRect(36, 360, 452, 316);
+      rCtx.fillRect(528, 768, 468, 230);
+      rCtx.fillStyle = '#585858'; // Brushed metallic hatches/edges
+      rCtx.fillRect(62, 180, 380, 96);
+      rCtx.fillRect(558, 175, 390, 128);
+      rCtx.fillStyle = '#404040';
+      rCtx.fillRect(48, 326, 320, 24);
+
+      // 1024x1024 Metalness map (NoColorSpace)
+      const metalCanvas = document.createElement('canvas');
+      metalCanvas.width = TEX_SIZE; metalCanvas.height = TEX_SIZE;
+      const mCtx = metalCanvas.getContext('2d');
+      mCtx.fillStyle = '#626262'; // Composite ceramic-metallic armor
+      mCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      mCtx.fillStyle = '#2a2a2a'; // Non-metallic carbon composite zones
+      mCtx.fillRect(36, 360, 452, 316);
+      mCtx.fillRect(528, 768, 468, 230);
+      mCtx.fillStyle = '#d4d4d4'; // Bare titanium latches & rivets
+      mCtx.fillRect(62, 180, 380, 96);
+      mCtx.fillRect(558, 175, 390, 128);
+      for (let rx = 44; rx <= 468; rx += 54) {
+        mCtx.fillRect(rx - 1, 37, 6, 6);
+        mCtx.fillRect(rx - 1, 301, 6, 6);
+      }
+
+      // 1024x1024 Emissive map (SRGBColorSpace) — micro indicator pips & armor telemetry vents
+      const emissiveCanvas = document.createElement('canvas');
+      emissiveCanvas.width = TEX_SIZE; emissiveCanvas.height = TEX_SIZE;
+      const eCtx = emissiveCanvas.getContext('2d');
+      eCtx.fillStyle = '#000000';
+      eCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      eCtx.fillStyle = '#22d3ee';
+      eCtx.fillRect(556, 260, 140, 8);
+      eCtx.fillRect(720, 260, 48, 8);
+      eCtx.fillStyle = '#f59e0b';
+      eCtx.fillRect(66, 286, 64, 6);
+      eCtx.fillRect(142, 286, 24, 6);
+
+      // 1024x1024 Braided Hydraulic Hose Normal & Albedo
+      const hoseAlb = document.createElement('canvas');
+      hoseAlb.width = 512; hoseAlb.height = 512;
+      const haCtx = hoseAlb.getContext('2d');
+      haCtx.fillStyle = '#1d222b';
+      haCtx.fillRect(0, 0, 512, 512);
+      const hoseH = document.createElement('canvas');
+      hoseH.width = 512; hoseH.height = 512;
+      const hhCtx = hoseH.getContext('2d');
+      hhCtx.fillStyle = '#707070';
+      hhCtx.fillRect(0, 0, 512, 512);
+      haCtx.strokeStyle = '#364152';
+      haCtx.lineWidth = 10;
+      hhCtx.strokeStyle = '#c8c8c8';
+      hhCtx.lineWidth = 10;
+      for (let i = -512; i < 1024; i += 32) {
+        haCtx.beginPath(); haCtx.moveTo(i, 0); haCtx.lineTo(i + 512, 512); haCtx.stroke();
+        haCtx.beginPath(); haCtx.moveTo(i + 512, 0); haCtx.lineTo(i, 512); haCtx.stroke();
+        hhCtx.beginPath(); hhCtx.moveTo(i, 0); hhCtx.lineTo(i + 512, 512); hhCtx.stroke();
+        hhCtx.beginPath(); hhCtx.moveTo(i + 512, 0); hhCtx.lineTo(i, 512); hhCtx.stroke();
+      }
+      const hoseNorm = bakeNormalFromHeightCanvas(hoseH, 2.2);
+
+      // 1024x1024 Cockpit Holographic Tactical HUD Canvas (SRGBColorSpace)
+      const hudCanvas = document.createElement('canvas');
+      hudCanvas.width = TEX_SIZE; hudCanvas.height = TEX_SIZE;
+      const uCtx = hudCanvas.getContext('2d');
+      uCtx.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+      uCtx.fillStyle = 'rgba(6, 48, 68, 0.24)';
+      uCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+
+      uCtx.strokeStyle = '#38f8ff';
+      uCtx.lineWidth = 6;
+      uCtx.beginPath(); uCtx.arc(512, 490, 210, -Math.PI * 0.85, Math.PI * 0.85); uCtx.stroke();
+      uCtx.beginPath(); uCtx.arc(512, 490, 88, 0, Math.PI * 2); uCtx.stroke();
+      // Crosshair & pitch ladder
+      uCtx.beginPath(); uCtx.moveTo(210, 490); uCtx.lineTo(400, 490); uCtx.stroke();
+      uCtx.beginPath(); uCtx.moveTo(624, 490); uCtx.lineTo(814, 490); uCtx.stroke();
+      for (let py = 240; py <= 740; py += 65) {
+        if (Math.abs(py - 490) < 35) continue;
+        uCtx.beginPath(); uCtx.moveTo(410, py); uCtx.lineTo(468, py); uCtx.stroke();
+        uCtx.beginPath(); uCtx.moveTo(556, py); uCtx.lineTo(614, py); uCtx.stroke();
+      }
+      // Side charge bars & telemetry
+      uCtx.fillStyle = '#38f8ff';
+      for (let b = 0; b < 8; b++) {
+        uCtx.fillRect(88, 260 + b * 54, 62, 34);
+        uCtx.fillRect(874, 260 + b * 54, 62, 34);
+      }
+      uCtx.font = 'bold 34px monospace';
+      uCtx.fillText('AEGIS-07 // ORBITAL DROP', 240, 128);
+      uCtx.fillText('RAIL CAP: 100%  SYNC OK', 250, 910);
+
+      return {
+        albedoCanvases,
+        normalCanvas,
+        roughCanvas,
+        metalCanvas,
+        emissiveCanvas,
+        hudCanvas,
+        albedoTex: {
+          olive:    createCanvasTex(albedoCanvases.olive, true),
+          gunmetal: createCanvasTex(albedoCanvases.gunmetal, true),
+          vanguard: createCanvasTex(albedoCanvases.vanguard, true)
+        },
+        normalTex:   createCanvasTex(normalCanvas, false),
+        roughTex:    createCanvasTex(roughCanvas, false),
+        metalTex:    createCanvasTex(metalCanvas, false),
+        emissiveTex: createCanvasTex(emissiveCanvas, true),
+        hoseAlbTex:  createCanvasTex(hoseAlb, true),
+        hoseNormTex: createCanvasTex(hoseNorm, false),
+        hudTex:      createCanvasTex(hudCanvas, true)
+      };
+    }
+
+    const TEX = buildMechTextureBundle();
+
+    function refreshTextureThumbnails(liveryKey) {
+      for (const [id, src] of [
+        ['prev-albedo',   TEX.albedoCanvases[liveryKey]],
+        ['prev-normal',   TEX.normalCanvas],
+        ['prev-rough',    TEX.roughCanvas],
+        ['prev-metal',    TEX.metalCanvas],
+        ['prev-emissive', TEX.emissiveCanvas]
+      ]) {
+        const dst = document.getElementById(id);
+        dst.getContext('2d').drawImage(src, 0, 0, dst.width, dst.height);
+      }
+    }
+    refreshTextureThumbnails('olive');
+
+    // Semantic PBR Materials
+    const MATS = {
+      armor: new THREE.MeshStandardMaterial({
+        name: 'MAT_Primary_Armor',
+        map: TEX.albedoTex.olive,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughnessMap: TEX.roughTex,
+        roughness: 0.94,
+        metalnessMap: TEX.metalTex,
+        metalness: 0.72,
+        emissive: 0xffffff,
+        emissiveMap: TEX.emissiveTex,
+        emissiveIntensity: 0.45,
+        vertexColors: true
+      }),
+      titanium: new THREE.MeshStandardMaterial({
+        name: 'MAT_Titanium_Chassis',
+        color: 0xaab6c8,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.35, 0.35),
+        roughness: 0.34,
+        metalness: 0.82,
+        vertexColors: true
+      }),
+      chrome: new THREE.MeshStandardMaterial({
+        name: 'MAT_Brushed_Chrome',
+        color: 0xe2ebf5,
+        roughness: 0.16,
+        metalness: 0.96,
+        vertexColors: true
+      }),
+      copper: new THREE.MeshStandardMaterial({
+        name: 'MAT_Copper_Induction',
+        color: 0xe58a42,
+        roughness: 0.24,
+        metalness: 0.94,
+        vertexColors: true
+      }),
+      hose: new THREE.MeshStandardMaterial({
+        name: 'MAT_Braided_Hose',
+        map: TEX.hoseAlbTex,
+        normalMap: TEX.hoseNormTex,
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughness: 0.54,
+        metalness: 0.48,
+        vertexColors: true
+      }),
+      composite: new THREE.MeshStandardMaterial({
+        name: 'MAT_Dark_Composite',
+        color: 0x3b4454,
+        roughness: 0.68,
+        metalness: 0.24,
+        vertexColors: true
+      }),
+      cyanGlow: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Cyan',
+        color: 0x7dd3fc,
+        emissive: 0x22d3ee,
+        emissiveIntensity: 2.3,
+        roughness: 0.18,
+        metalness: 0.10,
+        vertexColors: true
+      }),
+      thrusterGlow: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Thruster',
+        color: 0xfdba74,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 2.6,
+        roughness: 0.20,
+        metalness: 0.10,
+        side: THREE.DoubleSide,
+        vertexColors: true
+      }),
+      hudGlass: new THREE.MeshPhysicalMaterial({
+        name: 'MAT_Cockpit_HUD_Glass',
+        color: 0x0e7490,
+        emissive: 0x083344,
+        emissiveIntensity: 0.35,
+        roughness: 0.06,
+        metalness: 0.18,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        ior: 1.50,
+        transparent: true,
+        opacity: 0.40,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      hudHolo: new THREE.MeshStandardMaterial({
+        name: 'MAT_Cockpit_HUD_Holo',
+        color: 0xffffff,
+        map: TEX.hudTex,
+        emissive: 0x38f8ff,
+        emissiveMap: TEX.hudTex,
+        emissiveIntensity: 2.2,
+        roughness: 0.14,
+        metalness: 0.04,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      collider: new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x22c55e,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.55
+      })
+    };
+
+    const solidMatList = [
+      MATS.armor, MATS.titanium, MATS.chrome, MATS.copper,
+      MATS.hose, MATS.composite, MATS.cyanGlow, MATS.thrusterGlow
+    ];
+
+    // =========================================================================
+    // 3. GEOMETRY UTILITY HELPERS (ARC-LENGTH UVs, VERTEX AO, MERGING)
+    // =========================================================================
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const smoothstep = (e0, e1, x) => {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    };
+
+    function normalizeForMerge(rawGeom, baseHex = 0xffffff, aoCallback = null) {
+      let geom = rawGeom;
+      if (!geom.index) {
+        const posAttr = geom.getAttribute('position');
+        const idx = new Uint32Array(posAttr.count);
+        for (let i = 0; i < posAttr.count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      } else if (!(geom.index.array instanceof Uint32Array)) {
+        const arr = geom.index.array;
+        const u32 = new Uint32Array(arr.length);
+        for (let i = 0; i < arr.length; i++) u32[i] = arr[i];
+        geom.setIndex(new THREE.BufferAttribute(u32, 1));
+      }
+      if (!geom.getAttribute('normal')) geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      if (!geom.getAttribute('uv')) {
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = pos.getX(i) * 0.35 + 0.5;
+          uvs[i * 2 + 1] = pos.getY(i) * 0.35 + 0.5;
+        }
+        geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      const norm = geom.getAttribute('normal');
+      const col = new Float32Array(pos.count * 3);
+      const baseC = new THREE.Color(baseHex);
+      const vPos = new THREE.Vector3(), vNorm = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        vPos.fromBufferAttribute(pos, i);
+        vNorm.fromBufferAttribute(norm, i);
+        const ao = aoCallback ? aoCallback(vPos, vNorm) : clamp(0.84 + 0.16 * (vNorm.y * 0.5 + 0.5), 0.45, 1.0);
+        col[i * 3]     = baseC.r * ao;
+        col[i * 3 + 1] = baseC.g * ao;
+        col[i * 3 + 2] = baseC.b * ao;
+      }
+      geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+      for (const attr of Object.keys(geom.attributes)) {
+        if (attr !== 'position' && attr !== 'normal' && attr !== 'uv' && attr !== 'color') {
+          geom.deleteAttribute(attr);
+        }
+      }
+      return geom;
+    }
+
+    function safeMerge(list) {
+      if (!list || list.length === 0) return null;
+      if (list.length === 1) return list[0];
+      const merged = BufferGeometryUtils.mergeGeometries(list, false);
+      for (const g of list) g.dispose();
+      return merged;
+    }
+
+    function addBucket(buckets, matKey, geom, baseHex = 0xffffff, aoFn = null) {
+      if (!buckets[matKey]) buckets[matKey] = [];
+      buckets[matKey].push(normalizeForMerge(geom, baseHex, aoFn));
+    }
+
+    function flushBuckets(parentGroup, buckets, matMap, prefix) {
+      for (const [key, list] of Object.entries(buckets)) {
+        const merged = safeMerge(list);
+        if (!merged) continue;
+        const m = new THREE.Mesh(merged, matMap[key]);
+        m.name = `${prefix}_${key}`;
+        m.castShadow = true;
+        m.receiveShadow = true;
+        parentGroup.add(m);
+      }
+    }
+
+    function boxGeom(w, h, d, cx = 0, cy = 0, cz = 0, rx = 0, ry = 0, rz = 0, segs = 1) {
+      const g = new THREE.BoxGeometry(w, h, d, segs, segs, segs);
+      const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ'));
+      m.setPosition(cx, cy, cz);
+      g.applyMatrix4(m);
+      return g;
+    }
+
+    function strutGeom(pA, pB, rA, rB, radSegs = 8) {
+      const dir = new THREE.Vector3().subVectors(pB, pA);
+      const len = Math.max(0.002, dir.length());
+      const g = new THREE.CylinderGeometry(rB, rA, len, radSegs, 1);
+      const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      g.applyMatrix4(new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1)));
+      return g;
+    }
+
+    // Watertight Multi-Station Lofted Hull with True Cumulative Euclidean Arc-Length UVs!
+    // stations: array of arrays of THREE.Vector3 (each station must have identical ring point count)
+    function buildLoftedSkin(stations, uvScaleU = 0.45, uvScaleV = 0.45, capEnds = true, flipWinding = false) {
+      const ns = stations.length;
+      const nr = stations[0].length;
+      const stride = nr + 1;
+
+      // Compute cumulative Euclidean arc-length along V (stations) and U (perimeter)
+      const vDist = Array.from({ length: nr + 1 }, () => new Float32Array(ns));
+      for (let ir = 0; ir <= nr; ir++) {
+        const ptIdx = ir % nr;
+        let acc = 0;
+        vDist[ir][0] = 0;
+        for (let is = 1; is < ns; is++) {
+          acc += stations[is][ptIdx].distanceTo(stations[is - 1][ptIdx]);
+          vDist[ir][is] = acc * uvScaleV;
+        }
+      }
+
+      const uDist = Array.from({ length: ns }, () => new Float32Array(nr + 1));
+      for (let is = 0; is < ns; is++) {
+        let acc = 0;
+        uDist[is][0] = 0;
+        for (let ir = 1; ir <= nr; ir++) {
+          acc += stations[is][ir % nr].distanceTo(stations[is][ir - 1]);
+          uDist[is][ir] = acc * uvScaleU;
+        }
+      }
+
+      const verts = [], uvs = [], idx = [];
+      for (let is = 0; is < ns; is++) {
+        for (let ir = 0; ir <= nr; ir++) {
+          const pt = stations[is][ir % nr];
+          verts.push(pt.x, pt.y, pt.z);
+          uvs.push(uDist[is][ir], vDist[ir][is]);
+        }
+      }
+
+      for (let is = 0; is < ns - 1; is++) {
+        for (let ir = 0; ir < nr; ir++) {
+          const a = is * stride + ir;
+          const b = (is + 1) * stride + ir;
+          const c = (is + 1) * stride + ir + 1;
+          const d = is * stride + ir + 1;
+          if (!flipWinding) idx.push(a, d, b, b, d, c);
+          else idx.push(a, b, d, b, c, d);
+        }
+      }
+
+      if (capEnds) {
+        const addCap = (sIdx, invert) => {
+          const ring = stations[sIdx];
+          const cPos = new THREE.Vector3();
+          for (const p of ring) cPos.add(p);
+          cPos.divideScalar(ring.length);
+          const cIdx = verts.length / 3;
+          verts.push(cPos.x, cPos.y, cPos.z);
+          uvs.push(0.5, vDist[0][sIdx]);
+          const base = sIdx * stride;
+          for (let ir = 0; ir < nr; ir++) {
+            if (invert) idx.push(cIdx, base + ir + 1, base + ir);
+            else idx.push(cIdx, base + ir, base + ir + 1);
+          }
+        };
+        addCap(0, !flipWinding);
+        addCap(ns - 1, flipWinding);
+
+        // Enforce strictly positive signed volume (guaranteed outward-facing watertight winding!)
+        let vol = 0;
+        for (let i = 0; i < idx.length; i += 3) {
+          const i0 = idx[i] * 3, i1 = idx[i + 1] * 3, i2 = idx[i + 2] * 3;
+          const x0 = verts[i0], y0 = verts[i0 + 1], z0 = verts[i0 + 2];
+          const x1 = verts[i1], y1 = verts[i1 + 1], z1 = verts[i1 + 2];
+          const x2 = verts[i2], y2 = verts[i2 + 1], z2 = verts[i2 + 2];
+          vol += (x0 * (y1 * z2 - y2 * z1) + y0 * (z1 * x2 - z2 * x1) + z0 * (x1 * y2 - x2 * y1));
+        }
+        if (vol < 0) {
+          for (let i = 0; i < idx.length; i += 3) {
+            const tmp = idx[i + 1];
+            idx[i + 1] = idx[i + 2];
+            idx[i + 2] = tmp;
+          }
+        }
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(idx);
+      geom.computeVertexNormals();
+      return geom;
+    }
+
+    // Generate a 2D chamfered octagon/hexagon ring scaled cleanly for hard-surface armor lofts
+    function makeChamferProfile(halfW, halfH, chamfer = 0.08, topRatio = 1.0, botRatio = 1.0, detailSegs = 1) {
+      const cW = Math.min(chamfer, halfW * 0.42);
+      const cH = Math.min(chamfer, halfH * 0.42);
+      const tw = halfW * topRatio, bw = halfW * botRatio;
+      const basePts = [
+        [-(tw - cW),  halfH],
+        [ (tw - cW),  halfH],
+        [ tw,         halfH - cH],
+        [ bw,        -(halfH - cH)],
+        [ (bw - cW), -halfH],
+        [-(bw - cW), -halfH],
+        [-bw,        -(halfH - cH)],
+        [-tw,         halfH - cH]
+      ];
+      if (detailSegs <= 1) return basePts;
+      const out = [];
+      for (let i = 0; i < basePts.length; i++) {
+        const p0 = basePts[i], p1 = basePts[(i + 1) % basePts.length];
+        for (let k = 0; k < detailSegs; k++) {
+          const t = k / detailSegs;
+          out.push([lerp(p0[0], p1[0], t), lerp(p0[1], p1[1], t)]);
+        }
+      }
+      return out;
+    }
+
+    // Build a multi-station armor plate extruded along a CatmullRomCurve3 spine with varying widths/thicknesses
+    function buildCurveArmorPlate(ctrlPts, profiles, segs, uvScale = 0.48, detailSegs = 1) {
+      const curve = new THREE.CatmullRomCurve3(ctrlPts);
+      const pts = curve.getSpacedPoints(segs);
+      const stations = [];
+      const worldX = new THREE.Vector3(1, 0, 0);
+      const tang = new THREE.Vector3(), norm = new THREE.Vector3(), binorm = new THREE.Vector3();
+
+      for (let i = 0; i <= segs; i++) {
+        const u = i / segs;
+        if (i === 0) tang.subVectors(pts[1], pts[0]);
+        else if (i === segs) tang.subVectors(pts[segs], pts[segs - 1]);
+        else tang.subVectors(pts[i + 1], pts[i - 1]);
+        tang.normalize();
+
+        // Keep binorm aligned to local X so armor plates never twist around vertical splines
+        norm.crossVectors(tang, worldX);
+        if (norm.lengthSq() < 1e-4) norm.set(0, 0, 1);
+        norm.normalize();
+        binorm.crossVectors(norm, tang).normalize();
+
+        const profSpec = profiles(u);
+        const ring2D = makeChamferProfile(
+          profSpec.hw, profSpec.ht, profSpec.chamfer || 0.04,
+          profSpec.topRatio ?? 1.0, profSpec.botRatio ?? 1.0, detailSegs
+        );
+        const ring3D = ring2D.map(([lx, ly]) =>
+          new THREE.Vector3()
+            .copy(pts[i])
+            .addScaledVector(binorm, lx)
+            .addScaledVector(norm, ly)
+        );
+        stations.push(ring3D);
+      }
+      return buildLoftedSkin(stations, uvScale, uvScale, true, true);
+    }
+
+    // Swept Braided Hydraulic Hose along CatmullRomCurve3 with parallel-transport framing & true Euclidean V UVs
+    function buildSweptHose(ctrlPts, radius = 0.028, tubularSegs = 16, radialSegs = 8) {
+      const curve = new THREE.CatmullRomCurve3(ctrlPts);
+      const pts = curve.getSpacedPoints(tubularSegs);
+      const tangents = pts.map((_, i) => {
+        if (i === 0) return new THREE.Vector3().subVectors(pts[1], pts[0]).normalize();
+        if (i === tubularSegs) return new THREE.Vector3().subVectors(pts[tubularSegs], pts[tubularSegs - 1]).normalize();
+        return new THREE.Vector3().subVectors(pts[i + 1], pts[i - 1]).normalize();
+      });
+
+      let norm = new THREE.Vector3(1, 0, 0);
+      if (Math.abs(norm.dot(tangents[0])) > 0.9) norm.set(0, 0, 1);
+      norm.crossVectors(tangents[0], norm).normalize();
+
+      const stations = [];
+      for (let i = 0; i <= tubularSegs; i++) {
+        if (i > 0) {
+          const rot = new THREE.Quaternion().setFromUnitVectors(tangents[i - 1], tangents[i]);
+          norm.applyQuaternion(rot).normalize();
+        }
+        const binorm = new THREE.Vector3().crossVectors(tangents[i], norm).normalize();
+        const ring = [];
+        for (let k = 0; k < radialSegs; k++) {
+          const a = (k / radialSegs) * Math.PI * 2;
+          ring.push(
+            new THREE.Vector3()
+              .copy(pts[i])
+              .addScaledVector(norm, Math.cos(a) * radius)
+              .addScaledVector(binorm, Math.sin(a) * radius)
+          );
+        }
+        stations.push(ring);
+      }
+      return buildLoftedSkin(stations, 3.2, 3.2, true, false);
+    }
+
+    // Helper: create outer spaced armor plate + visible titanium stand-off brackets & hex bolts
+    function addSpacedArmorWithBolts(buckets, plateGeom, boltSpecs, isHero) {
+      addBucket(buckets, 'armor', plateGeom, 0xffffff, (p, n) =>
+        clamp(0.84 + 0.16 * (n.y * 0.5 + 0.5), 0.55, 1.0)
+      );
+      const hexSegs = 6;
+      for (const b of boltSpecs) {
+        // Stand-off bushing post from inner chassis out to outer armor plate
+        const pIn = b.pIn, pOut = b.pOut;
+        const post = strutGeom(pIn, pOut, b.r || 0.024, b.r || 0.024, hexSegs);
+        addBucket(buckets, 'titanium', post, 0x94a3b8);
+        if (isHero) {
+          const dir = new THREE.Vector3().subVectors(pOut, pIn).normalize();
+          const capEnd = new THREE.Vector3().copy(pOut).addScaledVector(dir, 0.018);
+          const hexHead = strutGeom(pOut, capEnd, (b.r || 0.024) * 1.42, (b.r || 0.024) * 1.32, hexSegs);
+          addBucket(buckets, 'chrome', hexHead, 0xe2e8f0);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 4. MECH KINEMATICS CONSTANTS (1 UNIT = 1 METER, ~6.8M TALL)
+    // =========================================================================
+    const MECH_KINEMATICS = {
+      hipX: 1.22,
+      ankleY: 0.36,
+      ankleZ: -0.15,
+      L1: 1.66, // Thigh length
+      L2: 1.62, // Shin length
+      a1RestDeg: 26,
+      a1CrouchDeg: 56,
+      a2RestDeg: -32,
+      a2CrouchDeg: -60
+    };
+
+    // Derive exact rest pelvis & joint offsets from planted foot!
+    function computeLegSolution(crouch01) {
+      const k = MECH_KINEMATICS;
+      const deg = THREE.MathUtils.degToRad;
+      const a1 = lerp(k.a1RestDeg, k.a1CrouchDeg, crouch01);
+      const a2 = lerp(k.a2RestDeg, k.a2CrouchDeg, crouch01);
+
+      const r1 = deg(a1), r2 = deg(a2);
+      const dy1 = k.L1 * Math.cos(r1), dz1 = k.L1 * Math.sin(r1);
+      const dy2 = k.L2 * Math.cos(r2), dz2 = k.L2 * Math.sin(r2);
+
+      // Planted ankle stays fixed at world (hipX, ankleY, ankleZ)
+      const kneeY = k.ankleY + dy2;
+      const kneeZ = k.ankleZ - dz2;
+      const hipY = kneeY + dy1;
+      const hipZ = kneeZ - dz1;
+
+      return { a1, a2, dy1, dz1, dy2, dz2, kneeY, kneeZ, hipY, hipZ };
+    }
+    const REST_LEG = computeLegSolution(0);
+
+    // =========================================================================
+    // 5. SUBSYSTEM BUILDERS
+    // =========================================================================
+
+    // --- 5A. TORSO INNER CHASSIS + COCKPIT INTERIOR + SPACED ARMOR + HEAD ---
+    function buildTorsoAndCockpit(parts, isHero, matMap) {
+      const torso = parts.Part_Torso_Yaw;
+      // Mount torso yaw pivot above Pelvis rest center
+      torso.position.set(0, 0.324, 0.019); // World (0, 3.550, 0) in rest pose
+
+      const buckets = {};
+      const detail = isHero ? 2 : 1;
+
+      // 1. Inner Titanium Load-Bearing Spine & Bulkhead Chassis (leaving hollow Cockpit Bay x∈[-0.60,0.60], y∈[0.35,1.72], z∈[-0.08,0.78])
+      const spineSegs = isHero ? 12 : 4;
+      const rearSpine = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0, 2.18, -0.22),
+          new THREE.Vector3(0, 1.62, -0.48),
+          new THREE.Vector3(0, 0.80, -0.52),
+          new THREE.Vector3(0, 0.06, -0.32)
+        ],
+        (u) => ({
+          hw: lerp(0.68, 0.94, Math.sin(u * Math.PI * 0.85)),
+          ht: lerp(0.38, 0.32, u),
+          chamfer: 0.12,
+          topRatio: 0.88,
+          botRatio: 0.92
+        }),
+        spineSegs, 0.45, detail
+      );
+      addBucket(buckets, 'titanium', rearSpine, 0xdbe4f0, (p, n) =>
+        clamp(0.76 + 0.24 * (n.y * 0.5 + 0.5), 0.50, 1.0)
+      );
+
+      // Dorsal Spinal Vertebrae Plates along back spine
+      const numVert = isHero ? 7 : 3;
+      for (let i = 0; i < numVert; i++) {
+        const vy = lerp(0.28, 1.98, i / (numVert - 1));
+        const vz = lerp(-0.68, -0.60, i / (numVert - 1)) - Math.sin((i / (numVert - 1)) * Math.PI) * 0.18;
+        addBucket(buckets, 'chrome', boxGeom(0.28, 0.12, 0.16, 0, vy, vz, -0.25, 0, 0), 0xe2e8f0);
+      }
+
+      // Waist Gimbal Collar & Torso Core Bearing
+      addBucket(buckets, 'titanium', new THREE.CylinderGeometry(0.56, 0.60, 0.24, isHero ? 20 : 10).translate(0, 0.12, 0), 0xcbd5e1);
+      addBucket(buckets, 'chrome', new THREE.CylinderGeometry(0.46, 0.46, 0.10, isHero ? 16 : 8).translate(0, 0.04, 0), 0xf1f5f9);
+
+      // Cockpit Bay Floor, Ceiling Brow & Left/Right Structural Bulkheads
+      addBucket(buckets, 'titanium', boxGeom(1.36, 0.16, 0.94, 0, 0.28, 0.32), 0xcbd5e1);
+      addBucket(buckets, 'titanium', boxGeom(1.42, 0.32, 0.98, 0, 1.88, 0.32), 0xcbd5e1);
+
+      for (const side of [1, -1]) {
+        // Side Structural Torso Rib Cage / Flank Bulkheads (top-to-bottom)
+        const flank = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 0.88, 1.88, 0.14),
+            new THREE.Vector3(side * 0.94, 1.02, 0.20),
+            new THREE.Vector3(side * 0.88, 0.26, 0.15)
+          ],
+          (u) => ({ hw: 0.26, ht: lerp(0.42, 0.56, Math.sin(u * Math.PI * 0.8 + 0.2)), chamfer: 0.08 }),
+          isHero ? 8 : 3, 0.45, detail
+        );
+        addBucket(buckets, 'titanium', flank, 0xdbe4f0);
+
+        // Cooling Louver Banks on upper torso flanks
+        const louverCount = isHero ? 6 : 2;
+        for (let l = 0; l < louverCount; l++) {
+          const ly = lerp(1.15, 1.65, l / (louverCount - 1));
+          addBucket(buckets, 'composite', boxGeom(0.08, 0.032, 0.38, side * 1.15, ly, 0.12, 0, 0, side * 0.45), 0xcbd5e1);
+        }
+
+        // Outer Spaced Ceramic Chest-Flank Armor Plates (top-to-bottom, physical 0.06m stand-off!)
+        const flankArmor = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.16, 1.72, 0.42),
+            new THREE.Vector3(side * 1.24, 1.05, 0.54),
+            new THREE.Vector3(side * 1.16, 0.42, 0.48)
+          ],
+          (u) => ({ hw: 0.10, ht: lerp(0.36, 0.30, u), chamfer: 0.04 }),
+          isHero ? 8 : 3, 0.5, detail
+        );
+        addSpacedArmorWithBolts(buckets, flankArmor, [
+          { pIn: new THREE.Vector3(side * 1.02, 0.58, 0.44), pOut: new THREE.Vector3(side * 1.16, 0.58, 0.46), r: 0.025 },
+          { pIn: new THREE.Vector3(side * 1.04, 1.48, 0.44), pOut: new THREE.Vector3(side * 1.16, 1.48, 0.44), r: 0.025 }
+        ], isHero);
+
+        // Shoulder Joint Assemblies & Sculpted Lofted Shoulder/Upper-Arm Chassis (Zero blocky boxes!)
+        const shX = side * 1.48, shY = 1.68, shZ = 0.02;
+        addBucket(buckets, 'titanium', new THREE.CylinderGeometry(0.24, 0.24, 0.62, isHero ? 16 : 8).rotateZ(Math.PI / 2).translate(shX, shY, shZ), 0xdbe4f0);
+
+        // Sculpted Inner Shoulder Rotary Housing & Bicep Lofted Arm Frame
+        const innerShoulder = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.50, 1.88, 0.02),
+            new THREE.Vector3(side * 1.74, 1.66, 0.02),
+            new THREE.Vector3(side * 1.78, 1.18, 0.00),
+            new THREE.Vector3(side * 1.78, 0.78, 0.04)
+          ],
+          (u) => ({ hw: lerp(0.32, 0.17, u), ht: lerp(0.34, 0.19, u), chamfer: 0.06 }),
+          isHero ? 8 : 3, 0.52, detail
+        );
+        addBucket(buckets, 'titanium', innerShoulder, 0xdbe4f0);
+        // Upper-arm hydraulic shock strut
+        addBucket(buckets, 'chrome', strutGeom(
+          new THREE.Vector3(side * 1.64, 1.56, 0.20),
+          new THREE.Vector3(side * 1.76, 0.86, 0.18),
+          0.032, 0.026, isHero ? 8 : 5
+        ), 0xf1f5f9);
+
+        // Outer Spaced Pauldron Armor Hull (multi-station angled ceramic shell)
+        const pauldron = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.38, 2.08, 0.02),
+            new THREE.Vector3(side * 1.88, 1.98, 0.02),
+            new THREE.Vector3(side * 2.10, 1.38, 0.04)
+          ],
+          (u) => ({
+            hw: lerp(0.56, 0.44, u),
+            ht: lerp(0.11, 0.08, u),
+            chamfer: 0.05,
+            topRatio: 0.88,
+            botRatio: 1.0
+          }),
+          isHero ? 10 : 3, 0.48, detail
+        );
+        addSpacedArmorWithBolts(buckets, pauldron, [
+          { pIn: new THREE.Vector3(side * 1.65, 1.84, 0.24), pOut: new THREE.Vector3(side * 1.76, 1.98, 0.24), r: 0.026 },
+          { pIn: new THREE.Vector3(side * 1.65, 1.84, -0.24), pOut: new THREE.Vector3(side * 1.76, 1.98, -0.24), r: 0.026 },
+          { pIn: new THREE.Vector3(side * 1.88, 1.52, 0.02), pOut: new THREE.Vector3(side * 2.04, 1.48, 0.04), r: 0.026 }
+        ], isHero);
+
+        // Tactical Forearm / Gauntlet Shield Bracer hanging cleanly at side (x = ±1.76m)
+        addBucket(buckets, 'chrome', new THREE.CylinderGeometry(0.11, 0.11, 0.30, isHero ? 12 : 6).rotateZ(Math.PI / 2).translate(side * 1.78, 0.78, 0.04), 0xe2e8f0);
+        const forearmHull = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.78, 0.78, 0.06),
+            new THREE.Vector3(side * 1.76, 0.38, 0.24),
+            new THREE.Vector3(side * 1.74, 0.04, 0.46)
+          ],
+          (u) => ({ hw: lerp(0.20, 0.16, u), ht: lerp(0.18, 0.13, u), chamfer: 0.04 }),
+          isHero ? 7 : 3, 0.55, detail
+        );
+        addBucket(buckets, 'armor', forearmHull, 0xffffff);
+        // Spaced Gauntlet Deflector Shield Plate
+        const bracerShield = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.98, 0.72, 0.14),
+            new THREE.Vector3(side * 1.96, 0.14, 0.42)
+          ],
+          (u) => ({ hw: 0.045, ht: lerp(0.22, 0.18, u), chamfer: 0.02 }),
+          isHero ? 5 : 2, 0.55, 1
+        );
+        addSpacedArmorWithBolts(buckets, bracerShield, [
+          { pIn: new THREE.Vector3(side * 1.84, 0.56, 0.18), pOut: new THREE.Vector3(side * 1.95, 0.54, 0.20), r: 0.020 },
+          { pIn: new THREE.Vector3(side * 1.82, 0.24, 0.34), pOut: new THREE.Vector3(side * 1.94, 0.22, 0.36), r: 0.020 }
+        ], isHero);
+      }
+
+      // Armored Sensor Head / Mast Assembly (y = 2.04 .. 2.62 in torso space -> world 5.59 .. 6.17m)
+      const headHull = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0, 2.08, 0.42),
+          new THREE.Vector3(0, 2.26, 0.14),
+          new THREE.Vector3(0, 2.34, -0.34)
+        ],
+        (u) => ({ hw: lerp(0.24, 0.34, u), ht: lerp(0.16, 0.22, u), chamfer: 0.05, topRatio: 0.72 }),
+        isHero ? 6 : 3, 0.65, detail
+      );
+      addBucket(buckets, 'armor', headHull, 0xffffff);
+      addBucket(buckets, 'composite', boxGeom(0.42, 0.10, 0.12, 0, 2.16, 0.36), 0x94a3b8);
+      addBucket(buckets, 'cyanGlow', boxGeom(0.34, 0.045, 0.06, 0, 2.16, 0.42), 0x38bdf8);
+      // Twin laser designator / optical mast pods
+      addBucket(buckets, 'titanium', strutGeom(new THREE.Vector3(0.24, 2.26, -0.18), new THREE.Vector3(0.28, 2.74, -0.26), 0.022, 0.014, 6), 0xe2e8f0);
+      addBucket(buckets, 'cyanGlow', boxGeom(0.04, 0.06, 0.05, -0.18, 2.22, 0.38), 0x38bdf8);
+
+      // 2. Pressurized Cockpit Interior (inside hollow chest cavity x∈[-0.58,0.58], y∈[0.36,1.72], z∈[-0.08,0.74])
+      // Dark matte composite interior liner walls
+      addBucket(buckets, 'composite', boxGeom(1.16, 0.04, 0.80, 0, 0.37, 0.32), 0x94a3b8);
+      addBucket(buckets, 'composite', boxGeom(1.16, 1.32, 0.06, 0, 1.03, -0.05), 0x94a3b8);
+      for (const side of [1, -1]) {
+        addBucket(buckets, 'composite', boxGeom(0.05, 1.30, 0.78, side * 0.56, 1.03, 0.33), 0x94a3b8);
+      }
+
+      // Internal Roll-Cage Ribs framing the cockpit opening
+      for (const rz of [0.12, 0.38, 0.62]) {
+        const ribCurve = [
+          new THREE.Vector3(-0.54, 0.40, rz),
+          new THREE.Vector3(-0.52, 1.42, rz),
+          new THREE.Vector3(-0.28, 1.66, rz),
+          new THREE.Vector3( 0.28, 1.66, rz),
+          new THREE.Vector3( 0.52, 1.42, rz),
+          new THREE.Vector3( 0.54, 0.40, rz)
+        ];
+        addBucket(buckets, 'titanium', buildSweptHose(ribCurve, 0.024, isHero ? 14 : 6, isHero ? 8 : 4), 0xcbd5e1);
+      }
+
+      // Ergonomic Armored Pilot Seat + 5-Point Harness
+      addBucket(buckets, 'composite', boxGeom(0.50, 0.10, 0.48, 0, 0.64, 0.22, -0.10, 0, 0), 0xcbd5e1); // Seat pan
+      addBucket(buckets, 'composite', boxGeom(0.46, 0.72, 0.11, 0, 1.02, 0.04, -0.18, 0, 0), 0xcbd5e1); // Backrest
+      addBucket(buckets, 'titanium', boxGeom(0.28, 0.22, 0.13, 0, 1.44, -0.02, -0.12, 0, 0), 0xe2e8f0); // Headrest
+      for (const s of [1, -1]) {
+        addBucket(buckets, 'composite', boxGeom(0.08, 0.44, 0.22, s * 0.24, 1.08, 0.12, -0.15, 0, 0), 0xe2e8f0); // Side bolsters
+        // Shoulder harness belts
+        addBucket(buckets, 'copper', strutGeom(
+          new THREE.Vector3(s * 0.14, 1.32, 0.08),
+          new THREE.Vector3(s * 0.05, 0.84, 0.18),
+          0.026, 0.024, isHero ? 6 : 4
+        ), 0xffedd5);
+        // Lap belts
+        addBucket(buckets, 'copper', strutGeom(
+          new THREE.Vector3(s * 0.22, 0.69, 0.20),
+          new THREE.Vector3(s * 0.04, 0.78, 0.21),
+          0.022, 0.022, isHero ? 6 : 4
+        ), 0xffedd5);
+      }
+      // Center 5-point rotary release buckle & crotch strap
+      addBucket(buckets, 'chrome', new THREE.CylinderGeometry(0.048, 0.048, 0.04, isHero ? 8 : 6).rotateX(Math.PI / 2).translate(0, 0.80, 0.20), 0xffffff);
+      addBucket(buckets, 'copper', strutGeom(new THREE.Vector3(0, 0.66, 0.34), new THREE.Vector3(0, 0.79, 0.20), 0.022, 0.022, isHero ? 6 : 4), 0xffedd5);
+
+      // Dual HOTAS Control Sticks & Side Armrest Consoles
+      for (const s of [1, -1]) {
+        addBucket(buckets, 'titanium', boxGeom(0.14, 0.08, 0.44, s * 0.34, 0.74, 0.28), 0xcbd5e1);
+        // Joystick / Throttle grip
+        addBucket(buckets, 'composite', strutGeom(
+          new THREE.Vector3(s * 0.34, 0.78, 0.40),
+          new THREE.Vector3(s * 0.31, 0.96, 0.44),
+          0.022, 0.028, isHero ? 8 : 5
+        ), 0xe2e8f0);
+        addBucket(buckets, 'cyanGlow', boxGeom(0.04, 0.02, 0.06, s * 0.34, 0.79, 0.26), 0x38bdf8);
+      }
+
+      // Main Cockpit Core Reactor Ring behind seat + Instrument Dash
+      addBucket(buckets, 'cyanGlow', new THREE.TorusGeometry(0.16, 0.026, isHero ? 8 : 4, isHero ? 20 : 8).translate(0, 0.54, 0.01), 0x38bdf8);
+      addBucket(buckets, 'composite', boxGeom(0.68, 0.14, 0.22, 0, 0.82, 0.58, 0.28, 0, 0), 0xcbd5e1);
+      addBucket(buckets, 'cyanGlow', boxGeom(0.22, 0.08, 0.02, -0.15, 0.86, 0.52, -0.35, 0, 0), 0x38bdf8);
+      addBucket(buckets, 'cyanGlow', boxGeom(0.22, 0.08, 0.02, 0.15, 0.86, 0.52, -0.35, 0, 0), 0x38bdf8);
+
+      // Flush Static Torso Meshes before building articulated hatches
+      flushBuckets(torso, buckets, matMap, 'Torso');
+
+      // Translucent Holographic Tactical HUD Visor (curved glass combiner + cyan holo reticle)
+      const hudArcSegs = isHero ? 18 : 8;
+      const hudGlass = new THREE.CylinderGeometry(0.42, 0.42, 0.32, hudArcSegs, 1, true, -Math.PI * 0.34, Math.PI * 0.68);
+      hudGlass.translate(0, 1.18, 0.18);
+      const hudGlassMesh = new THREE.Mesh(hudGlass, matMap.hudGlass);
+      hudGlassMesh.name = 'Cockpit_HUD_Visor_Glass';
+      torso.add(hudGlassMesh);
+
+      const hudHoloGeom = new THREE.CylinderGeometry(0.415, 0.415, 0.30, hudArcSegs, 1, true, -Math.PI * 0.32, Math.PI * 0.64);
+      hudHoloGeom.translate(0, 1.18, 0.18);
+      const hudHoloMesh = new THREE.Mesh(hudHoloGeom, matMap.hudHolo);
+      hudHoloMesh.name = 'Cockpit_HUD_Holo_Telemetry';
+      torso.add(hudHoloMesh);
+
+      // 3. Openable Clam-Shell Chest Armor Cockpit (`Part_ChestHatch_Upper` & `Part_ChestHatch_Lower`)
+      const upperHatch = parts.Part_ChestHatch_Upper;
+      upperHatch.position.set(0, 1.74, 0.78);
+      const uhBuckets = {};
+      addBucket(uhBuckets, 'titanium', boxGeom(1.18, 0.72, 0.08, 0, -0.38, 0.02, -0.18, 0, 0), 0xdbe4f0);
+      const upperShell = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0,  0.04, 0.06),
+          new THREE.Vector3(0, -0.38, 0.26),
+          new THREE.Vector3(0, -0.78, 0.18)
+        ],
+        (u) => ({
+          hw: lerp(0.56, 0.66, Math.sin(u * Math.PI * 0.65 + 0.3)),
+          ht: 0.065,
+          chamfer: 0.04,
+          topRatio: 0.86,
+          botRatio: 1.0
+        }),
+        isHero ? 8 : 3, 0.55, detail
+      );
+      addSpacedArmorWithBolts(uhBuckets, upperShell, [
+        { pIn: new THREE.Vector3(0.42, -0.22, 0.07), pOut: new THREE.Vector3(0.42, -0.22, 0.16), r: 0.022 },
+        { pIn: new THREE.Vector3(-0.42, -0.22, 0.07), pOut: new THREE.Vector3(-0.42, -0.22, 0.16), r: 0.022 },
+        { pIn: new THREE.Vector3(0.44, -0.62, 0.05), pOut: new THREE.Vector3(0.44, -0.62, 0.15), r: 0.022 },
+        { pIn: new THREE.Vector3(-0.44, -0.62, 0.05), pOut: new THREE.Vector3(-0.44, -0.62, 0.15), r: 0.022 }
+      ], isHero);
+      addBucket(uhBuckets, 'composite', boxGeom(0.68, 0.10, 0.08, 0, -0.24, 0.27, -0.15, 0, 0), 0x94a3b8);
+      addBucket(uhBuckets, 'cyanGlow', boxGeom(0.54, 0.04, 0.05, 0, -0.24, 0.30, -0.15, 0, 0), 0x38bdf8);
+      for (const s of [-0.36, 0.36]) {
+        addBucket(uhBuckets, 'chrome', boxGeom(0.12, 0.14, 0.12, s, -0.78, 0.14), 0xf1f5f9);
+      }
+      flushBuckets(upperHatch, uhBuckets, matMap, 'ChestHatchUpper');
+
+      // Lower Clam-Shell Hatch (`Part_ChestHatch_Lower` — lofted top-to-bottom for upright stencils!)
+      const lowerHatch = parts.Part_ChestHatch_Lower;
+      lowerHatch.position.set(0, 0.34, 0.76);
+      const lhBuckets = {};
+      addBucket(lhBuckets, 'titanium', boxGeom(1.16, 0.58, 0.08, 0, 0.31, 0.02, 0.16, 0, 0), 0xdbe4f0);
+      const lowerShell = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0, 0.62, 0.18),
+          new THREE.Vector3(0, 0.34, 0.22),
+          new THREE.Vector3(0, 0.00, 0.04)
+        ],
+        (u) => ({
+          hw: lerp(0.65, 0.54, u),
+          ht: 0.062,
+          chamfer: 0.04,
+          topRatio: 0.88,
+          botRatio: 1.0
+        }),
+        isHero ? 7 : 3, 0.55, detail
+      );
+      addSpacedArmorWithBolts(lhBuckets, lowerShell, [
+        { pIn: new THREE.Vector3(0.40, 0.22, 0.06), pOut: new THREE.Vector3(0.40, 0.22, 0.16), r: 0.022 },
+        { pIn: new THREE.Vector3(-0.40, 0.22, 0.06), pOut: new THREE.Vector3(-0.40, 0.22, 0.16), r: 0.022 },
+        { pIn: new THREE.Vector3(0.42, 0.50, 0.05), pOut: new THREE.Vector3(0.42, 0.50, 0.14), r: 0.022 },
+        { pIn: new THREE.Vector3(-0.42, 0.50, 0.05), pOut: new THREE.Vector3(-0.42, 0.50, 0.14), r: 0.022 }
+      ], isHero);
+      for (const s of [-0.36, 0.36]) {
+        addBucket(lhBuckets, 'chrome', boxGeom(0.14, 0.10, 0.10, s, 0.61, 0.15), 0xf1f5f9);
+      }
+      addBucket(lhBuckets, 'composite', boxGeom(0.56, 0.14, 0.08, 0, 0.16, 0.18), 0x94a3b8);
+      flushBuckets(lowerHatch, lhBuckets, matMap, 'ChestHatchLower');
+
+      // Articulated Chest Hatch Hydraulic Dampers (`Part_Piston_Hatch_Cyl/Rod_L/R`)
+      for (const [side, suf] of [[1, 'L'], [-1, 'R']]) {
+        const cylGrp = new THREE.Group();
+        cylGrp.name = `Part_Piston_Hatch_Cyl_${suf}`;
+        cylGrp.position.set(side * 0.60, 1.38, 0.14);
+        torso.add(cylGrp);
+        parts[cylGrp.name] = cylGrp;
+
+        const rodGrp = new THREE.Group();
+        rodGrp.name = `Part_Piston_Hatch_Rod_${suf}`;
+        rodGrp.position.set(side * 0.60, -0.34, -0.06);
+        upperHatch.add(rodGrp);
+        parts[rodGrp.name] = rodGrp;
+
+        buildPistonMeshPair(cylGrp, rodGrp, 0.56, 0.56, 0.036, 0.020, isHero, matMap);
+      }
+    }
+
+    // --- 5B. SHOULDER-MOUNTED ELECTROMAGNETIC RAILGUNS ---
+    function buildRailguns(parts, isHero, matMap) {
+      const torso = parts.Part_Torso_Yaw;
+      for (const [side, namePrefix] of [[1, 'Left'], [-1, 'Right']]) {
+        const turret = parts[`Part_${namePrefix}Railgun_Turret`];
+        // Mounted above shoulder pauldron at world (side*1.24, 5.88, -0.14) -> torso space (side*1.24, 2.33, -0.14)
+        turret.position.set(side * 1.24, 2.33, -0.14);
+        torso.add(turret);
+
+        // Build vertical armored mount pylon statically onto torso
+        const pylonBuckets = {};
+        addBucket(pylonBuckets, 'titanium', boxGeom(0.28, 0.44, 0.46, side * 1.18, 2.02, -0.14), 0xdbe4f0);
+        addBucket(pylonBuckets, 'chrome', new THREE.CylinderGeometry(0.14, 0.14, 0.34, isHero ? 14 : 6).rotateZ(Math.PI / 2).translate(side * 1.24, 2.33, -0.14), 0xf1f5f9);
+        flushBuckets(torso, pylonBuckets, matMap, `RailgunPylon_${namePrefix}`);
+
+        // Turret Housing, Capacitor Bank & Slotted Heat-Sink Fins
+        const tBuckets = {};
+        const turretCowl = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(0, 0.02, -1.28),
+            new THREE.Vector3(0, 0.06, -0.45),
+            new THREE.Vector3(0, 0.04, 0.42)
+          ],
+          (u) => ({ hw: lerp(0.24, 0.30, Math.sin(u * Math.PI * 0.8 + 0.2)), ht: lerp(0.22, 0.26, u), chamfer: 0.05 }),
+          isHero ? 7 : 3, 0.55, isHero ? 2 : 1
+        );
+        addBucket(tBuckets, 'armor', turretCowl, 0xffffff);
+
+        // Rear High-Voltage Capacitor Bank Cells (4 cylinders protruding symmetrically from rear breech)
+        const capSegs = isHero ? 12 : 6;
+        for (const cx of [-0.13, 0.13]) {
+          for (const cy of [-0.08, 0.08]) {
+            const cap = new THREE.CylinderGeometry(0.068, 0.068, 0.58, capSegs).rotateX(Math.PI / 2).translate(cx, cy, -1.16);
+            addBucket(tBuckets, 'titanium', cap, 0xdbe4f0);
+            const capRing = new THREE.TorusGeometry(0.070, 0.012, isHero ? 6 : 4, capSegs).translate(cx, cy, -1.36);
+            addBucket(tBuckets, 'cyanGlow', capRing, 0x38bdf8);
+          }
+        }
+
+        // Slotted Heat-Sink Radiator Fins along upper & outer turret flanks
+        const finCount = isHero ? 8 : 3;
+        for (let f = 0; f < finCount; f++) {
+          const fz = lerp(-0.82, 0.24, f / (finCount - 1));
+          addBucket(tBuckets, 'titanium', boxGeom(0.56, 0.09, 0.032, 0, 0.29, fz), 0xe2e8f0);
+          addBucket(tBuckets, 'copper', boxGeom(0.64, 0.14, 0.020, 0, 0.06, fz), 0xffedd5);
+        }
+
+        // Fixed Turret Guide Rails for Recoil Sled
+        for (const sx of [-0.21, 0.21]) {
+          addBucket(tBuckets, 'chrome', boxGeom(0.04, 0.06, 0.96, sx, 0.0, 0.68), 0xf8fafc);
+        }
+        flushBuckets(turret, tBuckets, matMap, `${namePrefix}RailgunTurret`);
+
+        // Reciprocating Barrel & Parallel Magnetic Accelerator Rails (`Part_*Railgun_Barrel`)
+        const barrel = parts[`Part_${namePrefix}Railgun_Barrel`];
+        barrel.position.set(0, 0, 0);
+        turret.add(barrel);
+
+        const bBuckets = {};
+        // Twin Parallel Heavy Magnetic Accelerator Rails (Upper & Lower rails with crisp open gap!)
+        for (const ry of [0.115, -0.115]) {
+          const rail = buildCurveArmorPlate(
+            [
+              new THREE.Vector3(0, ry, 0.28),
+              new THREE.Vector3(0, ry, 1.55),
+              new THREE.Vector3(0, ry * 0.92, 2.75)
+            ],
+            (u) => ({ hw: lerp(0.14, 0.09, u), ht: lerp(0.058, 0.044, u), chamfer: 0.018 }),
+            isHero ? 6 : 2, 0.65, 1
+          );
+          addBucket(bBuckets, 'titanium', rail, 0xdbe4f0);
+          // Inner polished tungsten conductive accelerator track
+          addBucket(bBuckets, 'chrome', boxGeom(0.09, 0.025, 2.42, 0, ry - Math.sign(ry) * 0.042, 1.52), 0xf8fafc);
+        }
+
+        // Reciprocating Recoil Sled Shroud
+        const sled = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(0, 0, 0.22),
+            new THREE.Vector3(0, 0, 1.18)
+          ],
+          (u) => ({ hw: lerp(0.24, 0.20, u), ht: lerp(0.21, 0.17, u), chamfer: 0.04 }),
+          isHero ? 4 : 2, 0.55, 1
+        );
+        addSpacedArmorWithBolts(bBuckets, sled, [
+          { pIn: new THREE.Vector3(side * 0.16, 0.12, 0.55), pOut: new THREE.Vector3(side * 0.24, 0.14, 0.55), r: 0.018 },
+          { pIn: new THREE.Vector3(side * 0.16, -0.12, 0.95), pOut: new THREE.Vector3(side * 0.22, -0.12, 0.95), r: 0.018 }
+        ], isHero);
+
+        // Exposed Copper Windings & Glowing Cyan Electromagnetic Induction Coils visible inside the rail gap!
+        const coilCount = isHero ? 8 : 3;
+        for (let c = 0; c < coilCount; c++) {
+          const cz = lerp(0.65, 2.48, c / (coilCount - 1));
+          for (const cx of [-0.085, 0.085]) {
+            addBucket(bBuckets, 'copper', boxGeom(0.042, 0.15, 0.085, cx, 0, cz), 0xffedd5);
+          }
+          const glowRing = new THREE.TorusGeometry(0.052, 0.015, isHero ? 6 : 4, isHero ? 12 : 6).translate(0, 0, cz + 0.055);
+          addBucket(bBuckets, 'cyanGlow', glowRing, 0x38bdf8);
+        }
+
+        // Muzzle Brake / Bore Stabilizer Tip
+        addBucket(bBuckets, 'titanium', boxGeom(0.22, 0.30, 0.18, 0, 0, 2.74), 0xcbd5e1);
+        flushBuckets(barrel, bBuckets, matMap, `${namePrefix}RailgunBarrel`);
+      }
+    }
+
+    // --- 5C. DORSAL ORBITAL RE-ENTRY THRUSTER PACK ---
+    function buildThrusterPack(parts, isHero, matMap) {
+      const torso = parts.Part_Torso_Yaw;
+      const pack = parts.Part_ThrusterPack;
+      pack.position.set(0, 1.38, -0.82); // World (0, 4.93, -0.82)
+      torso.add(pack);
+
+      const pBuckets = {};
+      // Chamfered Heat-Shielded Propellant Housing (oriented top-to-bottom so stencils read upright!)
+      const packShell = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0,  0.66, -0.14),
+          new THREE.Vector3(0,  0.04, -0.26),
+          new THREE.Vector3(0, -0.62,  0.06)
+        ],
+        (u) => ({ hw: lerp(0.76, 0.92, Math.sin(u * Math.PI * 0.8 + 0.2)), ht: lerp(0.40, 0.32, u), chamfer: 0.08 }),
+        isHero ? 8 : 3, 0.48, isHero ? 2 : 1
+      );
+      addBucket(pBuckets, 'armor', packShell, 0xffffff);
+
+      // Twin Propellant Fuel Tanks, Gimbal Socket Collars & Braided Feed Manifolds
+      for (const side of [1, -1]) {
+        const tank = new THREE.CylinderGeometry(0.22, 0.20, 1.05, isHero ? 14 : 7).rotateX(0.18).translate(side * 0.58, 0.10, -0.34);
+        addBucket(pBuckets, 'titanium', tank, 0xdbe4f0);
+        addBucket(pBuckets, 'chrome', new THREE.TorusGeometry(0.20, 0.025, isHero ? 6 : 4, isHero ? 14 : 7).rotateX(Math.PI / 2 + 0.36).translate(side * 0.56, -0.46, -0.35), 0xe2e8f0);
+        const hosePts = [
+          new THREE.Vector3(side * 0.38, 0.48, -0.10),
+          new THREE.Vector3(side * 0.64, 0.30, -0.48),
+          new THREE.Vector3(side * 0.58, -0.38, -0.32)
+        ];
+        addBucket(pBuckets, 'hose', buildSweptHose(hosePts, 0.036, isHero ? 14 : 5, isHero ? 8 : 4), 0xcbd5e1);
+      }
+      flushBuckets(pack, pBuckets, matMap, 'ThrusterPack');
+
+      // Twin Gimbaled Retro-Thruster Bells with Internal Turbine Stator Blades (`Part_ThrusterNozzle_L/R`)
+      for (const [side, suf] of [[1, 'L'], [-1, 'R']]) {
+        const noz = parts[`Part_ThrusterNozzle_${suf}`];
+        noz.position.set(side * 0.56, -0.48, -0.36);
+        noz.rotation.set(0.36, 0, 0);
+        pack.add(noz);
+
+        const nBuckets = {};
+        const rSegs = isHero ? 22 : 8;
+        const bellPts = [
+          new THREE.Vector2(0.18, 0.08),
+          new THREE.Vector2(0.15, -0.04),
+          new THREE.Vector2(0.25, -0.24),
+          new THREE.Vector2(0.35, -0.52),
+          new THREE.Vector2(0.33, -0.54),
+          new THREE.Vector2(0.22, -0.24),
+          new THREE.Vector2(0.12, -0.02)
+        ];
+        addBucket(nBuckets, 'titanium', new THREE.LatheGeometry(bellPts, rSegs), 0xdbe4f0, (p, n) =>
+          p.y < -0.15 && n.y < 0 ? 0.58 : 0.94
+        );
+        // Flush cooling collar hugging bell outer diameter cleanly (no floating gap!)
+        addBucket(nBuckets, 'chrome', new THREE.TorusGeometry(0.255, 0.022, isHero ? 6 : 4, rSegs).rotateX(Math.PI / 2).translate(0, -0.26, 0), 0xf1f5f9);
+
+        // Internal Turbine Stator Blades inside throat!
+        const bladeCount = isHero ? 12 : 4;
+        for (let b = 0; b < bladeCount; b++) {
+          const ang = (b / bladeCount) * Math.PI * 2;
+          const bx = Math.cos(ang) * 0.14;
+          const bz = Math.sin(ang) * 0.14;
+          addBucket(nBuckets, 'chrome', boxGeom(0.18, 0.025, 0.06, bx, -0.14, bz, 0.42, ang, 0), 0xf8fafc);
+        }
+        // Emissive plasma throat cone
+        addBucket(nBuckets, 'thrusterGlow', new THREE.CylinderGeometry(0.12, 0.24, 0.24, rSegs, 1, true).translate(0, -0.20, 0), 0xffffff);
+        addBucket(nBuckets, 'thrusterGlow', new THREE.CircleGeometry(0.13, rSegs).rotateX(Math.PI / 2).translate(0, -0.08, 0), 0xffffff);
+        flushBuckets(noz, nBuckets, matMap, `ThrusterNozzle_${suf}`);
+
+        // Deployable Aerodynamic Heat-Shield Airbrake Wings (`Part_Airbrake_L/R`)
+        const brake = parts[`Part_Airbrake_${suf}`];
+        brake.position.set(side * 0.52, 0.58, -0.24);
+        pack.add(brake);
+
+        const abBuckets = {};
+        const wing = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 0.56, 0.68, -0.34),
+            new THREE.Vector3(side * 0.34, 0.34, -0.18),
+            new THREE.Vector3(0, 0.0, 0.0)
+          ],
+          (u) => ({ hw: lerp(0.18, 0.28, u), ht: 0.038, chamfer: 0.02 }),
+          isHero ? 5 : 2, 0.6, 1
+        );
+        addBucket(abBuckets, 'armor', wing, 0xffffff);
+        addBucket(abBuckets, 'titanium', boxGeom(0.32, 0.46, 0.03, side * 0.22, 0.26, -0.10, 0.25, 0, -side * 0.45), 0xcbd5e1);
+        flushBuckets(brake, abBuckets, matMap, `Airbrake_${suf}`);
+      }
+    }
+
+    // --- 5D. HYDRAULIC PISTON HELPER (DUAL-NODE CLEVIS TRACKING ALONG +Z) ---
+    function buildPistonMeshPair(cylGrp, rodGrp, lenCyl, lenRod, rCyl, rRod, isHero, matMap) {
+      const segs = isHero ? 14 : 6;
+      const cBuckets = {};
+      const barrel = new THREE.CylinderGeometry(rCyl, rCyl, lenCyl, segs).rotateX(Math.PI / 2).translate(0, 0, lenCyl * 0.5);
+      addBucket(cBuckets, 'titanium', barrel, 0xdbe4f0);
+      addBucket(cBuckets, 'chrome', new THREE.CylinderGeometry(rCyl * 1.25, rCyl * 1.25, 0.06, segs).rotateX(Math.PI / 2).translate(0, 0, lenCyl - 0.03), 0xf1f5f9);
+      addBucket(cBuckets, 'titanium', new THREE.CylinderGeometry(rCyl * 1.2, rCyl * 1.2, 0.08, segs).rotateZ(Math.PI / 2), 0xcbd5e1);
+      flushBuckets(cylGrp, cBuckets, matMap, `${cylGrp.name}_Mesh`);
+
+      const rBuckets = {};
+      const shaft = new THREE.CylinderGeometry(rRod, rRod, lenRod, segs).rotateX(Math.PI / 2).translate(0, 0, lenRod * 0.5);
+      addBucket(rBuckets, 'chrome', shaft, 0xffffff);
+      addBucket(rBuckets, 'titanium', new THREE.CylinderGeometry(rRod * 1.65, rRod * 1.65, 0.075, segs).rotateZ(Math.PI / 2), 0xcbd5e1);
+      flushBuckets(rodGrp, rBuckets, matMap, `${rodGrp.name}_Mesh`);
+    }
+
+    // --- 5E. PELVIS, HEAVY REVERSE-CANT LEGS, HYDRAULIC PISTONS & BRAIDED HOSES ---
+    function buildPelvisAndLegs(parts, isHero, matMap) {
+      const k = MECH_KINEMATICS;
+      const pelvis = parts.Part_Pelvis;
+      pelvis.position.set(0, REST_LEG.hipY, REST_LEG.hipZ);
+
+      // Sculpted Chamfered Pelvic Core + Cylindrical Hip Axle Beam (zero harsh raw rectangular boxes!)
+      const pelBuckets = {};
+      const pelCore = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(-0.72, 0.08, 0.0),
+          new THREE.Vector3( 0.00, 0.10, 0.0),
+          new THREE.Vector3( 0.72, 0.08, 0.0)
+        ],
+        (u) => ({ hw: 0.34, ht: lerp(0.18, 0.24, Math.sin(u * Math.PI)), chamfer: 0.07 }),
+        isHero ? 6 : 2, 0.5, 1
+      );
+      addBucket(pelBuckets, 'titanium', pelCore, 0xdbe4f0);
+      addBucket(pelBuckets, 'titanium', new THREE.CylinderGeometry(0.16, 0.16, 2.34, isHero ? 14 : 6).rotateZ(Math.PI / 2), 0xcbd5e1);
+      const groinHull = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0, 0.30, 0.24),
+          new THREE.Vector3(0, -0.08, 0.44),
+          new THREE.Vector3(0, -0.44, 0.26)
+        ],
+        (u) => ({ hw: lerp(0.54, 0.30, u), ht: 0.12, chamfer: 0.04 }),
+        isHero ? 6 : 3, 0.6, 1
+      );
+      addBucket(pelBuckets, 'armor', groinHull, 0xffffff);
+      const rearPelvisArmor = buildCurveArmorPlate(
+        [
+          new THREE.Vector3(0, 0.30, -0.34),
+          new THREE.Vector3(0, 0.04, -0.52),
+          new THREE.Vector3(0, -0.22, -0.40)
+        ],
+        (u) => ({ hw: lerp(0.68, 0.48, u), ht: 0.11, chamfer: 0.04 }),
+        isHero ? 5 : 2, 0.55, 1
+      );
+      addBucket(pelBuckets, 'armor', rearPelvisArmor, 0xffffff);
+
+      for (const side of [1, -1]) {
+        addBucket(pelBuckets, 'chrome', new THREE.CylinderGeometry(0.19, 0.19, 0.44, isHero ? 14 : 6).rotateZ(Math.PI / 2).translate(side * 1.12, 0, 0), 0xe2e8f0);
+        const skirt = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 1.24, 0.32, 0.05),
+            new THREE.Vector3(side * 1.48, -0.10, 0.06)
+          ],
+          (u) => ({ hw: 0.06, ht: lerp(0.32, 0.38, u), chamfer: 0.03 }),
+          isHero ? 4 : 2, 0.55, 1
+        );
+        addSpacedArmorWithBolts(pelBuckets, skirt, [
+          { pIn: new THREE.Vector3(side * 1.12, 0.18, 0.20), pOut: new THREE.Vector3(side * 1.28, 0.18, 0.20), r: 0.022 },
+          { pIn: new THREE.Vector3(side * 1.12, 0.18, -0.14), pOut: new THREE.Vector3(side * 1.28, 0.18, -0.14), r: 0.022 }
+        ], isHero);
+      }
+      flushBuckets(pelvis, pelBuckets, matMap, 'Pelvis');
+
+      // Build Left and Right Reverse-Cant Legs
+      for (const [side, namePrefix, suf] of [[1, 'Left', 'L'], [-1, 'Right', 'R']]) {
+        const hip = parts[`Part_${namePrefix}Hip`];
+        hip.position.set(side * k.hipX, 0, 0);
+        pelvis.add(hip);
+
+        const knee = parts[`Part_${namePrefix}Knee`];
+        knee.position.set(0, -REST_LEG.dy1, REST_LEG.dz1);
+        hip.add(knee);
+
+        const ankle = parts[`Part_${namePrefix}Ankle`];
+        ankle.position.set(0, -REST_LEG.dy2, REST_LEG.dz2);
+        knee.add(ankle);
+
+        // 1) THIGH (`Part_LeftHip` / `Part_RightHip`)
+        const thBuckets = {};
+        const kneeLocal = new THREE.Vector3(0, -REST_LEG.dy1, REST_LEG.dz1);
+        addBucket(thBuckets, 'titanium', strutGeom(new THREE.Vector3(0, 0, 0), kneeLocal, 0.22, 0.18, isHero ? 12 : 6), 0xdbe4f0);
+        addBucket(thBuckets, 'composite', strutGeom(new THREE.Vector3(0, -0.12, -0.14), new THREE.Vector3(0, kneeLocal.y + 0.12, kneeLocal.z - 0.16), 0.12, 0.10, isHero ? 8 : 5), 0xcbd5e1);
+        addBucket(thBuckets, 'chrome', new THREE.CylinderGeometry(0.20, 0.20, 0.54, isHero ? 16 : 6).rotateZ(Math.PI / 2).translate(0, kneeLocal.y, kneeLocal.z), 0xf1f5f9);
+
+        const thighArmor = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(0, -0.08, 0.26),
+            new THREE.Vector3(0, kneeLocal.y * 0.52, kneeLocal.z * 0.52 + 0.28),
+            new THREE.Vector3(0, kneeLocal.y + 0.12, kneeLocal.z + 0.24)
+          ],
+          (u) => ({ hw: lerp(0.38, 0.30, u), ht: lerp(0.16, 0.12, u), chamfer: 0.05 }),
+          isHero ? 9 : 3, 0.52, isHero ? 2 : 1
+        );
+        addSpacedArmorWithBolts(thBuckets, thighArmor, [
+          { pIn: new THREE.Vector3(side * 0.14, -0.32, 0.24), pOut: new THREE.Vector3(side * 0.16, -0.28, 0.36), r: 0.024 },
+          { pIn: new THREE.Vector3(-side * 0.14, -0.32, 0.24), pOut: new THREE.Vector3(-side * 0.16, -0.28, 0.36), r: 0.024 },
+          { pIn: new THREE.Vector3(side * 0.12, kneeLocal.y * 0.78, kneeLocal.z * 0.78 + 0.18), pOut: new THREE.Vector3(side * 0.14, kneeLocal.y * 0.78 + 0.04, kneeLocal.z * 0.78 + 0.32), r: 0.024 },
+          { pIn: new THREE.Vector3(-side * 0.12, kneeLocal.y * 0.78, kneeLocal.z * 0.78 + 0.18), pOut: new THREE.Vector3(-side * 0.14, kneeLocal.y * 0.78 + 0.04, kneeLocal.z * 0.78 + 0.32), r: 0.024 }
+        ], isHero);
+        const thighSide = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(side * 0.36, -0.18, 0.06),
+            new THREE.Vector3(side * 0.34, kneeLocal.y * 0.85, kneeLocal.z * 0.85 + 0.04)
+          ],
+          (u) => ({ hw: 0.06, ht: lerp(0.24, 0.18, u), chamfer: 0.025 }),
+          isHero ? 5 : 2, 0.55, 1
+        );
+        addSpacedArmorWithBolts(thBuckets, thighSide, [
+          { pIn: new THREE.Vector3(side * 0.20, -0.36, 0.16), pOut: new THREE.Vector3(side * 0.33, -0.36, 0.16), r: 0.022 },
+          { pIn: new THREE.Vector3(side * 0.18, kneeLocal.y * 0.72, kneeLocal.z * 0.72 + 0.06), pOut: new THREE.Vector3(side * 0.31, kneeLocal.y * 0.72, kneeLocal.z * 0.72 + 0.06), r: 0.022 }
+        ], isHero);
+
+        addBucket(thBuckets, 'hose', buildSweptHose([
+          new THREE.Vector3(side * 0.26, -0.10, -0.18),
+          new THREE.Vector3(side * 0.44, -0.58, 0.02),
+          new THREE.Vector3(side * 0.38, -1.06, 0.32),
+          new THREE.Vector3(side * 0.24, kneeLocal.y + 0.08, kneeLocal.z - 0.06)
+        ], 0.032, isHero ? 16 : 5, isHero ? 8 : 4), 0xcbd5e1);
+
+        addBucket(thBuckets, 'titanium', boxGeom(0.16, 0.22, 0.38, 0, -0.82, -0.02), 0xdbe4f0);
+        flushBuckets(hip, thBuckets, matMap, `${namePrefix}Thigh`);
+
+        // 2) REVERSE-CANT SHIN (`Part_LeftKnee` / `Part_RightKnee`)
+        const shBuckets = {};
+        const ankleLocal = new THREE.Vector3(0, -REST_LEG.dy2, REST_LEG.dz2);
+        addBucket(shBuckets, 'titanium', strutGeom(new THREE.Vector3(0, 0, 0), ankleLocal, 0.20, 0.16, isHero ? 12 : 6), 0xdbe4f0);
+        addBucket(shBuckets, 'titanium', boxGeom(0.18, 0.20, 0.44, 0, -0.12, -0.22), 0xdbe4f0);
+
+        const shinGreave = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(0, 0.34, 0.26),
+            new THREE.Vector3(0, -0.05, 0.32),
+            new THREE.Vector3(0, ankleLocal.y * 0.55, ankleLocal.z * 0.55 + 0.28),
+            new THREE.Vector3(0, ankleLocal.y + 0.18, ankleLocal.z + 0.24)
+          ],
+          (u) => ({ hw: lerp(0.32, 0.26, u), ht: lerp(0.15, 0.11, u), chamfer: 0.045, topRatio: 0.84 }),
+          isHero ? 10 : 3, 0.52, isHero ? 2 : 1
+        );
+        addSpacedArmorWithBolts(shBuckets, shinGreave, [
+          { pIn: new THREE.Vector3(side * 0.14, -0.12, 0.12), pOut: new THREE.Vector3(side * 0.14, -0.06, 0.26), r: 0.022 },
+          { pIn: new THREE.Vector3(-side * 0.14, -0.12, 0.12), pOut: new THREE.Vector3(-side * 0.14, -0.06, 0.26), r: 0.022 },
+          { pIn: new THREE.Vector3(side * 0.12, ankleLocal.y * 0.65, ankleLocal.z * 0.65 + 0.14), pOut: new THREE.Vector3(side * 0.12, ankleLocal.y * 0.65 + 0.04, ankleLocal.z * 0.65 + 0.26), r: 0.022 },
+          { pIn: new THREE.Vector3(-side * 0.12, ankleLocal.y * 0.65, ankleLocal.z * 0.65 + 0.14), pOut: new THREE.Vector3(-side * 0.12, ankleLocal.y * 0.65 + 0.04, ankleLocal.z * 0.65 + 0.26), r: 0.022 }
+        ], isHero);
+
+        addBucket(shBuckets, 'hose', buildSweptHose([
+          new THREE.Vector3(side * 0.24, -0.08, -0.08),
+          new THREE.Vector3(side * 0.36, -0.54, -0.28),
+          new THREE.Vector3(side * 0.30, -0.98, -0.68),
+          new THREE.Vector3(side * 0.20, ankleLocal.y + 0.10, ankleLocal.z - 0.12)
+        ], 0.028, isHero ? 16 : 5, isHero ? 8 : 4), 0xcbd5e1);
+        flushBuckets(knee, shBuckets, matMap, `${namePrefix}Shin`);
+
+        // 3) WIDE SHOCK-ABSORBING ORBITAL-DROP FOOTPAD & GROUND-ANCHOR TALONS
+        const ftBuckets = {};
+        addBucket(ftBuckets, 'chrome', new THREE.CylinderGeometry(0.16, 0.16, 0.44, isHero ? 14 : 6).rotateZ(Math.PI / 2), 0xf1f5f9);
+        const footDeck = buildCurveArmorPlate(
+          [
+            new THREE.Vector3(0, -0.22, -0.64),
+            new THREE.Vector3(0, -0.18, 0.00),
+            new THREE.Vector3(0, -0.24, 0.72)
+          ],
+          (u) => ({ hw: lerp(0.38, 0.48, Math.sin(u * Math.PI * 0.75 + 0.25)), ht: 0.14, chamfer: 0.05 }),
+          isHero ? 6 : 3, 0.55, 1
+        );
+        addBucket(ftBuckets, 'armor', footDeck, 0xffffff);
+        addBucket(ftBuckets, 'composite', boxGeom(0.92, 0.06, 1.32, 0, -0.33, 0.04), 0x94a3b8);
+        for (const tx of [-0.26, 0.26]) {
+          addBucket(ftBuckets, 'titanium', boxGeom(0.34, 0.16, 0.46, tx, -0.28, 0.68, 0.12, tx * 0.25, 0), 0xdbe4f0);
+        }
+        addBucket(ftBuckets, 'titanium', boxGeom(0.46, 0.18, 0.48, 0, -0.26, -0.58, -0.14, 0, 0), 0xdbe4f0);
+        flushBuckets(ankle, ftBuckets, matMap, `${namePrefix}Foot`);
+
+        for (const [tName, tx, tz, rotY, dirZ] of [
+          [`Part_Talon_F1_${suf}`, -0.36, 0.76, -0.22, 1],
+          [`Part_Talon_F2_${suf}`,  0.36, 0.76,  0.22, 1],
+          [`Part_Talon_R_${suf}`,   0.00, -0.72, 0.00, -1]
+        ]) {
+          const talon = new THREE.Group();
+          talon.name = tName;
+          talon.position.set(tx, -0.24, tz);
+          talon.rotation.y = rotY;
+          ankle.add(talon);
+          parts[tName] = talon;
+
+          const tlBuckets = {};
+          addBucket(tlBuckets, 'chrome', strutGeom(
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, -0.05, dirZ * 0.22),
+            0.055, 0.022, isHero ? 6 : 4
+          ), 0xf8fafc);
+          addBucket(tlBuckets, 'titanium', boxGeom(0.11, 0.10, 0.14, 0, 0, dirZ * 0.04), 0xdbe4f0);
+          flushBuckets(talon, tlBuckets, matMap, tName);
+        }
+
+        // 4) 3 REAL-TIME LOOKAT HYDRAULIC PISTON PAIRS PER LEG (`Part_Piston_*`)
+        // (a) Hip Piston: Pelvis front-outer clevis -> Thigh front-outer clevis (D: 0.901m -> 0.671m)
+        const hCyl = new THREE.Group();
+        hCyl.name = `Part_Piston_Hip_Cyl_${suf}`;
+        hCyl.position.set(side * 1.44, 0.32, 0.38);
+        pelvis.add(hCyl);
+        parts[hCyl.name] = hCyl;
+
+        const hRod = new THREE.Group();
+        hRod.name = `Part_Piston_Hip_Rod_${suf}`;
+        hRod.position.set(side * 0.22, -0.58, 0.42);
+        hip.add(hRod);
+        parts[hRod.name] = hRod;
+        buildPistonMeshPair(hCyl, hRod, 0.54, 0.54, 0.062, 0.036, isHero, matMap);
+
+        // (b) Knee Piston: Thigh rear-outer lug -> Knee bell-crank lug (D: 1.177m -> 0.850m)
+        const kCyl = new THREE.Group();
+        kCyl.name = `Part_Piston_Knee_Cyl_${suf}`;
+        kCyl.position.set(0, -0.62, -0.18);
+        hip.add(kCyl);
+        parts[kCyl.name] = kCyl;
+
+        const kRod = new THREE.Group();
+        kRod.name = `Part_Piston_Knee_Rod_${suf}`;
+        kRod.position.set(0, -0.18, -0.38);
+        knee.add(kRod);
+        parts[kRod.name] = kRod;
+        buildPistonMeshPair(kCyl, kRod, 0.72, 0.68, 0.068, 0.040, isHero, matMap);
+
+        // (c) Ankle Piston: Front-lower shin -> Front instep clevis (D: 0.842m -> 0.632m)
+        const aCyl = new THREE.Group();
+        aCyl.name = `Part_Piston_Ankle_Cyl_${suf}`;
+        aCyl.position.set(0, -0.66, -0.32);
+        knee.add(aCyl);
+        parts[aCyl.name] = aCyl;
+
+        const aRod = new THREE.Group();
+        aRod.name = `Part_Piston_Ankle_Rod_${suf}`;
+        aRod.position.set(0, -0.12, 0.42);
+        ankle.add(aRod);
+        parts[aRod.name] = aRod;
+        buildPistonMeshPair(aCyl, aRod, 0.50, 0.50, 0.056, 0.032, isHero, matMap);
+      }
+    }
+
+    // --- 5F. CONVEX COLLISION PROXIES (`Collider_*`) ---
+    function buildColliderProxies() {
+      const colGroup = new THREE.Group();
+      colGroup.name = 'Collider_Group';
+      const specs = [
+        ['Collider_Torso',      0, 4.65, 0.00, 2.65, 2.25, 1.85],
+        ['Collider_Railgun_L',  1.24, 5.90, 0.55, 0.65, 0.62, 3.85],
+        ['Collider_Railgun_R', -1.24, 5.90, 0.55, 0.65, 0.62, 3.85],
+        ['Collider_Pelvis',     0, 3.22, -0.02, 2.60, 0.72, 1.05],
+        ['Collider_Leg_L',      1.22, 1.65, 0.12, 0.96, 3.20, 1.68],
+        ['Collider_Leg_R',     -1.22, 1.65, 0.12, 0.96, 3.20, 1.68]
+      ];
+      for (const [name, x, y, z, w, h, d] of specs) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), MATS.collider);
+        m.name = name;
+        m.position.set(x, y, z);
+        colGroup.add(m);
+      }
+      colGroup.visible = false;
+      return colGroup;
+    }
+
+    // =========================================================================
+    // 6. MASTER ASSET ASSEMBLY & DUAL LOD BUILDER
+    // =========================================================================
+    let assetGroup = null;
+    let articulated = null;
+    let colliderGroup = null;
+    let pistonPairs = [];
+    let currentLOD = 'hero';
+    let currentLivery = 'olive';
+    let idleLoopActive = true;
+
+    const mechState = {
+      hatchPct: 0,
+      crouchPct: 0,
+      railPitchDeg: 0,
+      overdrivePct: 65,
+      recoilOffset: 0,
+      recoilVel: 0,
+      flashIntensity: 0
+    };
+
+    function disposeHierarchy(root) {
+      if (!root) return;
+      root.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) obj.geometry.dispose();
+      });
+    }
+
+    function buildMechAsset(lodMode) {
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        disposeHierarchy(assetGroup);
+      }
+
+      const isHero = (lodMode === 'hero');
+      const root = new THREE.Group();
+      root.name = 'AEGIS_VII_Orbital_Drop_Mech';
+
+      const parts = {
+        Part_Pelvis:             new THREE.Group(),
+        Part_Torso_Yaw:          new THREE.Group(),
+        Part_ChestHatch_Upper:   new THREE.Group(),
+        Part_ChestHatch_Lower:   new THREE.Group(),
+        Part_LeftRailgun_Turret: new THREE.Group(),
+        Part_RightRailgun_Turret:new THREE.Group(),
+        Part_LeftRailgun_Barrel: new THREE.Group(),
+        Part_RightRailgun_Barrel:new THREE.Group(),
+        Part_ThrusterPack:       new THREE.Group(),
+        Part_ThrusterNozzle_L:   new THREE.Group(),
+        Part_ThrusterNozzle_R:   new THREE.Group(),
+        Part_Airbrake_L:         new THREE.Group(),
+        Part_Airbrake_R:         new THREE.Group(),
+        Part_LeftHip:            new THREE.Group(),
+        Part_LeftKnee:           new THREE.Group(),
+        Part_LeftAnkle:          new THREE.Group(),
+        Part_RightHip:           new THREE.Group(),
+        Part_RightKnee:          new THREE.Group(),
+        Part_RightAnkle:         new THREE.Group()
+      };
+      for (const [k, g] of Object.entries(parts)) g.name = k;
+
+      root.add(parts.Part_Pelvis);
+      parts.Part_Pelvis.add(parts.Part_Torso_Yaw);
+      parts.Part_Torso_Yaw.add(parts.Part_ChestHatch_Upper);
+      parts.Part_Torso_Yaw.add(parts.Part_ChestHatch_Lower);
+
+      buildPelvisAndLegs(parts, isHero, MATS);
+      buildTorsoAndCockpit(parts, isHero, MATS);
+      buildRailguns(parts, isHero, MATS);
+      buildThrusterPack(parts, isHero, MATS);
+
+      colliderGroup = buildColliderProxies();
+      root.add(colliderGroup);
+
+      pistonPairs = [
+        [parts.Part_Piston_Hip_Cyl_L,   parts.Part_Piston_Hip_Rod_L],
+        [parts.Part_Piston_Hip_Cyl_R,   parts.Part_Piston_Hip_Rod_R],
+        [parts.Part_Piston_Knee_Cyl_L,  parts.Part_Piston_Knee_Rod_L],
+        [parts.Part_Piston_Knee_Cyl_R,  parts.Part_Piston_Knee_Rod_R],
+        [parts.Part_Piston_Ankle_Cyl_L, parts.Part_Piston_Ankle_Rod_L],
+        [parts.Part_Piston_Ankle_Cyl_R, parts.Part_Piston_Ankle_Rod_R],
+        [parts.Part_Piston_Hatch_Cyl_L, parts.Part_Piston_Hatch_Rod_L],
+        [parts.Part_Piston_Hatch_Cyl_R, parts.Part_Piston_Hatch_Rod_R]
+      ];
+
+      assetGroup = root;
+      articulated = parts;
+      scene.add(assetGroup);
+
+      applyMechArticulation(0);
+      updateHUDStats();
+    }
+
+    // =========================================================================
+    // 7. REAL-TIME ARTICULATION, HYDRAULIC LOOKAT TRACKING & REST-POSE RESET
+    // =========================================================================
+    const _vA = new THREE.Vector3();
+    const _vB = new THREE.Vector3();
+
+    function updateHydraulicPistons() {
+      assetGroup.updateMatrixWorld(true);
+      for (const [cyl, rod] of pistonPairs) {
+        if (!cyl || !rod) continue;
+        cyl.getWorldPosition(_vA);
+        rod.getWorldPosition(_vB);
+        cyl.lookAt(_vB);
+        rod.lookAt(_vA);
+      }
+    }
+
+    function applyMechArticulation(tSec = 0) {
+      if (!articulated) return;
+      const deg = THREE.MathUtils.degToRad;
+
+      const idleBreath = idleLoopActive ? Math.sin(tSec * 1.9) : 0;
+      const idleScan   = idleLoopActive ? Math.sin(tSec * 0.72) : 0;
+
+      // 1. Drop-Crouch Reverse-Cant Leg Kinematics (feet remain planted at y = 0.00!)
+      const c01 = clamp(mechState.crouchPct / 100 + idleBreath * 0.014, 0, 1);
+      const legSol = computeLegSolution(c01);
+
+      articulated.Part_Pelvis.position.set(0, legSol.hipY, legSol.hipZ);
+
+      const dA1 = legSol.a1 - MECH_KINEMATICS.a1RestDeg;
+      const dA2 = legSol.a2 - MECH_KINEMATICS.a2RestDeg;
+
+      for (const [namePrefix, suf] of [['Left', 'L'], ['Right', 'R']]) {
+        articulated[`Part_${namePrefix}Hip`].rotation.x = -deg(dA1);
+        articulated[`Part_${namePrefix}Knee`].rotation.x = deg(dA1 - dA2);
+        articulated[`Part_${namePrefix}Ankle`].rotation.x = deg(dA2);
+
+        // Deploy ground-anchor talons smoothly to meet floor y=0 as crouch increases
+        const talonPitch = c01 * deg(16);
+        articulated[`Part_Talon_F1_${suf}`].rotation.x = talonPitch;
+        articulated[`Part_Talon_F2_${suf}`].rotation.x = talonPitch;
+        articulated[`Part_Talon_R_${suf}`].rotation.x = -talonPitch;
+      }
+
+      // 2. Torso Yaw Scanning & Idle Breathing
+      articulated.Part_Torso_Yaw.rotation.y = deg(idleScan * 6.5);
+      articulated.Part_Torso_Yaw.rotation.x = deg(c01 * 5.0 + idleBreath * 0.8);
+
+      // 3. Openable Clam-Shell Chest Cockpit (`Part_ChestHatch_Upper`, `Part_ChestHatch_Lower`)
+      const h01 = mechState.hatchPct / 100;
+      articulated.Part_ChestHatch_Upper.rotation.x = -deg(h01 * 74);
+      articulated.Part_ChestHatch_Lower.rotation.x = deg(h01 * 62);
+
+      // 4. Shoulder Railguns Pitch & Reciprocating Fire Recoil
+      const rPitch = -deg(mechState.railPitchDeg); // Negative X rotates +Z barrel UPWARD!
+      articulated.Part_LeftRailgun_Turret.rotation.x = rPitch;
+      articulated.Part_RightRailgun_Turret.rotation.x = rPitch;
+
+      articulated.Part_LeftRailgun_Barrel.position.z = -mechState.recoilOffset;
+      articulated.Part_RightRailgun_Barrel.position.z = -mechState.recoilOffset;
+
+      // 5. Dorsal Thruster Gimbal & Deployable Heat-Shield Airbrakes
+      const ov01 = mechState.overdrivePct / 100;
+      const nozzleTilt = 0.36 + ov01 * 0.16 + c01 * 0.12;
+      articulated.Part_ThrusterNozzle_L.rotation.x = nozzleTilt;
+      articulated.Part_ThrusterNozzle_R.rotation.x = nozzleTilt;
+
+      const brakeOpen = deg(c01 * 34 + ov01 * 18);
+      articulated.Part_Airbrake_L.rotation.x = -brakeOpen;
+      articulated.Part_Airbrake_L.rotation.z = -brakeOpen * 0.55;
+      articulated.Part_Airbrake_R.rotation.x = -brakeOpen;
+      articulated.Part_Airbrake_R.rotation.z = brakeOpen * 0.55;
+
+      // 6. Emissive Overdrive & Single Dynamic Cockpit/Core PointLight
+      const pulse = idleLoopActive ? (0.88 + 0.12 * Math.sin(tSec * 4.2)) : 1.0;
+      const glowLevel = lerp(0.35, 3.8, ov01) * pulse + mechState.flashIntensity * 3.2;
+      MATS.cyanGlow.emissiveIntensity = glowLevel;
+      MATS.thrusterGlow.emissiveIntensity = lerp(0.45, 4.4, ov01) * pulse;
+      MATS.hudHolo.emissiveIntensity = lerp(1.0, 2.8, h01 * 0.7 + ov01 * 0.3);
+
+      // Sync single PointLight inside the chest cockpit & core
+      articulated.Part_Torso_Yaw.localToWorld(_vA.set(0, 1.15, 0.42));
+      cockpitCoreLight.position.copy(_vA);
+      cockpitCoreLight.intensity = lerp(0.6, 3.2, Math.max(h01, ov01 * 0.55)) + mechState.flashIntensity * 1.4;
+
+      // 7. Real-Time Hydraulic Piston LookAt Alignment!
+      updateHydraulicPistons();
+    }
+
+    function resetAllPosesForRest(resetOverdrive = false) {
+      idleLoopActive = false;
+      document.getElementById('btn-idle-loop').textContent = '待機呼吸: 關';
+      mechState.hatchPct = 0;
+      mechState.crouchPct = 0;
+      mechState.railPitchDeg = 0;
+      mechState.recoilOffset = 0;
+      mechState.recoilVel = 0;
+      mechState.flashIntensity = 0;
+      if (resetOverdrive) mechState.overdrivePct = 65;
+
+      const sync = (id, v, lbl, sfx) => {
+        document.getElementById(id).value = v;
+        document.getElementById(lbl).textContent = `${v}${sfx}`;
+      };
+      sync('sl-hatch', 0, 'val-hatch', '%');
+      sync('sl-crouch', 0, 'val-crouch', '%');
+      sync('sl-pitch', 0, 'val-pitch', '°');
+      if (resetOverdrive) sync('sl-overdrive', 65, 'val-overdrive', '%');
+
+      applyMechArticulation(0);
+    }
+
+    // =========================================================================
+    // 8. LIVE ASSET BUDGET HUD & CAMERA PRESETS
+    // =========================================================================
+    function updateHUDStats() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, meshes = 0;
+      const mats = new Set();
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.visible) {
+          meshes++;
+          const g = obj.geometry;
+          const pos = g.getAttribute('position');
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+          if (obj.material) mats.add(obj.material.name || obj.material.uuid);
+        }
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-draws').textContent = meshes;
+      document.getElementById('stat-mats').textContent = mats.size;
+      document.getElementById('lod-badge').textContent = currentLOD === 'hero' ? 'HERO LOD' : 'GAME-READY LOD';
+    }
+
+    const CAM_PRESETS = {
+      overview: { pos: [8.8, 5.2, 10.2],  target: [0.85, 3.25, 0.00] },
+      cockpit:  { pos: [1.55, 4.95, 3.85], target: [0.05, 4.55, 0.35] },
+      railgun:  { pos: [3.85, 6.65, 3.45], target: [1.10, 5.85, 0.65] },
+      legs:     { pos: [4.65, 1.95, 4.45], target: [0.65, 1.55, 0.05] },
+      thruster: { pos: [-4.65, 5.65, -5.85], target: [0.0, 4.65, -0.75] }
+    };
+
+    let camAnim = null;
+    function goToCameraPreset(key) {
+      const p = CAM_PRESETS[key];
+      if (!p) return;
+      const mob = isMobileViewport();
+      const tgt = new THREE.Vector3(mob && key === 'overview' ? 0.0 : p.target[0], p.target[1], p.target[2]);
+      const pos = new THREE.Vector3(mob && key === 'overview' ? 8.2 : p.pos[0], p.pos[1], mob && key === 'overview' ? 10.8 : p.pos[2]);
+      camAnim = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        toPos: pos,
+        fromTgt: controls.target.clone(),
+        toTgt: tgt
+      };
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.cam === key));
+
+      // Auto-open cockpit hatch smoothly when user selects cockpit close-up so interior is immediately visible!
+      if (key === 'cockpit' && mechState.hatchPct < 50) {
+        mechState.hatchPct = 100;
+        document.getElementById('sl-hatch').value = 100;
+        document.getElementById('val-hatch').textContent = '100%';
+        applyMechArticulation(performance.now() * 0.001);
+      }
+    }
+
+    // =========================================================================
+    // 9. EXPORT PIPELINE (.GLB, .OBJ, .PNG SNAPSHOT, 5x PBR .PNG)
+    // =========================================================================
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function setExportStatus(msg) {
+      document.getElementById('export-status').textContent = msg;
+    }
+
+    function runWithRestPoseAndExport(fn) {
+      const prevColVis = colliderGroup ? colliderGroup.visible : false;
+      const prevWire = MATS.armor.wireframe;
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMatList) m.wireframe = false;
+
+      resetAllPosesForRest(false);
+      assetGroup.updateMatrixWorld(true);
+
+      try {
+        fn();
+      } finally {
+        if (colliderGroup) colliderGroup.visible = prevColVis;
+        for (const m of solidMatList) m.wireframe = prevWire;
+      }
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      setExportStatus('Resetting Rest-Pose & Packing .GLB...');
+      runWithRestPoseAndExport(() => {
+        new GLTFExporter().parse(
+          assetGroup,
+          (result) => {
+            const blob = new Blob([result], { type: 'model/gltf-binary' });
+            triggerBlobDownload(blob, `AEGIS_VII_Orbital_Mech_${currentLOD}.glb`);
+            setExportStatus(`Exported .GLB (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+          },
+          (err) => { console.error(err); setExportStatus('GLB Export Error!'); },
+          { binary: true, onlyVisible: true }
+        );
+      });
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      setExportStatus('Resetting Rest-Pose & Exporting .OBJ...');
+      runWithRestPoseAndExport(() => {
+        const objText = new OBJExporter().parse(assetGroup);
+        const blob = new Blob([objText], { type: 'text/plain' });
+        triggerBlobDownload(blob, `AEGIS_VII_Orbital_Mech_${currentLOD}.obj`);
+        setExportStatus(`Exported .OBJ (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+      });
+    });
+
+    document.getElementById('btn-export-snapshot').addEventListener('click', () => {
+      composer.render();
+      renderer.domElement.toBlob((blob) => {
+        if (blob) {
+          triggerBlobDownload(blob, `AEGIS_VII_Snapshot_${currentLivery}_${currentLOD}.png`);
+          setExportStatus('Saved Viewport Snapshot (.png)');
+        }
+      }, 'image/png');
+    });
+
+    function downloadCanvasPNG(canvas, name) {
+      canvas.toBlob((blob) => { if (blob) triggerBlobDownload(blob, name); }, 'image/png');
+    }
+
+    document.getElementById('card-albedo').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvases[currentLivery], `AEGIS_VII_Albedo_${currentLivery}.png`);
+      setExportStatus(`Downloaded Albedo_${currentLivery}.png`);
+    });
+    document.getElementById('card-normal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.normalCanvas, 'AEGIS_VII_Normal_Sobel.png');
+      setExportStatus('Downloaded Normal_Sobel.png');
+    });
+    document.getElementById('card-rough').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.roughCanvas, 'AEGIS_VII_Roughness.png');
+      setExportStatus('Downloaded Roughness.png');
+    });
+    document.getElementById('card-metal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.metalCanvas, 'AEGIS_VII_Metalness.png');
+      setExportStatus('Downloaded Metalness.png');
+    });
+    document.getElementById('card-emissive').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.emissiveCanvas, 'AEGIS_VII_Emissive.png');
+      setExportStatus('Downloaded Emissive.png');
+    });
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvases[currentLivery], `AEGIS_VII_Albedo_${currentLivery}.png`);
+      downloadCanvasPNG(TEX.normalCanvas, 'AEGIS_VII_Normal_Sobel.png');
+      downloadCanvasPNG(TEX.roughCanvas, 'AEGIS_VII_Roughness.png');
+      downloadCanvasPNG(TEX.metalCanvas, 'AEGIS_VII_Metalness.png');
+      downloadCanvasPNG(TEX.emissiveCanvas, 'AEGIS_VII_Emissive.png');
+      downloadCanvasPNG(TEX.hudCanvas, 'AEGIS_VII_HUD_Holo.png');
+      setExportStatus('Downloaded 6x 1024×1024 PBR Maps (.png)');
+    });
+
+    // =========================================================================
+    // 10. UI EVENT WIRING & MOBILE BOTTOM DRAWER
+    // =========================================================================
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => goToCameraPreset(btn.dataset.cam));
+    });
+
+    document.getElementById('btn-lod-hero').addEventListener('click', () => {
+      if (currentLOD === 'hero') return;
+      currentLOD = 'hero';
+      document.getElementById('btn-lod-hero').classList.add('active');
+      document.getElementById('btn-lod-game').classList.remove('active');
+      buildMechAsset('hero');
+    });
+    document.getElementById('btn-lod-game').addEventListener('click', () => {
+      if (currentLOD === 'game') return;
+      currentLOD = 'game';
+      document.getElementById('btn-lod-game').classList.add('active');
+      document.getElementById('btn-lod-hero').classList.remove('active');
+      buildMechAsset('game');
+    });
+
+    document.querySelectorAll('[data-livery]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentLivery = btn.dataset.livery;
+        document.querySelectorAll('[data-livery]').forEach(b => b.classList.toggle('active', b === btn));
+        MATS.armor.map = TEX.albedoTex[currentLivery];
+        MATS.armor.needsUpdate = true;
+        refreshTextureThumbnails(currentLivery);
+      });
+    });
+
+    const bindSlider = (id, lblId, suffix, onChange) => {
+      const el = document.getElementById(id), lbl = document.getElementById(lblId);
+      el.addEventListener('input', () => {
+        const v = Number(el.value);
+        lbl.textContent = `${v}${suffix}`;
+        onChange(v);
+        applyMechArticulation(performance.now() * 0.001);
+      });
+    };
+    bindSlider('sl-hatch', 'val-hatch', '%', (v) => { mechState.hatchPct = v; });
+    bindSlider('sl-crouch', 'val-crouch', '%', (v) => { mechState.crouchPct = v; });
+    bindSlider('sl-pitch', 'val-pitch', '°', (v) => { mechState.railPitchDeg = v; });
+    bindSlider('sl-overdrive', 'val-overdrive', '%', (v) => { mechState.overdrivePct = v; });
+
+    document.getElementById('btn-fire-railgun').addEventListener('click', () => {
+      mechState.recoilOffset = 0.44;
+      mechState.recoilVel = 0;
+      mechState.flashIntensity = 1.0;
+      applyMechArticulation(performance.now() * 0.001);
+      setExportStatus('RAILGUN SALVO FIRED — Recoil Sled Engaged');
+    });
+
+    document.getElementById('btn-idle-loop').addEventListener('click', () => {
+      idleLoopActive = !idleLoopActive;
+      document.getElementById('btn-idle-loop').textContent = idleLoopActive ? '待機呼吸: 開' : '待機呼吸: 關';
+      if (!idleLoopActive) applyMechArticulation(0);
+    });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => resetAllPosesForRest(true));
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      const next = !MATS.armor.wireframe;
+      for (const m of solidMatList) m.wireframe = next;
+      e.currentTarget.classList.toggle('active', next);
+    });
+
+    document.getElementById('btn-colliders').addEventListener('click', (e) => {
+      if (!colliderGroup) return;
+      colliderGroup.visible = !colliderGroup.visible;
+      e.currentTarget.classList.toggle('active', colliderGroup.visible);
+    });
+
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlsPanel = document.getElementById('controls-panel');
+    if (mobileFab && controlsPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlsPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // =========================================================================
+    // 11. BOOTSTRAP & RENDER LOOP
+    // =========================================================================
+    buildMechAsset('hero');
+
+    window.addEventListener('resize', () => {
+      camera.fov = computeResponsiveFov();
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.5);
+        const s = smoothstep(0, 1, camAnim.t);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      // Spring-damped railgun barrel recoil recovery & flash decay
+      if (mechState.recoilOffset > 0.0005 || mechState.flashIntensity > 0.001) {
+        const springK = 36, damp = 9.5;
+        const accel = -springK * mechState.recoilOffset - damp * mechState.recoilVel;
+        mechState.recoilVel += accel * dt;
+        mechState.recoilOffset = Math.max(0, mechState.recoilOffset + mechState.recoilVel * dt);
+        mechState.flashIntensity = Math.max(0, mechState.flashIntensity - dt * 4.2);
+        applyMechArticulation(elapsed);
+      } else if (idleLoopActive) {
+        applyMechArticulation(elapsed);
+      }
+
+      controls.update();
+      composer.render();
+    }
+    animate();
+  </script>
+</body>
+</html>

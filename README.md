@@ -14,6 +14,7 @@
 | **Sovereign's Eclipse Relic** | 君王蝕日秘匣大劍與神龕 | [sovereign_s_eclipse_arcane_relic_forge.html](./sovereigns-eclipse-relic-forge/Tools/ModelForge/sovereign_s_eclipse_arcane_relic_forge.html) | `SovereignRelicController.cs` |
 | **Sovereign's Oath (3A ARPG Forge)** | 3A ARPG 視角君王誓約祭壇 | [sovereign_s_oath_3a_arpg_asset_forge.html](./sovereigns-oath-arpg-forge/Tools/ModelForge/sovereign_s_oath_3a_arpg_asset_forge.html) | `SovereignsOathController.cs` |
 | **Sovereign's Oath (Gothic Altar)** | 哥德皇家大劍聖壇 | [sovereign_s_oath_royal_greatsword_gothic_altar_forge.html](./sovereigns-oath-gothic-altar-forge/Tools/ModelForge/sovereign_s_oath_royal_greatsword_gothic_altar_forge.html) | `SovereignsOathGothicController.cs` |
+| **AEGIS-VII Orbital Drop Mech** | 近未來重型軌道空降作戰機甲 | [aegis_vii_orbital_mech_forge.html](./aegis-vii-orbital-mech-forge/Tools/ModelForge/aegis_vii_orbital_mech_forge.html) | `OrbitalMechController.cs` |
 
 ## 本機預覽方式
 
