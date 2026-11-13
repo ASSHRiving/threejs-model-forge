@@ -1231,42 +1231,51 @@
         }
 
         // Crisp AERO-900X Registration & Airline Titles along Port & Starboard Upper Shoulder
-        // Port (+X, u ~ 0.345 -> x=353): Nose (y=0) is left when viewing Port side, so rotate +PI/2 (reads +Y, top toward +X crown)
+        // Note: 1px in canvas Y ≈ 0.061m along fuselage length vs 1px in canvas X ≈ 0.018m around circumference -> scale(0.52, 1.15) keeps real-world proportions!
+        // Port (+X, u ~ 0.348 -> x=356): Nose (y=0) is left when viewing Port side, so rotate +PI/2
         ctx.save();
-        ctx.translate(356, 190);
+        ctx.translate(356, 268);
         ctx.rotate(Math.PI / 2);
+        ctx.scale(0.52, 1.15);
+        ctx.textAlign = 'center';
         ctx.fillStyle = pal.text;
-        ctx.font = 'bold 34px "Inter", "Segoe UI", sans-serif';
+        ctx.font = 'bold 36px "Inter", "Segoe UI", sans-serif';
         ctx.fillText('AERO-900X', 0, 0);
         ctx.fillStyle = pal.teal;
         ctx.font = 'bold 16px "Inter", "Segoe UI", sans-serif';
-        ctx.fillText('AERO PACIFIC WIDEBODY', 2, 22);
+        ctx.fillText('AERO PACIFIC WIDEBODY', 0, 22);
         ctx.restore();
 
-        // Starboard (-X, u ~ 0.655 -> x=671): Tail (y=1024) is left when viewing Starboard side, so rotate -PI/2 (reads -Y, top toward -X crown)
+        // Starboard (-X, u ~ 0.652 -> x=668): Tail (y=1024) is left when viewing Starboard side, so rotate -PI/2
         ctx.save();
-        ctx.translate(668, 395);
+        ctx.translate(668, 268);
         ctx.rotate(-Math.PI / 2);
+        ctx.scale(0.52, 1.15);
+        ctx.textAlign = 'center';
         ctx.fillStyle = pal.text;
-        ctx.font = 'bold 34px "Inter", "Segoe UI", sans-serif';
+        ctx.font = 'bold 36px "Inter", "Segoe UI", sans-serif';
         ctx.fillText('AERO-900X', 0, 0);
         ctx.fillStyle = pal.teal;
         ctx.font = 'bold 16px "Inter", "Segoe UI", sans-serif';
-        ctx.fillText('AERO PACIFIC WIDEBODY', 2, 22);
+        ctx.fillText('AERO PACIFIC WIDEBODY', 0, 22);
         ctx.restore();
 
         // Aft registration code N900AX
         ctx.save();
-        ctx.translate(320, 725);
+        ctx.translate(320, 775);
         ctx.rotate(Math.PI / 2);
+        ctx.scale(0.52, 1.15);
+        ctx.textAlign = 'center';
         ctx.fillStyle = pal.text;
         ctx.font = 'bold 20px monospace';
         ctx.fillText('N900AX', 0, 0);
         ctx.restore();
 
         ctx.save();
-        ctx.translate(704, 815);
+        ctx.translate(704, 775);
         ctx.rotate(-Math.PI / 2);
+        ctx.scale(0.52, 1.15);
+        ctx.textAlign = 'center';
         ctx.fillStyle = pal.text;
         ctx.font = 'bold 20px monospace';
         ctx.fillText('N900AX', 0, 0);
@@ -2351,9 +2360,9 @@
         addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(3.80, 2.15, 0.12, 0.02, 0, 1.10, 22.95), 0xdbe4ef);
       }
 
-      // Sculpted Glareshield Shroud & Contoured Main Instrument Console
-      addBucketMesh(buckets, 'darkComposite', chamferOrLoft(2.26, 0.62, 0.56, 0.14, 0.032, 0, 0.56, 25.92, 0.15, 0, 0), 0x171e29);
-      addBucketMesh(buckets, 'darkComposite', chamferOrLoft(2.42, 0.09, 0.72, 0.20, 0.025, 0, 0.90, 26.02, 0.08, 0, 0), 0x0f141d);
+      // Sculpted Glareshield Shroud & Contoured Main Instrument Console (tucked cleanly inside cockpit shell)
+      addBucketMesh(buckets, 'darkComposite', chamferOrLoft(1.90, 0.60, 0.54, 0.12, 0.030, 0, 0.56, 25.88, 0.15, 0, 0), 0x171e29);
+      addBucketMesh(buckets, 'darkComposite', chamferOrLoft(2.02, 0.09, 0.68, 0.18, 0.025, 0, 0.90, 25.96, 0.08, 0, 0), 0x0f141d);
 
       // Glowing Chamfered PFD / MFD / EICAS Displays across instrument panel
       for (const dx of [-0.66, 0.0, 0.66]) {
@@ -2375,9 +2384,9 @@
         addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.088, 0.055, 0.082, 0.014, tx, 0.73, 25.17, 0.24, 0, 0), 0x0f172a);
       }
 
-      // Beveled Overhead Avionics Panel
-      addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.88, 0.11, 1.25, 0.024, 0, 1.88, 24.95, 0.22, 0, 0), 0x1e2532);
-      addBucketMesh(buckets, 'avionicsGlow', buildBeveledBoxLoft(0.74, 0.024, 0.96, 0.006, 0, 1.82, 24.95, 0.22, 0, 0), 0xffffff);
+      // Beveled Overhead Avionics Panel (clear of sloped windshield roof)
+      addBucketMesh(buckets, 'darkComposite', buildBeveledBoxLoft(0.84, 0.10, 1.05, 0.022, 0, 1.82, 24.55, 0.22, 0, 0), 0x1e2532);
+      addBucketMesh(buckets, 'avionicsGlow', buildBeveledBoxLoft(0.70, 0.024, 0.82, 0.006, 0, 1.76, 24.55, 0.22, 0, 0), 0xffffff);
 
       // Captain & First-Officer Sculpted Contoured Seats + Ram's-Horn Control Yokes
       const pilotSeatBase = isHero
@@ -2404,14 +2413,14 @@
       // Contoured Curved Cabin Divider Bulkheads (Business/Economy divider & Aft Galley)
       for (const bz of [10.4, -12.8]) {
         if (isHero) {
-          addBucketMesh(buckets, 'cabinInterior', buildArchBulkheadGeometry(1.42, 2.15, 0.10, bz, 1.90, -0.26, true, bSegs), 0xe2e8f0);
-          const stbdDiv = buildArchBulkheadGeometry(1.42, 2.15, 0.10, bz, 0, -0.26, true, bSegs);
+          addBucketMesh(buckets, 'cabinInterior', buildArchBulkheadGeometry(1.28, 2.10, 0.10, bz, 1.82, -0.26, true, bSegs), 0xe2e8f0);
+          const stbdDiv = buildArchBulkheadGeometry(1.28, 2.10, 0.10, bz, 0, -0.26, true, bSegs);
           stbdDiv.rotateY(Math.PI);
-          stbdDiv.translate(-1.90, 0, bz * 2);
+          stbdDiv.translate(-1.82, 0, bz * 2);
           addBucketMesh(buckets, 'cabinInterior', stbdDiv, 0xe2e8f0);
         } else {
-          for (const bx of [-1.90, 1.90]) {
-            addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(1.38, 2.02, 0.10, 0.02, bx, 0.78, bz), 0xe2e8f0);
+          for (const bx of [-1.75, 1.75]) {
+            addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(1.18, 1.85, 0.10, 0.02, bx, 0.68, bz), 0xe2e8f0);
           }
         }
         addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(1.32, 2.02, 0.10, 0.02, 0, 0.78, bz), 0xe2e8f0);
@@ -2479,13 +2488,14 @@
           [0.44, 2.30], [-0.44, 2.30]
         ];
         addBucketMesh(buckets, 'cabinInterior', buildClamshellBinGeometry(centerBinProf, -11.0, 20.0, bSegs), 0xf1f5f9);
+        // Contoured strictly inside starboard cabin contour (>= 18cm clearance from outer fuselage skin)
         const stbdBinProf = [
-          [-2.34, 1.72], [-1.72, 1.62], [-1.58, 1.78], [-1.68, 2.08], [-2.18, 2.12]
+          [-2.24, 1.70], [-1.72, 1.62], [-1.58, 1.76], [-1.66, 2.00], [-1.94, 2.02]
         ];
         addBucketMesh(buckets, 'cabinInterior', buildClamshellBinGeometry(stbdBinProf, -11.0, 20.0, bSegs), 0xf1f5f9);
       } else {
         addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(1.06, 0.42, 31.0, 0.03, 0, 2.08, 4.5), 0xf1f5f9);
-        addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(0.72, 0.40, 31.0, 0.03, -1.98, 1.85, 4.5, 0, 0, -0.25), 0xf1f5f9);
+        addBucketMesh(buckets, 'cabinInterior', buildBeveledBoxLoft(0.58, 0.34, 31.0, 0.025, -1.82, 1.80, 4.5, 0, 0, -0.22), 0xf1f5f9);
       }
 
       // Chamfered indirect warm LED ceiling cove strips
