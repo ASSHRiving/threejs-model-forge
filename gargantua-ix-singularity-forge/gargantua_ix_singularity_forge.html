@@ -1,0 +1,2450 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GARGANTUA-IX Relativistic Singularity — Three.js to Unity URP Forge</title>
+  <style>
+    :root {
+      --bg-deep: #03050a;
+      --panel-bg: rgba(8, 12, 22, 0.86);
+      --panel-border: rgba(251, 191, 36, 0.24);
+      --accent: #f59e0b;
+      --accent-cyan: #38bdf8;
+      --accent-hot: #ef4444;
+      --text-main: #f1f5f9;
+      --text-dim: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none;
+      background: radial-gradient(circle at 46% 48%, #0a1020 0%, #03050a 72%);
+      color: var(--text-main);
+      font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
+      font-size: 11px;
+      user-select: none;
+    }
+    #viewport, #viewport canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      touch-action: none;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.68);
+    }
+
+    /* Top-Left Telemetry HUD */
+    #hud-header {
+      position: fixed; top: 12px; left: 12px; z-index: 20;
+      padding: 10px 14px; min-width: 326px;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 7px;
+    }
+    .brand-title {
+      font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em;
+      color: #fffbeb; display: flex; align-items: center; gap: 7px;
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: #fbbf24; box-shadow: 0 0 12px #f59e0b, 0 0 22px rgba(251, 191, 36, 0.7);
+    }
+    .badge-lod {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(245, 158, 11, 0.16); color: #fcd34d;
+      border: 1px solid rgba(251, 191, 36, 0.42);
+      white-space: nowrap;
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.075);
+      border-radius: 6px; padding: 4px 6px; text-align: center;
+    }
+    .stat-val { font-size: 12px; font-weight: 700; color: #f8fafc; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 8.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Bottom-Left Camera Presets */
+    #camera-bar {
+      position: fixed; bottom: 12px; left: 12px; right: 316px; z-index: 20;
+      padding: 7px 8px; display: flex; flex-wrap: wrap; gap: 5px;
+      width: fit-content; max-width: calc(100vw - 332px);
+    }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 5px 10px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.16s ease;
+    }
+    .cam-btn:hover { background: rgba(245, 158, 11, 0.18); border-color: var(--accent); color: #fff; }
+    .cam-btn.active { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-color: #fbbf24; color: #090d16; }
+
+    /* Right Control & Export Panel */
+    #controls-panel {
+      position: fixed; top: 12px; right: 12px; bottom: 12px; width: 296px; z-index: 20;
+      padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+      overflow-y: auto;
+    }
+    #controls-panel::-webkit-scrollbar { width: 4px; }
+    #controls-panel::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 4px; }
+
+    .sec-title {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: #fcd34d;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.22);
+      padding-bottom: 3px; margin-bottom: 6px;
+    }
+    .seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 6px 6px; font-size: 10.5px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; text-align: center;
+    }
+    .pill-btn:hover { border-color: var(--accent); background: rgba(245, 158, 11, 0.12); }
+    .pill-btn.active {
+      background: rgba(245, 158, 11, 0.22); border-color: var(--accent); color: #fffbeb;
+      box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.22);
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-dim); line-height: 1.25; }
+    .slider-head span.val { color: #fef3c7; font-weight: 700; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #f59e0b; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+
+    .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .chk-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px; padding: 6px 6px;
+      font-size: 10.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chk-btn.active {
+      background: rgba(56, 189, 248, 0.20); border-color: var(--accent-cyan); color: #e0f2fe;
+    }
+    .chk-btn.on-amber.active {
+      background: rgba(245, 158, 11, 0.22); border-color: var(--accent); color: #fef3c7;
+    }
+    .chk-btn-full {
+      grid-column: 1 / -1;
+    }
+
+    /* Texture Thumbnails */
+    .tex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .tex-card {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: rgba(0, 0, 0, 0.38); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px; padding: 3px; cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    .tex-card:hover { border-color: var(--accent); }
+    .tex-card canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; }
+    .tex-card span { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+    /* Export Buttons */
+    .export-stack { display: flex; flex-direction: column; gap: 5px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      border: none; color: #fff; font-weight: 700; font-size: 11.5px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.32);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main); font-weight: 600; font-size: 10.5px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
+
+    #export-status { font-size: 9.5px; color: #fcd34d; min-height: 14px; text-align: center; }
+
+    .mobile-drawer-fab { display: none; }
+
+    @media (max-width: 768px) {
+      #hud-header {
+        top: 8px; left: 8px; right: 8px;
+        min-width: 0; padding: 6px 10px;
+      }
+      .brand-row { margin-bottom: 4px; gap: 6px; }
+      .brand-title { font-size: 11px; letter-spacing: 0.04em; min-width: 0; }
+      .brand-title span:last-child {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .stats-grid { gap: 4px; }
+      .stat-box { padding: 2px 4px; display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+      .stat-val { font-size: 11px; }
+      .stat-lbl { font-size: 8px; }
+      #camera-bar {
+        top: 64px; left: 8px; right: 8px; bottom: auto;
+        width: auto; max-width: calc(100vw - 16px);
+        flex-wrap: nowrap; overflow-x: auto; padding: 4px 6px;
+      }
+      .cam-btn { white-space: nowrap; flex-shrink: 0; font-size: 11px; padding: 6px 10px; min-height: 36px; }
+      #controls-panel {
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        width: 100%; max-height: 50vh;
+        border-radius: 16px 16px 0 0; overflow-y: auto; z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%); opacity: 0; pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      #controls-panel.mobile-drawer-open {
+        transform: translateY(0); opacity: 1; pointer-events: auto;
+      }
+      input[type="range"] { min-height: 40px; height: 40px; }
+      .btn-primary, .btn-secondary, .pill-btn, .chk-btn {
+        min-height: 42px; padding-top: 9px; padding-bottom: 9px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        position: fixed; right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50; min-height: 44px; padding: 10px 16px;
+        border-radius: 999px; border: 1px solid #fde68a;
+        background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+        color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.78), 0 0 18px rgba(245, 158, 11, 0.42);
+      }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <!-- Top-Left Identity & Live Asset Budget HUD -->
+  <div id="hud-header" class="glass-panel">
+    <div class="brand-row">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>GARGANTUA-IX RELATIVISTIC SINGULARITY</span>
+      </div>
+      <span id="lod-badge" class="badge-lod">HERO LOD</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div id="stat-tris" class="stat-val">--</div><div class="stat-lbl">Tris</div></div>
+      <div class="stat-box"><div id="stat-verts" class="stat-val">--</div><div class="stat-lbl">Verts</div></div>
+      <div class="stat-box"><div id="stat-calls" class="stat-val">--</div><div class="stat-lbl">Calls</div></div>
+      <div class="stat-box"><div id="stat-mats" class="stat-val">--</div><div class="stat-lbl">Mats</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Camera Angle Presets -->
+  <div id="camera-bar" class="glass-panel">
+    <button class="cam-btn active" data-cam="hero">3/4 相對論全景</button>
+    <button class="cam-btn" data-cam="equator">赤道重力透鏡</button>
+    <button class="cam-btn" data-cam="polar">北極螺旋俯視</button>
+    <button class="cam-btn" data-cam="jets">雙極電漿噴流</button>
+    <button class="cam-btn" data-cam="pod">觀測艙光學穹頂</button>
+  </div>
+
+  <!-- Right Control & Export Panel -->
+  <aside id="controls-panel" class="glass-panel">
+    <div>
+      <div class="sec-title">模型細節等級 (LOD Budget)</div>
+      <div class="seg-row">
+        <button id="btn-lod-hero" class="pill-btn active">Hero (~20k)</button>
+        <button id="btn-lod-game" class="pill-btn">Game-Ready (~6k)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">相對論性天體物理參數 (Astrophysics)</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>吸積盤自轉流速 (Accretion Spin Speed)</span><span id="val-spin" class="val">1.00x</span></div>
+        <input id="sl-spin" type="range" min="0" max="3.0" step="0.05" value="1.0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>電漿色溫與都卜勒效應 (Plasma Temp)</span><span id="val-temp" class="val">8,800 K</span></div>
+        <input id="sl-temp" type="range" min="3000" max="15000" step="100" value="8800" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>相對論性噴流強度 (Polar Jet Intensity)</span><span id="val-jet" class="val">80%</span></div>
+        <input id="sl-jet" type="range" min="0" max="100" step="1" value="80" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>重力透鏡彎曲率 (Lensing Curvature)</span><span id="val-lensing" class="val">1.00x</span></div>
+        <input id="sl-lensing" type="range" min="0.5" max="1.5" step="0.05" value="1.0" />
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">觀測陣列與檢視模式 (Array &amp; Inspection)</div>
+      <div class="toggle-row">
+        <button id="btn-telemetry" class="chk-btn on-amber active chk-btn-full">🛰 顯示外環觀測陣列 (Telemetry Array): 開</button>
+        <button id="btn-wireframe" class="chk-btn">線框 Wireframe</button>
+        <button id="btn-colliders" class="chk-btn">碰撞體 Collider_*</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">1024×1024 PBR 貼圖烘焙 (點擊下載 PNG)</div>
+      <div class="tex-grid">
+        <div class="tex-card" id="card-albedo" title="Download GARGANTUA_IX_Albedo.png"><canvas id="prev-albedo" width="96" height="96"></canvas><span>Albedo</span></div>
+        <div class="tex-card" id="card-normal" title="Download GARGANTUA_IX_Normal_Sobel.png"><canvas id="prev-normal" width="96" height="96"></canvas><span>Sobel</span></div>
+        <div class="tex-card" id="card-rough" title="Download GARGANTUA_IX_Roughness.png"><canvas id="prev-rough" width="96" height="96"></canvas><span>Rough</span></div>
+        <div class="tex-card" id="card-metal" title="Download GARGANTUA_IX_Metalness.png"><canvas id="prev-metal" width="96" height="96"></canvas><span>Metal</span></div>
+        <div class="tex-card" id="card-emissive" title="Download GARGANTUA_IX_Emissive.png"><canvas id="prev-emissive" width="96" height="96"></canvas><span>Emiss</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">無損導出 Unity URP / Blender</div>
+      <div class="export-stack">
+        <button id="btn-export-glb" class="btn-primary">⬇ 導出 .GLB (Rest-Pose + PBR)</button>
+        <div class="seg-row">
+          <button id="btn-export-obj" class="btn-secondary">⬇ 導出 .OBJ</button>
+          <button id="btn-export-pngs" class="btn-secondary">⬇ 全部 PBR .PNG</button>
+        </div>
+        <button id="btn-reset-pose" class="btn-secondary">↺ 歸零靜止姿態 (Reset Rest-Pose)</button>
+        <div id="export-status">Ready — 1 unit = 1m (Ø 19.8m Kerr Array)</div>
+      </div>
+    </div>
+  </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    // =========================================================================
+    // 1. RENDERER, SCENE, PMREM ENVIRONMENT & LIGHTING (<= 1 PointLight)
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x03050a);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
+    scene.environmentIntensity = 0.72;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.12, 320);
+    camera.position.set(4.2, 3.6, 20.5);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.target.set(0, 0, 0);
+    controls.minDistance = 2.6;
+    controls.maxDistance = 68;
+
+    // Subtle cosmic ambient + distant rim fill so outer telemetry hulls read cleanly
+    const hemiLight = new THREE.HemisphereLight(0x4b74a8, 0x0b0f1c, 0.58);
+    scene.add(hemiLight);
+
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.85);
+    rimLight.position.set(-16, 14, -18);
+    scene.add(rimLight);
+
+    // Strictly <= 1 dynamic PointLight at singularity center (illuminating inner sensor pods)
+    const singularityPointLight = new THREE.PointLight(0xffb86c, 22.0, 34.0, 1.35);
+    singularityPointLight.position.set(0, 0, 0);
+    scene.add(singularityPointLight);
+
+    // Deep-space starfield backdrop (strictly excluded from assetGroup export)
+    const stageGroup = new THREE.Group();
+    stageGroup.name = 'DeepSpace_Backdrop_NO_EXPORT';
+    (function buildStarfield() {
+      const starCount = 1650;
+      const pos = new Float32Array(starCount * 3);
+      const col = new Float32Array(starCount * 3);
+      const cA = new THREE.Color(0xcbdcff);
+      const cB = new THREE.Color(0xffe7c2);
+      const cC = new THREE.Color(0x93c5fd);
+      const tmp = new THREE.Color();
+      for (let i = 0; i < starCount; i++) {
+        const s1 = ((Math.sin(i * 12.9898 + 4.1414) * 43758.5453) % 1 + 1) % 1;
+        const s2 = ((Math.sin(i * 78.233 + 1.732) * 43758.5453) % 1 + 1) % 1;
+        const s3 = ((Math.sin(i * 39.425 + 9.211) * 43758.5453) % 1 + 1) % 1;
+        const theta = s1 * Math.PI * 2;
+        const phi = Math.acos(2 * s2 - 1);
+        const rad = 58 + s3 * 72;
+        pos[i * 3]     = rad * Math.sin(phi) * Math.cos(theta);
+        pos[i * 3 + 1] = rad * Math.cos(phi);
+        pos[i * 3 + 2] = rad * Math.sin(phi) * Math.sin(theta);
+        const pick = i % 5;
+        if (pick === 0) tmp.copy(cB);
+        else if (pick === 1) tmp.copy(cC);
+        else tmp.copy(cA);
+        const dim = 0.45 + 0.55 * s3;
+        col[i * 3] = tmp.r * dim;
+        col[i * 3 + 1] = tmp.g * dim;
+        col[i * 3 + 2] = tmp.b * dim;
+      }
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      sg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      const sm = new THREE.PointsMaterial({
+        size: 0.24,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+        sizeAttenuation: true
+      });
+      stageGroup.add(new THREE.Points(sg, sm));
+    })();
+    scene.add(stageGroup);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.32, 0.52, 0.92);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 2. MATH, PLANCK COLOR TEMPERATURE & SEAMLESS GEOMETRY UTILITIES
+    // =========================================================================
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(e0, e1, x) {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    // Periodic noise & 2D FBM strictly seamless across U in [0, 1]
+    function hash2(ix, iy) {
+      const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+    function valueNoise3D(x, y, z) {
+      const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+      const fx = x - ix, fy = y - iy, fz = z - iz;
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+      const uz = fz * fz * (3 - 2 * fz);
+      const h = (dx, dy, dz) => {
+        const n = Math.sin((ix + dx) * 127.1 + (iy + dy) * 311.7 + (iz + dz) * 74.7) * 43758.5453;
+        return n - Math.floor(n);
+      };
+      const c000 = h(0, 0, 0), c100 = h(1, 0, 0), c010 = h(0, 1, 0), c110 = h(1, 1, 0);
+      const c001 = h(0, 0, 1), c101 = h(1, 0, 1), c011 = h(0, 1, 1), c111 = h(1, 1, 1);
+      const x00 = lerp(c000, c100, ux), x10 = lerp(c010, c110, ux);
+      const x01 = lerp(c001, c101, ux), x11 = lerp(c011, c111, ux);
+      const y0 = lerp(x00, x10, uy), y1 = lerp(x01, x11, uy);
+      return lerp(y0, y1, uz);
+    }
+    function fbmCylindrical(u, v, radiusFreq = 2.6, vScale = 7.5, spiralTwist = 3.0) {
+      // Spiral coordinate wrapping seamlessly in U (period 1.0)
+      const ang = (u + spiralTwist * v) * Math.PI * 2;
+      let sum = 0, amp = 0.5, freq = 1.0;
+      for (let oct = 0; oct < 5; oct++) {
+        const cx = Math.cos(ang * freq) * radiusFreq * freq;
+        const cz = Math.sin(ang * freq) * radiusFreq * freq;
+        const cy = v * vScale * freq;
+        sum += amp * valueNoise3D(cx + 11.3, cy + 5.7, cz + 23.1);
+        amp *= 0.5;
+        freq *= 2.02;
+      }
+      return sum;
+    }
+
+    // =========================================================================
+    // 3. 1024x1024 PROCEDURAL PBR TEXTURES + 3x3 SOBEL NORMAL MAP BAKER
+    // =========================================================================
+    const TEX_SIZE = 1024;
+    // UV Band Layout (CanvasTexture flipY=true -> v=0 at y=1024, v=1 at y=0):
+    //   Band A: V in [0.02, 0.43] (y in [584..1003]) -> Relativistic Turbulent Spiral Plasma + Dust Lanes
+    //   Band B: V in [0.47, 0.71] (y in [297..542])  -> Brushed Aerospace Titanium Armor & Panel Seams
+    //   Band C: V in [0.75, 0.89] (y in [113..256])  -> Gold-Foil Hexagonal Focusing Mirror
+    //   Band D: V in [0.92, 0.99] (y in [10..82])    -> Left: Pitch-Black Event Horizon | Right: Ionized Core
+    const UV_BANDS = {
+      plasma:   { vMin: 0.03, vMax: 0.42 },
+      titanium: { vMin: 0.48, vMax: 0.70 },
+      gold:     { vMin: 0.76, vMax: 0.88 },
+      core:     { vMin: 0.93, vMax: 0.98 }
+    };
+
+    function bakeNormalFromHeightCanvas(heightCanvas, strength = 2.8) {
+      const w = heightCanvas.width, h = heightCanvas.height;
+      const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      const outImg = outCtx.createImageData(w, h);
+      const dst = outImg.data;
+      const sampleH = (px, py) => {
+        const wx = ((px % w) + w) % w;
+        const wy = clamp(py, 0, h - 1);
+        return src[(wy * w + wx) * 4] / 255.0;
+      };
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tl = sampleH(x - 1, y - 1), tc = sampleH(x, y - 1), tr = sampleH(x + 1, y - 1);
+          const ml = sampleH(x - 1, y),                             mr = sampleH(x + 1, y);
+          const bl = sampleH(x - 1, y + 1), bc = sampleH(x, y + 1), br = sampleH(x + 1, y + 1);
+          const dx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+          const dy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+          let nx = -dx * strength, ny = -dy * strength, nz = 1.0;
+          const invLen = 1.0 / Math.hypot(nx, ny, nz);
+          nx *= invLen; ny *= invLen; nz *= invLen;
+          const idx = (y * w + x) * 4;
+          dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+          dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          dst[idx + 3] = 255;
+        }
+      }
+      outCtx.putImageData(outImg, 0, 0);
+      return outCanvas;
+    }
+
+    function createCanvasTex(canvas, isSRGB) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function buildSingularityTextures() {
+      const mkCanvas = () => {
+        const c = document.createElement('canvas');
+        c.width = TEX_SIZE; c.height = TEX_SIZE;
+        return c;
+      };
+      const albedoCanvas = mkCanvas();
+      const heightCanvas = mkCanvas();
+      const roughCanvas = mkCanvas();
+      const metalCanvas = mkCanvas();
+      const emissiveCanvas = mkCanvas();
+
+      const aCtx = albedoCanvas.getContext('2d');
+      const hCtx = heightCanvas.getContext('2d');
+      const rCtx = roughCanvas.getContext('2d');
+      const mCtx = metalCanvas.getContext('2d');
+      const eCtx = emissiveCanvas.getContext('2d');
+
+      const aImg = aCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const hImg = hCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const rImg = rCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const mImg = mCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const eImg = eCtx.createImageData(TEX_SIZE, TEX_SIZE);
+
+      const ad = aImg.data, hd = hImg.data, rd = rImg.data, md = mImg.data, ed = eImg.data;
+
+      // Pixel-level procedural generation across all 4 functional PBR bands
+      for (let y = 0; y < TEX_SIZE; y++) {
+        const v = 1.0 - y / (TEX_SIZE - 1);
+        for (let x = 0; x < TEX_SIZE; x++) {
+          const u = x / TEX_SIZE;
+          const idx = (y * TEX_SIZE + x) * 4;
+
+          let ar = 128, ag = 128, ab = 128;
+          let hv = 128;
+          let rv = 150;
+          let mv = 0;
+          let er = 0, eg = 0, eb = 0;
+
+          if (v < 0.45) {
+            // BAND A: Multi-octave turbulent spiral plasma & dark dust absorption lanes
+            const vp = clamp(v / 0.45, 0, 1);
+            const warp = fbmCylindrical(u + 0.17, vp, 2.2, 6.0, 2.0);
+            const swirl = fbmCylindrical(u + warp * 0.14, vp, 3.2, 10.5, 4.0);
+            const fine = fbmCylindrical(u - warp * 0.08, vp, 6.5, 16.0, 6.0);
+
+            // Periodic spiral plasma shear wave (integer harmonic in U for 0-seam wrap)
+            const wavePhase = (u * 3.0 + vp * 4.5 + warp * 0.85) * Math.PI * 2;
+            const filament = Math.pow(clamp(0.52 + 0.48 * Math.sin(wavePhase) * 0.65 + (swirl - 0.42) * 1.35, 0, 1), 1.45);
+            const dustMask = smoothstep(0.32, 0.62, fine * 0.65 + (1.0 - filament) * 0.45);
+
+            // Base plasma albedo (warm neutral-bright so vertex Doppler tint multiplies cleanly!)
+            const bright = lerp(0.28, 1.0, filament) * lerp(1.0, 0.36, dustMask * 0.72);
+            ar = Math.round(clamp(bright * 255, 18, 255));
+            ag = Math.round(clamp(bright * lerp(218, 248, filament), 14, 255));
+            ab = Math.round(clamp(bright * lerp(170, 236, filament), 12, 255));
+
+            // Height field for 3x3 Sobel normal baking of plasma ridges
+            hv = Math.round(clamp((filament * 0.68 + fine * 0.32) * 255, 0, 255));
+
+            // Roughness 0.55 - 0.75 (dust lanes slightly rougher)
+            const roughFloat = lerp(0.55, 0.75, dustMask * 0.75 + (1.0 - filament) * 0.25);
+            rv = Math.round(roughFloat * 255);
+
+            // Metalness 0.0 for astrophysical plasma & dust
+            mv = 0;
+
+            // Emissive HDR filament channels (dark dust lanes stay cool, plasma arcs ignite)
+            const em = Math.pow(clamp(filament * (1.0 - dustMask * 0.62), 0, 1), 1.35);
+            er = Math.round(clamp(em * 255, 0, 255));
+            eg = Math.round(clamp(em * 232, 0, 255));
+            eb = Math.round(clamp(em * 195, 0, 255));
+          } else if (v < 0.73) {
+            // BAND B: Brushed Aerospace Titanium Armor & Recessed Micro-Panel Lines
+            const vt = (v - 0.45) / 0.28;
+            const brush = (hash2(Math.floor(u * 180), Math.floor(vt * 760)) - 0.5) * 18
+                        + Math.sin(vt * 240.0 + u * Math.PI * 4) * 5;
+            const cellU = (u * 8) % 1;
+            const cellV = (vt * 4) % 1;
+            const seam = (cellU < 0.022 || cellU > 0.978 || cellV < 0.032 || cellV > 0.968);
+            const panelShade = ((Math.floor(u * 8) + Math.floor(vt * 4)) % 2 === 0) ? 1.0 : 0.91;
+
+            // Subtle telemetry cyan indicator pinstripe along center of titanium band
+            const stripe = (vt > 0.47 && vt < 0.53 && cellU > 0.14 && cellU < 0.86);
+
+            if (stripe) {
+              ar = 56; ag = 189; ab = 248;
+              hv = 112;
+              rv = 58;
+              mv = 110;
+              er = 48; eg = 195; eb = 255;
+            } else {
+              const baseTi = (seam ? 86 : 152 * panelShade) + brush;
+              ar = Math.round(clamp(baseTi * 0.92, 48, 200));
+              ag = Math.round(clamp(baseTi * 0.97, 52, 208));
+              ab = Math.round(clamp(baseTi * 1.05, 58, 222));
+              hv = seam ? 48 : Math.round(clamp(142 + brush * 1.2, 90, 195));
+              rv = Math.round(clamp(lerp(0.22, 0.35, seam ? 0.95 : hash2(Math.floor(u * 90), Math.floor(vt * 90)) * 0.65) * 255, 52, 96));
+              mv = seam ? 190 : 230; // 0.88 - 0.90 metalness
+            }
+          } else if (v < 0.91) {
+            // BAND C: Hexagonal Gold-Foil Focusing Mirror Coating (Kapton / Beryllium-Gold)
+            const vg = (v - 0.73) / 0.18;
+            // Hexagonal tiling
+            const sx = u * 24.0;
+            const sy = vg * 12.0 * 1.1547;
+            const row = Math.floor(sy);
+            const off = (row % 2) * 0.5;
+            const fx = Math.abs((sx + off) % 1 - 0.5);
+            const fy = Math.abs(sy % 1 - 0.5);
+            const edgeDist = Math.max(fx * 1.732 + fy, fy * 2.0);
+            const hexSeam = edgeDist > 0.90;
+            const crinkle = (valueNoise3D(Math.cos(u * Math.PI * 2) * 9, vg * 28, Math.sin(u * Math.PI * 2) * 9) - 0.5) * 22;
+
+            ar = Math.round(clamp((hexSeam ? 148 : 244) + crinkle, 110, 255));
+            ag = Math.round(clamp((hexSeam ? 105 : 196) + crinkle * 0.85, 76, 224));
+            ab = Math.round(clamp((hexSeam ? 28 : 66) + crinkle * 0.45, 18, 110));
+            hv = hexSeam ? 60 : Math.round(clamp(155 + crinkle * 2.1, 80, 225));
+            rv = hexSeam ? 96 : Math.round(clamp(lerp(0.18, 0.25, Math.abs(crinkle) / 14) * 255, 42, 74));
+            mv = hexSeam ? 210 : 244; // 0.95 metalness
+          } else {
+            // BAND D: Left (u < 0.5) Pure Matte Event Horizon | Right (u >= 0.5) Ionized Optical Core
+            if (u < 0.5) {
+              ar = 0; ag = 0; ab = 0;
+              hv = 128;
+              rv = 255; // 1.0 pure matte
+              mv = 0;   // 0.0 metalness
+              er = 0; eg = 0; eb = 0;
+            } else {
+              const pulse = 0.78 + 0.22 * Math.sin(u * Math.PI * 16) * Math.cos(v * Math.PI * 24);
+              ar = Math.round(180 * pulse); ag = Math.round(235 * pulse); ab = 255;
+              hv = Math.round(128 + 38 * pulse);
+              rv = 48;
+              mv = 40;
+              er = Math.round(145 * pulse); eg = Math.round(225 * pulse); eb = 255;
+            }
+          }
+
+          ad[idx] = ar; ad[idx + 1] = ag; ad[idx + 2] = ab; ad[idx + 3] = 255;
+          hd[idx] = hv; hd[idx + 1] = hv; hd[idx + 2] = hv; hd[idx + 3] = 255;
+          rd[idx] = rv; rd[idx + 1] = rv; rd[idx + 2] = rv; rd[idx + 3] = 255;
+          md[idx] = mv; md[idx + 1] = mv; md[idx + 2] = mv; md[idx + 3] = 255;
+          ed[idx] = er; ed[idx + 1] = eg; ed[idx + 2] = eb; ed[idx + 3] = 255;
+        }
+      }
+
+      aCtx.putImageData(aImg, 0, 0);
+      hCtx.putImageData(hImg, 0, 0);
+      rCtx.putImageData(rImg, 0, 0);
+      mCtx.putImageData(mImg, 0, 0);
+      eCtx.putImageData(eImg, 0, 0);
+
+      // Add crisp micro-rivet details onto Band B titanium height/roughness/metalness
+      hCtx.fillStyle = '#d4d4d4';
+      mCtx.fillStyle = '#f2f2f2';
+      for (let row = 0; row < 4; row++) {
+        const yBase = Math.round((1.0 - (0.45 + (row + 0.07) * 0.07)) * TEX_SIZE);
+        for (let x = 16; x < TEX_SIZE; x += 32) {
+          hCtx.fillRect(x, yBase, 2, 2);
+          mCtx.fillRect(x, yBase, 2, 2);
+        }
+      }
+
+      const normalCanvas = bakeNormalFromHeightCanvas(heightCanvas, 2.8);
+
+      return {
+        albedoCanvas,
+        normalCanvas,
+        roughCanvas,
+        metalCanvas,
+        emissiveCanvas,
+        albedoTex:   createCanvasTex(albedoCanvas, true),
+        normalTex:   createCanvasTex(normalCanvas, false),
+        roughTex:    createCanvasTex(roughCanvas, false),
+        metalTex:    createCanvasTex(metalCanvas, false),
+        emissiveTex: createCanvasTex(emissiveCanvas, true)
+      };
+    }
+
+    const TEX = buildSingularityTextures();
+
+    function drawThumb(canvasId, srcCanvas) {
+      const dst = document.getElementById(canvasId);
+      if (!dst) return;
+      const ctx = dst.getContext('2d');
+      ctx.drawImage(srcCanvas, 0, 0, dst.width, dst.height);
+    }
+    drawThumb('prev-albedo', TEX.albedoCanvas);
+    drawThumb('prev-normal', TEX.normalCanvas);
+    drawThumb('prev-rough', TEX.roughCanvas);
+    drawThumb('prev-metal', TEX.metalCanvas);
+    drawThumb('prev-emissive', TEX.emissiveCanvas);
+
+    // =========================================================================
+    // 4. PBR MATERIALS (Strict ColorSpace + Named for Unity URP)
+    // =========================================================================
+    const MATS = {
+      eventHorizon: new THREE.MeshPhysicalMaterial({
+        name: 'MAT_EventHorizon_Singularity',
+        color: 0x000000,
+        roughness: 1.0,
+        metalness: 0.0,
+        specularIntensity: 0.0,
+        emissive: 0x000000,
+        emissiveIntensity: 0.0,
+        envMapIntensity: 0.0,
+        vertexColors: true
+      }),
+      redshiftRim: new THREE.MeshStandardMaterial({
+        name: 'MAT_Gravitational_Redshift_Rim',
+        color: 0x160301,
+        roughness: 0.95,
+        metalness: 0.0,
+        emissive: 0x7c1908,
+        emissiveIntensity: 0.45,
+        side: THREE.BackSide,
+        transparent: true,
+        opacity: 0.34,
+        depthWrite: false,
+        vertexColors: true
+      }),
+      photonRing: new THREE.MeshStandardMaterial({
+        name: 'MAT_PhotonRing_Einstein',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.45, 0.45),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xffe4a8,
+        emissiveIntensity: 2.45,
+        roughness: 0.72,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      lensingArc: new THREE.MeshStandardMaterial({
+        name: 'MAT_Gravitational_Lensing_Arc',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xffc670,
+        emissiveIntensity: 1.72,
+        roughness: 0.78,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      accretionInner: new THREE.MeshStandardMaterial({
+        name: 'MAT_Accretion_Inner_ISCO',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xffcc75,
+        emissiveIntensity: 1.85,
+        roughness: 0.80,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      accretionMid: new THREE.MeshStandardMaterial({
+        name: 'MAT_Accretion_Mid_Spiral',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.95, 0.95),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xf99b3d,
+        emissiveIntensity: 1.38,
+        roughness: 0.85,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      accretionOuter: new THREE.MeshStandardMaterial({
+        name: 'MAT_Accretion_Outer_Dust',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.05, 1.05),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xd9481e,
+        emissiveIntensity: 0.88,
+        roughness: 0.92,
+        metalness: 0.0,
+        vertexColors: true
+      }),
+      polarJet: new THREE.MeshStandardMaterial({
+        name: 'MAT_Relativistic_Polar_Jet',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.55, 0.55),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0x7dd3fc,
+        emissiveIntensity: 1.38,
+        transparent: true,
+        opacity: 0.52,
+        depthWrite: false,
+        vertexColors: true
+      }),
+      magneticHelix: new THREE.MeshStandardMaterial({
+        name: 'MAT_Magnetic_Helix_Field',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.60, 0.60),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0x60a5fa,
+        emissiveIntensity: 1.68,
+        vertexColors: true
+      }),
+      titaniumHull: new THREE.MeshStandardMaterial({
+        name: 'MAT_Primary_Metal_Titanium',
+        color: 0xdbe6f2,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.75,
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      }),
+      goldMirror: new THREE.MeshStandardMaterial({
+        name: 'MAT_GoldFoil_Mirror',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 1.65,
+        vertexColors: true
+      }),
+      telemetryEmissive: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Accent_Telemetry',
+        color: 0xe0f2fe,
+        map: TEX.albedoTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 2.0,
+        roughness: 0.25,
+        metalness: 0.15,
+        vertexColors: true
+      }),
+      quartzDome: new THREE.MeshPhysicalMaterial({
+        name: 'MAT_Quartz_Optical_Dome',
+        color: 0xdcf4ff,
+        roughness: 0.05,
+        metalness: 0.04,
+        ior: 1.46,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        reflectivity: 0.95,
+        envMapIntensity: 1.85,
+        transparent: true,
+        opacity: 0.30,
+        depthWrite: false
+      }),
+      colliderMat: new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x22d3ee,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.45
+      })
+    };
+
+    const solidMaterials = [
+      MATS.eventHorizon, MATS.photonRing, MATS.lensingArc,
+      MATS.accretionInner, MATS.accretionMid, MATS.accretionOuter,
+      MATS.polarJet, MATS.magneticHelix, MATS.titaniumHull,
+      MATS.goldMirror, MATS.telemetryEmissive, MATS.quartzDome
+    ];
+
+    // =========================================================================
+    // 5. GEOMETRY HELPERS: ARC-LENGTH UVs, SEAM-NORMAL FIX & VERTEX COLORS
+    // =========================================================================
+    function normalizeForMerge(geom, baseHex = 0xffffff, aoFn = null) {
+      if (!geom.index) {
+        const posAttr = geom.getAttribute('position');
+        const idx = new Uint32Array(posAttr.count);
+        for (let i = 0; i < posAttr.count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      }
+      if (!geom.getAttribute('normal')) geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      if (!geom.getAttribute('uv')) {
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = 0.5;
+          uvs[i * 2 + 1] = 0.58;
+        }
+        geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      if (!geom.getAttribute('color')) {
+        const norm = geom.getAttribute('normal');
+        const col = new Float32Array(pos.count * 3);
+        const baseC = new THREE.Color(baseHex);
+        const vPos = new THREE.Vector3(), vNorm = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          vPos.fromBufferAttribute(pos, i);
+          vNorm.fromBufferAttribute(norm, i);
+          const ao = aoFn ? aoFn(vPos, vNorm) : 1.0;
+          col[i * 3]     = baseC.r * ao;
+          col[i * 3 + 1] = baseC.g * ao;
+          col[i * 3 + 2] = baseC.b * ao;
+        }
+        geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      }
+      for (const attrName of Object.keys(geom.attributes)) {
+        if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+          geom.deleteAttribute(attrName);
+        }
+      }
+      return geom;
+    }
+
+    function safeMerge(list) {
+      if (!list || list.length === 0) return null;
+      if (list.length === 1) return list[0];
+      const merged = BufferGeometryUtils.mergeGeometries(list, false);
+      for (const g of list) g.dispose();
+      return merged;
+    }
+
+    // Map geometry UVs smoothly into a target Band (keeping U periodic [0..uRepeat], V in [vMin..vMax])
+    function remapUVBand(geom, vMin, vMax, uRepeat = 1.0) {
+      const uv = geom.getAttribute('uv');
+      if (!uv) return geom;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) * uRepeat, lerp(vMin, vMax, clamp(uv.getY(i), 0, 1)));
+      }
+      uv.needsUpdate = true;
+      return geom;
+    }
+
+    // Average normals across closed seam indices so periodic rings/loops have zero shading seam
+    function averageSeamNormals(geom, segCount, stride, closedU = true, closedV = true) {
+      const norm = geom.getAttribute('normal');
+      if (!norm) return;
+      const nA = new THREE.Vector3(), nB = new THREE.Vector3();
+      if (closedU) {
+        for (let k = 0; k < stride; k++) {
+          const i0 = k;
+          const i1 = segCount * stride + k;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      if (closedV) {
+        const lastK = stride - 1;
+        for (let i = 0; i <= segCount; i++) {
+          const i0 = i * stride;
+          const i1 = i * stride + lastK;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      norm.needsUpdate = true;
+    }
+
+    // =========================================================================
+    // 6. RELATIVISTIC BLACKBODY & DOPPLER COLOR ENGINE
+    // =========================================================================
+    const state = {
+      lod: 'hero',
+      spinSpeed: 1.0,
+      plasmaTempK: 8800,
+      jetIntensity: 0.80,
+      lensingCurvature: 1.0,
+      showTelemetry: true
+    };
+
+    // Compute color palette shifted by blackbody temperature (3000K .. 15000K)
+    const TMP_C1 = new THREE.Color();
+    const TMP_C2 = new THREE.Color();
+    const COL_BLUE_HOT = new THREE.Color(0xe3f6ff);
+    const COL_BLUE_GOLD = new THREE.Color(0xffd584);
+    const COL_MID_AMBER = new THREE.Color(0xff9b3d);
+    const COL_RED_EMBER = new THREE.Color(0xd9481e);
+    const COL_RED_DEEP = new THREE.Color(0x591008);
+    const COL_PHOTON_GOLD = new THREE.Color(0xfff6d6);
+    const COL_PHOTON_ORANGE = new THREE.Color(0xff9d2e);
+
+    function getTempNormalized() {
+      return clamp((state.plasmaTempK - 3000) / 12000, 0, 1);
+    }
+
+    // Relativistic Doppler Beaming:
+    // worldX < 0 (left side approaching observer) -> blueshift (#E3F6FF / #FFD584)
+    // worldX > 0 (right side receding from observer) -> redshift (#D9481E / #591008)
+    function evaluateDopplerColor(worldX, worldR, rInner, rOuter, radialAo, isPhotonRing = false, outColor = TMP_C1) {
+      const tempT = getTempNormalized(); // 0 at 3000K, ~0.483 at 8800K, 1.0 at 15000K
+      const rNorm = clamp((worldR - rInner) / Math.max(0.001, rOuter - rInner), 0, 1);
+      const xBias = clamp(-worldX / Math.max(1.2, worldR), -1, 1); // +1 = left approaching, -1 = right receding
+      const doppler = smoothstep(-0.95, 0.95, xBias); // 1.0 left, 0.0 right
+
+      if (isPhotonRing) {
+        // Photon ring: white-gold #FFF6D6 on left/inner -> #FF9D2E on right/cooler
+        const hotTone = TMP_C2.copy(COL_PHOTON_GOLD).lerp(COL_BLUE_HOT, tempT * 0.48);
+        const warmTone = COL_PHOTON_ORANGE.clone().lerp(COL_RED_EMBER, (1.0 - tempT) * 0.42);
+        outColor.copy(warmTone).lerp(hotTone, lerp(0.32, 1.0, doppler));
+        outColor.multiplyScalar(lerp(0.68, 1.24, doppler) * radialAo);
+        return outColor;
+      }
+
+      // Inner/mid/outer accretion disk radial thermal profile + Relativistic Doppler beaming
+      const approachCol = TMP_C2.copy(COL_BLUE_GOLD).lerp(COL_BLUE_HOT, clamp(tempT * 0.88 + (1.0 - rNorm) * 0.50, 0, 1));
+      const recedeCol = COL_RED_EMBER.clone().lerp(COL_RED_DEEP, clamp(rNorm * 0.65 + (1.0 - tempT) * 0.45 + 0.18, 0, 1));
+      const midCol = COL_MID_AMBER.clone().lerp(COL_BLUE_GOLD, tempT * 0.48);
+
+      if (doppler >= 0.5) {
+        outColor.copy(midCol).lerp(approachCol, (doppler - 0.5) * 2.0);
+      } else {
+        outColor.copy(recedeCol).lerp(midCol, Math.pow(doppler * 2.0, 1.15));
+      }
+
+      // Cool down outer radial bands and amplify approaching side via relativistic beaming (D^3 effect)
+      const radialFalloff = lerp(1.18, 0.46, Math.pow(rNorm, 0.82));
+      const beamingBoost = lerp(0.38, 1.38, Math.pow(doppler, 1.2));
+      const tempGain = lerp(0.74, 1.20, tempT);
+      outColor.multiplyScalar(radialFalloff * beamingBoost * tempGain * radialAo);
+      return outColor;
+    }
+
+    // Dynamic vertex-color Doppler updater for spinning accretion disks & photon ring
+    // Ensures Rest Pose (rotation.y=0) and animated spin both keep -X blueshifted and +X redshifted!
+    const diskColorRegistries = [];
+    function registerDynamicDopplerMesh(mesh, rInner, rOuter, isPhotonRing = false) {
+      const pos = mesh.geometry.getAttribute('position');
+      const col = mesh.geometry.getAttribute('color');
+      const ao = new Float32Array(pos.count);
+      const rad = new Float32Array(pos.count);
+      for (let i = 0; i < pos.count; i++) {
+        const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+        const r = Math.hypot(px, pz);
+        rad[i] = r;
+        // Crevice / rim AO subtly darker at outer dusty edge & underside crease
+        const rNorm = clamp((r - rInner) / Math.max(0.001, rOuter - rInner), 0, 1);
+        ao[i] = lerp(0.92, 1.0, Math.sin(rNorm * Math.PI * 0.85 + 0.15)) * (py < 0 ? 0.90 : 1.0);
+      }
+      diskColorRegistries.push({ mesh, pos, col, ao, rad, rInner, rOuter, isPhotonRing });
+    }
+
+    function updateDynamicDopplerColors() {
+      for (const rec of diskColorRegistries) {
+        const rotY = rec.mesh.rotation.y;
+        const cR = Math.cos(rotY), sR = Math.sin(rotY);
+        const { pos, col, ao, rad, rInner, rOuter, isPhotonRing } = rec;
+        for (let i = 0; i < pos.count; i++) {
+          const lx = pos.getX(i);
+          const lz = pos.getZ(i);
+          const worldX = lx * cR + lz * sR;
+          const c = evaluateDopplerColor(worldX, rad[i], rInner, rOuter, ao[i], isPhotonRing, TMP_C1);
+          col.setXYZ(i, clamp(c.r, 0, 1.35), clamp(c.g, 0, 1.35), clamp(c.b, 0, 1.35));
+        }
+        col.needsUpdate = true;
+      }
+    }
+
+    // =========================================================================
+    // 7. PROCEDURAL ASTROPHYSICAL & AEROSPACE GEOMETRY BUILDERS (ZERO RAW BOXES)
+    // =========================================================================
+
+    // A. Lenticular Biconvex 3D Annulus (for 3 Accretion Disks & Equatorial Photon Ring)
+    function buildLenticularAnnulus({
+      rInner, rOuter, halfHeightMax, segsTheta, segsProf,
+      spiralArms = 0, spiralAmp = 0, yOffset = 0,
+      uRepeat = 2.0, vMin = UV_BANDS.plasma.vMin, vMax = UV_BANDS.plasma.vMax,
+      bevelNose = 0.022
+    }) {
+      // Closed profile loop of (segsProf * 2) stations: inner tip -> top biconvex -> outer tip -> bottom biconvex -> inner tip
+      const nProf = segsProf * 2;
+      const stride = nProf + 1; // Duplicate k=0 at k=nProf for periodic U seam
+      const pos = [], uv = [], idx = [];
+
+      // Precompute cumulative Euclidean arc-length along top & bottom radial cross-section for distortion-free V
+      const basePts = [];
+      for (let k = 0; k <= nProf; k++) {
+        const kk = k % nProf;
+        const isTop = kk <= segsProf;
+        const t = isTop ? (kk / segsProf) : (1.0 - (kk - segsProf) / segsProf);
+        // Smooth radial distribution clustering slightly toward rounded leading/trailing edges
+        const uRad = 0.5 - 0.5 * Math.cos(t * Math.PI);
+        const r = lerp(rInner, rOuter, uRad);
+        // Smooth biconvex lenticular thickness envelope (rounded nose at inner/outer edges, zero hard edge!)
+        const lens = Math.pow(Math.max(0, Math.sin(uRad * Math.PI)), 0.65);
+        const tipRound = bevelNose * Math.sin(uRad * Math.PI);
+        const y = (isTop ? 1 : -1) * (halfHeightMax * lens + tipRound * 0.25) + yOffset;
+        basePts.push({ r, y, uRad });
+      }
+
+      const arcTop = [0];
+      for (let k = 1; k <= segsProf; k++) {
+        arcTop.push(arcTop[k - 1] + Math.hypot(basePts[k].r - basePts[k - 1].r, basePts[k].y - basePts[k - 1].y));
+      }
+      const totalTop = Math.max(0.0001, arcTop[segsProf]);
+
+      for (let it = 0; it <= segsTheta; it++) {
+        const uFrac = it / segsTheta;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        for (let k = 0; k <= nProf; k++) {
+          const kk = k % nProf;
+          const pt = basePts[k];
+          let rMod = pt.r;
+          let yMod = pt.y;
+
+          if (spiralArms > 0 && spiralAmp > 0) {
+            const logR = Math.log(Math.max(0.1, pt.r / rInner));
+            const phase = spiralArms * theta - 6.2 * logR;
+            const env = Math.sin(pt.uRad * Math.PI);
+            yMod += Math.sin(phase) * spiralAmp * env;
+            rMod += Math.cos(phase) * (spiralAmp * 0.35) * env;
+          }
+
+          pos.push(rMod * cT, yMod, -rMod * sT);
+
+          // V = cumulative Euclidean radial arc-length mapped into plasma band [vMin, vMax]
+          const sArc = (kk <= segsProf) ? (arcTop[kk] / totalTop) : (arcTop[nProf - kk] / totalTop);
+          uv.push(uFrac * uRepeat, lerp(vMin, vMax, sArc));
+        }
+      }
+
+      // Outward CCW winding verified: dP/dk x dP/d(theta) -> outward
+      for (let it = 0; it < segsTheta; it++) {
+        for (let k = 0; k < nProf; k++) {
+          const a = it * stride + k;
+          const b = (it + 1) * stride + k;
+          const c = (it + 1) * stride + (k + 1);
+          const d = it * stride + (k + 1);
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, segsTheta, stride, true, true);
+      return g;
+    }
+
+    // B. Swept Curve Loft with Bishop Parallel-Transport Frames, Cumulative Arc-Length V, & Smooth End Caps
+    function buildSweptCurveLoft({
+      curve, tubularSegs, radialSegs,
+      rxFn, rbFn,
+      closedCurve = false,
+      profileShape = 'lens', // 'lens' | 'circle' | 'chamferOct'
+      uRepeat = 1.0,
+      vMin = UV_BANDS.plasma.vMin, vMax = UV_BANDS.plasma.vMax,
+      colorFn = null
+    }) {
+      const pts = [];
+      const tangs = [];
+      for (let i = 0; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        pts.push(curve.getPointAt(t));
+        tangs.push(curve.getTangentAt(t).normalize());
+      }
+
+      // Cumulative Euclidean arc-length along spine
+      const arc = [0];
+      for (let i = 1; i <= tubularSegs; i++) {
+        arc.push(arc[i - 1] + pts[i].distanceTo(pts[i - 1]));
+      }
+      const totalArc = Math.max(0.0001, arc[tubularSegs]);
+
+      // Bishop parallel-transport frame (N x B = T) avoiding Frenet flips
+      const normals = [];
+      const binormals = [];
+      const t0 = tangs[0];
+      let up = Math.abs(t0.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+      let n0 = new THREE.Vector3().crossVectors(t0, up).normalize();
+      let b0 = new THREE.Vector3().crossVectors(t0, n0).normalize();
+      // Ensure N x B = T
+      if (new THREE.Vector3().crossVectors(n0, b0).dot(t0) < 0) b0.negate();
+      normals.push(n0);
+      binormals.push(b0);
+
+      for (let i = 1; i <= tubularSegs; i++) {
+        const q = new THREE.Quaternion().setFromUnitVectors(tangs[i - 1], tangs[i]);
+        const ni = normals[i - 1].clone().applyQuaternion(q).normalize();
+        const bi = new THREE.Vector3().crossVectors(tangs[i], ni).normalize();
+        if (new THREE.Vector3().crossVectors(ni, bi).dot(tangs[i]) < 0) bi.negate();
+        normals.push(ni);
+        binormals.push(bi);
+      }
+
+      const stride = radialSegs + 1;
+      const pos = [], uv = [], col = [], idx = [];
+      const tmpC = new THREE.Color(0xffffff);
+
+      for (let i = 0; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        const sNorm = arc[i] / totalArc;
+        const cPt = pts[i];
+        const N = normals[i];
+        const B = binormals[i];
+        const rx = rxFn(t, cPt);
+        const rb = rbFn(t, cPt);
+
+        for (let k = 0; k <= radialSegs; k++) {
+          const uFrac = k / radialSegs;
+          const ang = uFrac * Math.PI * 2;
+          let lx, lb;
+          if (profileShape === 'lens') {
+            // Smooth biconvex lenticular section (tapered rounded knife edges, zero flat seams)
+            const ca = Math.cos(ang), sa = Math.sin(ang);
+            lx = ca * rx;
+            lb = sa * rb * (1.0 - 0.38 * ca * ca);
+          } else if (profileShape === 'chamferOct') {
+            // 45-degree chamfered octagonal rail (zero 90-deg edges)
+            const ca = Math.cos(ang), sa = Math.sin(ang);
+            const pNorm = Math.pow(Math.pow(Math.abs(ca), 3.4) + Math.pow(Math.abs(sa), 3.4), -1 / 3.4);
+            lx = ca * pNorm * rx;
+            lb = sa * pNorm * rb;
+          } else {
+            lx = Math.cos(ang) * rx;
+            lb = Math.sin(ang) * rb;
+          }
+
+          const wx = cPt.x + N.x * lx + B.x * lb;
+          const wy = cPt.y + N.y * lx + B.y * lb;
+          const wz = cPt.z + N.z * lx + B.z * lb;
+          pos.push(wx, wy, wz);
+          uv.push(uFrac * uRepeat, lerp(vMin, vMax, sNorm));
+
+          if (colorFn) {
+            colorFn(t, sNorm, wx, wy, wz, tmpC);
+            col.push(tmpC.r, tmpC.g, tmpC.b);
+          } else {
+            col.push(1, 1, 1);
+          }
+        }
+      }
+
+      for (let i = 0; i < tubularSegs; i++) {
+        for (let k = 0; k < radialSegs; k++) {
+          const a = i * stride + k;
+          const b = (i + 1) * stride + k;
+          const c = (i + 1) * stride + (k + 1);
+          const d = i * stride + (k + 1);
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+
+      // Smooth rounded pole caps if open curve
+      if (!closedCurve) {
+        const c0Idx = pos.length / 3;
+        const pStart = pts[0];
+        pos.push(pStart.x, pStart.y, pStart.z);
+        uv.push(0.5, vMin);
+        if (colorFn) { colorFn(0, 0, pStart.x, pStart.y, pStart.z, tmpC); col.push(tmpC.r, tmpC.g, tmpC.b); }
+        else col.push(1, 1, 1);
+        for (let k = 0; k < radialSegs; k++) idx.push(c0Idx, k, k + 1);
+
+        const c1Idx = pos.length / 3;
+        const pEnd = pts[tubularSegs];
+        pos.push(pEnd.x, pEnd.y, pEnd.z);
+        uv.push(0.5, vMax);
+        if (colorFn) { colorFn(1, 1, pEnd.x, pEnd.y, pEnd.z, tmpC); col.push(tmpC.r, tmpC.g, tmpC.b); }
+        else col.push(1, 1, 1);
+        const base = tubularSegs * stride;
+        for (let k = 0; k < radialSegs; k++) idx.push(c1Idx, base + k + 1, base + k);
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, tubularSegs, stride, closedCurve, true);
+      return g;
+    }
+
+    // C. Build Gravitational Lensing Arch (Upper North or Lower South) with Curvature Parameter
+    function buildLensingArcGeometry(isUpper, curvature, isHero) {
+      const signY = isUpper ? 1 : -1;
+      const segsT = isHero ? 36 : 16;
+      const segsR = isHero ? 8 : 4;
+      const segsT2 = isHero ? 28 : 12;
+      const segsR2 = isHero ? 6 : 4;
+
+      // Wide, sleek curved lenticular plasma sheet hugging horizon and sweeping smoothly into equatorial disk
+      const buildArchBand = (rBase, rApexAdd, zDepth, wMax, thMax, segT, segR, alphaScale) => {
+        const ctrlPts = [];
+        const nCtrl = 9;
+        for (let i = 0; i < nCtrl; i++) {
+          const t = i / (nCtrl - 1);
+          const ang = lerp(Math.PI + 0.04, -0.04, t);
+          const sinA = Math.sin(ang);
+          const rad = rBase + rApexAdd * Math.pow(Math.max(0, sinA), 0.78) * curvature;
+          const px = rad * Math.cos(ang);
+          const py = signY * rad * Math.max(-0.06, sinA);
+          const pz = -zDepth * Math.sin(t * Math.PI);
+          ctrlPts.push(new THREE.Vector3(px, py, pz));
+        }
+        const curve = new THREE.CatmullRomCurve3(ctrlPts);
+        return buildSweptCurveLoft({
+          curve,
+          tubularSegs: segT,
+          radialSegs: segR,
+          profileShape: 'lens',
+          rxFn: (t) => lerp(0.08, wMax, Math.pow(Math.sin(t * Math.PI), 0.45)),
+          rbFn: (t) => lerp(0.014, thMax, Math.pow(Math.sin(t * Math.PI), 0.60)),
+          closedCurve: false,
+          uRepeat: 1.0,
+          vMin: UV_BANDS.plasma.vMin,
+          vMax: UV_BANDS.plasma.vMax,
+          colorFn: (t, sNorm, wx, wy, wz, outC) => {
+            const r = Math.hypot(wx, wy);
+            evaluateDopplerColor(wx, r, 1.9, 3.6, alphaScale * lerp(0.58, 1.12, Math.sin(t * Math.PI)), false, outC);
+          }
+        });
+      };
+
+      // Closely overlapping feathered dual-band gravitational halo (zero sausage gap, zero Z-fighting)
+      const band1 = buildArchBand(
+        isUpper ? 2.16 : 2.12,
+        isUpper ? 0.24 : 0.18,
+        isUpper ? 0.34 : 0.40,
+        isUpper ? 0.42 : 0.34,
+        isUpper ? 0.048 : 0.042,
+        segsT, segsR,
+        isUpper ? 1.12 : 0.94
+      );
+      const band2 = buildArchBand(
+        isUpper ? 2.54 : 2.44,
+        isUpper ? 0.48 : 0.36,
+        isUpper ? 0.46 : 0.52,
+        isUpper ? 0.36 : 0.28,
+        isUpper ? 0.036 : 0.032,
+        segsT2, segsR2,
+        isUpper ? 0.72 : 0.60
+      );
+      return safeMerge([normalizeForMerge(band1), normalizeForMerge(band2)]);
+    }
+
+    // D. Parabolic Blandford-Znajek Polar Jet Funnel (Single-side length = 9.5m, |y| = 1.85m -> 11.35m)
+    function buildPolarJetGeometry(signY, isHero) {
+      const yStart = 1.85;
+      const jetLen = 9.5;
+      const nSt = isHero ? 14 : 8;
+      const nRad = isHero ? 10 : 5;
+
+      const buildJetShell = (rBase, rFlare, power, alphaColor, colHot, colTip) => {
+        const pos = [], uv = [], col = [], idx = [];
+        const stride = nRad + 1;
+        const arc = [0];
+        const profile = [];
+        for (let i = 0; i <= nSt; i++) {
+          const s = i / nSt;
+          const y = signY * (yStart + s * jetLen);
+          const tipTaper = s > 0.88 ? smoothstep(1.0, 0.88, s) : 1.0;
+          const r = (rBase + rFlare * Math.pow(s, power)) * lerp(0.18, 1.0, tipTaper);
+          profile.push({ r, y, s });
+          if (i > 0) {
+            arc.push(arc[i - 1] + Math.hypot(r - profile[i - 1].r, y - profile[i - 1].y));
+          }
+        }
+        const totalArc = Math.max(0.001, arc[nSt]);
+        const cHot = new THREE.Color(colHot);
+        const cTip = new THREE.Color(colTip);
+        const cTmp = new THREE.Color();
+
+        for (let i = 0; i <= nSt; i++) {
+          const { r, y, s } = profile[i];
+          const sArc = arc[i] / totalArc;
+          cTmp.copy(cHot).lerp(cTip, Math.pow(s, 0.70));
+          const env = smoothstep(0.0, 0.12, s) * lerp(1.0, 0.14, Math.pow(s, 1.35)) * alphaColor;
+
+          for (let k = 0; k <= nRad; k++) {
+            const uFrac = k / nRad;
+            const theta = uFrac * Math.PI * 2;
+            const px = r * Math.cos(theta);
+            const pz = -r * Math.sin(theta);
+            pos.push(px, y, pz);
+            uv.push(uFrac, lerp(UV_BANDS.plasma.vMin, UV_BANDS.plasma.vMax, sArc));
+            col.push(cTmp.r * env, cTmp.g * env, cTmp.b * env);
+          }
+        }
+
+        for (let i = 0; i < nSt; i++) {
+          for (let k = 0; k < nRad; k++) {
+            const a = i * stride + k;
+            const b = (i + 1) * stride + k;
+            const c = (i + 1) * stride + (k + 1);
+            const d = i * stride + (k + 1);
+            if (signY > 0) idx.push(a, b, d, b, c, d);
+            else idx.push(a, d, b, b, d, c);
+          }
+        }
+
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        averageSeamNormals(g, nSt, stride, false, true);
+        return g;
+      };
+
+      const innerBeam = buildJetShell(0.08, 0.28, 0.65, 1.02, 0xe0f2fe, 0x38bdf8);
+      const outerCone = buildJetShell(0.16, 0.62, 0.58, 0.48, 0x7dd3fc, 0x4f46e5);
+      return safeMerge([normalizeForMerge(innerBeam), normalizeForMerge(outerCone)]);
+    }
+
+    // E. Double-Helix Magnetic Field Strands around North & South Polar Jets (smoothly tapered tips)
+    function buildMagneticHelixGeometry(isHero) {
+      const yStart = 1.92;
+      const yLen = 9.10;
+      const strands = 4;
+      const tubSegs = isHero ? 16 : 6;
+      const radSegs = isHero ? 5 : 4;
+      const parts = [];
+
+      const cBase = new THREE.Color(0xe0f7ff);
+      const cMid = new THREE.Color(0x38bdf8);
+      const cTip = new THREE.Color(0x6366f1);
+
+      for (const signY of [1, -1]) {
+        for (let sIdx = 0; sIdx < strands; sIdx++) {
+          const basePhase = (sIdx / strands) * Math.PI * 2;
+          const ctrl = [];
+          const nPts = 12;
+          for (let j = 0; j < nPts; j++) {
+            const t = j / (nPts - 1);
+            const y = signY * (yStart + t * yLen);
+            const envR = 0.20 + 0.72 * Math.pow(t, 0.58);
+            const twist = basePhase + signY * t * Math.PI * 3.4;
+            ctrl.push(new THREE.Vector3(envR * Math.cos(twist), y, -envR * Math.sin(twist)));
+          }
+          const curve = new THREE.CatmullRomCurve3(ctrl);
+          const g = buildSweptCurveLoft({
+            curve,
+            tubularSegs: tubSegs,
+            radialSegs: radSegs,
+            profileShape: 'circle',
+            rxFn: (t) => 0.004 + 0.036 * Math.sin(t * Math.PI),
+            rbFn: (t) => 0.004 + 0.036 * Math.sin(t * Math.PI),
+            closedCurve: false,
+            uRepeat: 1.0,
+            vMin: UV_BANDS.plasma.vMin,
+            vMax: UV_BANDS.plasma.vMax,
+            colorFn: (t, sNorm, wx, wy, wz, outC) => {
+              if (t < 0.5) outC.copy(cBase).lerp(cMid, t * 2.0);
+              else outC.copy(cMid).lerp(cTip, (t - 0.5) * 2.0);
+              const fade = smoothstep(0.0, 0.14, t) * lerp(1.0, 0.25, Math.pow(t, 1.5));
+              outC.multiplyScalar(fade);
+            }
+          });
+          parts.push(normalizeForMerge(g));
+        }
+      }
+      return safeMerge(parts);
+    }
+
+    // F. Precision Beveled Streamlined Observation Pod + Internal Instruments (Zero 90-deg Edges!)
+    function buildSensorPodParts(isHero) {
+      const tiBuckets = [];
+      const goldBuckets = [];
+      const emBuckets = [];
+      let quartzGeom = null;
+
+      // 1. Streamlined Multi-Station Teardrop Pod Hull (Zero raw boxes, zero 90-deg edges)
+      const hullCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(1.12, 0, 0),
+        new THREE.Vector3(0.64, 0, 0),
+        new THREE.Vector3(0.10, 0, 0),
+        new THREE.Vector3(-0.38, 0, 0)
+      ]);
+      const hullGeom = buildSweptCurveLoft({
+        curve: hullCurve,
+        tubularSegs: isHero ? 10 : 5,
+        radialSegs: isHero ? 10 : 5,
+        profileShape: 'chamferOct',
+        rxFn: (t) => {
+          // Height profile along X (rear tail -> bulbous sensor bay -> front aperture collar)
+          if (t < 0.35) return lerp(0.09, 0.44, smoothstep(0, 0.35, t));
+          if (t < 0.78) return lerp(0.44, 0.50, smoothstep(0.35, 0.78, t));
+          return lerp(0.50, 0.45, smoothstep(0.78, 1.0, t));
+        },
+        rbFn: (t) => {
+          // Width profile along X
+          if (t < 0.35) return lerp(0.11, 0.52, smoothstep(0, 0.35, t));
+          if (t < 0.78) return lerp(0.52, 0.54, smoothstep(0.35, 0.78, t));
+          return lerp(0.54, 0.46, smoothstep(0.78, 1.0, t));
+        },
+        closedCurve: false,
+        vMin: UV_BANDS.titanium.vMin,
+        vMax: UV_BANDS.titanium.vMax,
+        colorFn: (t, sNorm, wx, wy, wz, outC) => {
+          // Crevice AO darkening around tail & forward collar
+          const ao = lerp(0.76, 1.0, Math.sin(t * Math.PI * 0.85 + 0.15));
+          outC.setRGB(ao, ao, ao);
+        }
+      });
+      tiBuckets.push(normalizeForMerge(hullGeom));
+
+      // 2. Swept Beveled Lateral Cooling Vanes (ExtrudeGeometry with bevelSegments: 3)
+      const vaneShape = new THREE.Shape();
+      vaneShape.moveTo(0.42, 0.08);
+      vaneShape.lineTo(0.88, 0.24);
+      vaneShape.quadraticCurveTo(0.95, 0.32, 0.86, 0.36);
+      vaneShape.lineTo(0.24, 0.38);
+      vaneShape.quadraticCurveTo(0.08, 0.35, 0.02, 0.18);
+      vaneShape.closePath();
+
+      for (const side of [1, -1]) {
+        const vane = new THREE.ExtrudeGeometry(vaneShape, {
+          depth: 0.04,
+          steps: 1,
+          bevelEnabled: true,
+          bevelThickness: 0.018,
+          bevelSize: 0.018,
+          bevelSegments: isHero ? 3 : 2,
+          curveSegments: isHero ? 2 : 1
+        });
+        vane.translate(0, 0, -0.02);
+        vane.rotateX(side * Math.PI * 0.5);
+        vane.rotateY(side * 0.12);
+        vane.translate(-0.14, 0, side * 0.44);
+        vane.computeVertexNormals();
+        remapUVBand(vane, UV_BANDS.titanium.vMin, UV_BANDS.titanium.vMax, 1.0);
+        tiBuckets.push(normalizeForMerge(vane, 0xd8e2ee, (vp) => clamp(0.80 + 0.20 * Math.abs(vp.z), 0.72, 1.0)));
+      }
+
+      // 3. Curved Dual-Rail Mounting Cradle Struts connecting pod to +/-0.165m ring rails
+      for (const signY of [1, -1]) {
+        for (const sideZ of [1, -1]) {
+          const strutCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0.0, signY * 0.165, sideZ * 0.82),
+            new THREE.Vector3(0.18, signY * 0.24, sideZ * 0.62),
+            new THREE.Vector3(0.28, signY * 0.14, sideZ * 0.36)
+          ]);
+          const strut = buildSweptCurveLoft({
+            curve: strutCurve,
+            tubularSegs: isHero ? 5 : 3,
+            radialSegs: isHero ? 5 : 4,
+            profileShape: 'chamferOct',
+            rxFn: () => 0.042,
+            rbFn: () => 0.055,
+            vMin: UV_BANDS.titanium.vMin,
+            vMax: UV_BANDS.titanium.vMax
+          });
+          tiBuckets.push(normalizeForMerge(strut, 0xc8d4e3));
+        }
+      }
+
+      // 4. Forward Chamfered Titanium Optical Retaining Bezel Ring (LatheGeometry, zero 90-deg edges)
+      const bezelPts = [
+        new THREE.Vector2(0.41, -0.05),
+        new THREE.Vector2(0.49, -0.04),
+        new THREE.Vector2(0.51, 0.02),
+        new THREE.Vector2(0.48, 0.06),
+        new THREE.Vector2(0.43, 0.06),
+        new THREE.Vector2(0.405, 0.01),
+        new THREE.Vector2(0.41, -0.05)
+      ];
+      const bezel = new THREE.LatheGeometry(bezelPts, isHero ? 16 : 8);
+      bezel.rotateZ(Math.PI * 0.5);
+      bezel.translate(-0.41, 0, 0);
+      bezel.computeVertexNormals();
+      remapUVBand(bezel, UV_BANDS.titanium.vMin, UV_BANDS.titanium.vMax, 2.0);
+      tiBuckets.push(normalizeForMerge(bezel, 0xe2e8f0));
+
+      // 5. Internal Gold-Foil Parabolic Focusing Mirror (Visible inside Quartz Dome, outward-verified winding!)
+      const mirrorPts = [];
+      const nM = isHero ? 6 : 3;
+      // Front concave dish from outer rim down to inner hub (ensuring normals face +Y_lathe => -X singularity!)
+      for (let i = nM; i >= 0; i--) {
+        const s = i / nM;
+        const r = 0.05 + s * 0.35;
+        const depth = 0.12 * s * s;
+        mirrorPts.push(new THREE.Vector2(r, depth));
+      }
+      // Back side & beveled perimeter rim closing watertight loop
+      mirrorPts.push(new THREE.Vector2(0.05, -0.035));
+      mirrorPts.push(new THREE.Vector2(0.41, 0.04));
+      mirrorPts.push(new THREE.Vector2(0.405, 0.11));
+      mirrorPts.push(new THREE.Vector2(0.40, 0.12));
+
+      const mirror = new THREE.LatheGeometry(mirrorPts, isHero ? 16 : 8);
+      mirror.rotateZ(Math.PI * 0.5);
+      mirror.translate(-0.39, 0, 0);
+      mirror.computeVertexNormals();
+      remapUVBand(mirror, UV_BANDS.gold.vMin, UV_BANDS.gold.vMax, 1.5);
+      goldBuckets.push(normalizeForMerge(mirror, 0xffffff));
+
+      // 6. Internal Gimbaled Laser Interferometer (Twin chamfered circular gimbal rings + lathed laser barrel)
+      const makeGimbalRing = (rad, tubeR, tiltZ, tiltY) => {
+        const pts = [];
+        const nG = 12;
+        for (let i = 0; i <= nG; i++) {
+          const a = (i / nG) * Math.PI * 2;
+          pts.push(new THREE.Vector3(0, rad * Math.sin(a), rad * Math.cos(a)));
+        }
+        const g = buildSweptCurveLoft({
+          curve: new THREE.CatmullRomCurve3(pts, true),
+          tubularSegs: isHero ? 14 : 6,
+          radialSegs: isHero ? 5 : 4,
+          profileShape: 'chamferOct',
+          rxFn: () => tubeR,
+          rbFn: () => tubeR,
+          closedCurve: true,
+          vMin: UV_BANDS.titanium.vMin,
+          vMax: UV_BANDS.titanium.vMax
+        });
+        g.rotateY(tiltY);
+        g.rotateZ(tiltZ);
+        g.translate(-0.56, 0, 0);
+        return g;
+      };
+      tiBuckets.push(normalizeForMerge(makeGimbalRing(0.28, 0.018, 0.18, 0.25), 0xd8e2ee));
+      tiBuckets.push(normalizeForMerge(makeGimbalRing(0.21, 0.015, -0.35, -0.28), 0xe2e8f0));
+
+      // Stepped chamfered optical laser interferometer barrel pointing toward singularity (-X)
+      const barrelPts = [
+        new THREE.Vector2(0.006, -0.18),
+        new THREE.Vector2(0.045, -0.17),
+        new THREE.Vector2(0.075, -0.13),
+        new THREE.Vector2(0.085, -0.05),
+        new THREE.Vector2(0.062, -0.01),
+        new THREE.Vector2(0.068, 0.09),
+        new THREE.Vector2(0.048, 0.19),
+        new THREE.Vector2(0.032, 0.23),
+        new THREE.Vector2(0.008, 0.24)
+      ];
+      const barrel = new THREE.LatheGeometry(barrelPts, isHero ? 10 : 5);
+      barrel.rotateZ(Math.PI * 0.5);
+      barrel.translate(-0.58, 0, 0);
+      barrel.computeVertexNormals();
+      remapUVBand(barrel, UV_BANDS.titanium.vMin, UV_BANDS.titanium.vMax, 1.0);
+      tiBuckets.push(normalizeForMerge(barrel, 0xcbd5e1));
+
+      // 7. Internal Pulsating Telemetry Core & Laser Emitter Tip
+      const core = new THREE.IcosahedronGeometry(0.105, isHero ? 1 : 0);
+      core.scale(1.35, 0.85, 0.85);
+      core.translate(-0.54, 0, 0);
+      const coreSmooth = BufferGeometryUtils.mergeVertices(core, 1e-4);
+      core.dispose();
+      coreSmooth.computeVertexNormals();
+      remapUVBand(coreSmooth, UV_BANDS.core.vMin, UV_BANDS.core.vMax, 0.5);
+      const coreUV = coreSmooth.getAttribute('uv');
+      for (let i = 0; i < coreUV.count; i++) coreUV.setX(i, 0.55 + coreUV.getX(i) * 0.40);
+      emBuckets.push(normalizeForMerge(coreSmooth, 0x7dd3fc));
+
+      const tipLens = new THREE.IcosahedronGeometry(0.036, isHero ? 1 : 0);
+      tipLens.translate(-0.83, 0, 0);
+      const tipSmooth = BufferGeometryUtils.mergeVertices(tipLens, 1e-4);
+      tipLens.dispose();
+      tipSmooth.computeVertexNormals();
+      remapUVBand(tipSmooth, UV_BANDS.core.vMin, UV_BANDS.core.vMax, 0.5);
+      const tipUV = tipSmooth.getAttribute('uv');
+      for (let i = 0; i < tipUV.count; i++) tipUV.setX(i, 0.55 + tipUV.getX(i) * 0.40);
+      emBuckets.push(normalizeForMerge(tipSmooth, 0x38bdf8));
+
+      // 8. Translucent Quartz Optical Dome (half-ellipsoid enclosing instruments cleanly)
+      const dome = new THREE.SphereGeometry(0.45, isHero ? 16 : 8, isHero ? 10 : 5, 0, Math.PI * 2, 0, Math.PI * 0.54);
+      dome.rotateZ(Math.PI * 0.5);
+      dome.scale(1.16, 1.0, 1.0);
+      dome.translate(-0.42, 0, 0);
+      dome.computeVertexNormals();
+      quartzGeom = normalizeForMerge(dome, 0xdff6ff);
+
+      return {
+        tiGeom: safeMerge(tiBuckets),
+        goldGeom: safeMerge(goldBuckets),
+        emGeom: safeMerge(emBuckets),
+        quartzGeom
+      };
+    }
+
+    // =========================================================================
+    // 8. FULL ASSET ASSEMBLY & LOD SWITCHING
+    // =========================================================================
+    let assetGroup = null;
+    let colliderGroup = null;
+    let parts = null;
+
+    function buildSingularityAsset(lod = 'hero') {
+      const isHero = (lod === 'hero');
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        assetGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      }
+      diskColorRegistries.length = 0;
+
+      const root = new THREE.Group();
+      root.name = 'GARGANTUA_IX_Singularity_Root';
+
+      // 1. Part_EventHorizon (Geodesic pitch-black 1.8m core + BackSide annular gravitational redshift halo)
+      const eventHorizonGroup = new THREE.Group();
+      eventHorizonGroup.name = 'Part_EventHorizon';
+
+      const rawCore = new THREE.IcosahedronGeometry(1.80, isHero ? 5 : 3);
+      const smoothCore = BufferGeometryUtils.mergeVertices(rawCore, 1e-4);
+      rawCore.dispose();
+      smoothCore.computeVertexNormals();
+      remapUVBand(smoothCore, UV_BANDS.core.vMin, UV_BANDS.core.vMax, 0.42);
+      const ehMesh = new THREE.Mesh(normalizeForMerge(smoothCore, 0x000000), MATS.eventHorizon);
+      ehMesh.name = 'EventHorizon_GeodesicCore';
+      eventHorizonGroup.add(ehMesh);
+
+      const rawRim = new THREE.IcosahedronGeometry(1.87, isHero ? 4 : 2);
+      const smoothRim = BufferGeometryUtils.mergeVertices(rawRim, 1e-4);
+      rawRim.dispose();
+      smoothRim.computeVertexNormals();
+      const rimMesh = new THREE.Mesh(normalizeForMerge(smoothRim, 0x450d04), MATS.redshiftRim);
+      rimMesh.name = 'EventHorizon_RedshiftBoundary';
+      rimMesh.renderOrder = 1;
+      eventHorizonGroup.add(rimMesh);
+      root.add(eventHorizonGroup);
+
+      // 2. Part_PhotonRing (r=1.92m unobstructed equatorial Einstein photon ring)
+      const photonRingGroup = new THREE.Group();
+      photonRingGroup.name = 'Part_PhotonRing';
+      const eqPhotonGeom = buildLenticularAnnulus({
+        rInner: 1.86, rOuter: 1.98, halfHeightMax: 0.042,
+        segsTheta: isHero ? 56 : 28, segsProf: isHero ? 6 : 3,
+        uRepeat: 2.0, bevelNose: 0.012
+      });
+      normalizeForMerge(eqPhotonGeom, 0xffffff);
+      const eqPhotonMesh = new THREE.Mesh(eqPhotonGeom, MATS.photonRing);
+      eqPhotonMesh.name = 'PhotonRing_Equatorial';
+      registerDynamicDopplerMesh(eqPhotonMesh, 1.86, 1.98, true);
+      photonRingGroup.add(eqPhotonMesh);
+      root.add(photonRingGroup);
+
+      // 3. Part_LensingUpperArc & Part_LensingLowerArc (3D volumetric curved gravitational lensing shells)
+      const upperArcGeom = buildLensingArcGeometry(true, state.lensingCurvature, isHero);
+      const upperArcMesh = new THREE.Mesh(upperArcGeom, MATS.lensingArc);
+      upperArcMesh.name = 'Part_LensingUpperArc';
+      root.add(upperArcMesh);
+
+      const lowerArcGeom = buildLensingArcGeometry(false, state.lensingCurvature, isHero);
+      const lowerArcMesh = new THREE.Mesh(lowerArcGeom, MATS.lensingArc);
+      lowerArcMesh.name = 'Part_LensingLowerArc';
+      root.add(lowerArcMesh);
+
+      // 4. Tri-Layer Relativistic Accretion Disk (2.35m -> 8.50m, zero Z-fighting, volumetric biconvex profiles)
+      const innerDiskGeom = buildLenticularAnnulus({
+        rInner: 2.35, rOuter: 4.05, halfHeightMax: 0.135,
+        segsTheta: isHero ? 60 : 22, segsProf: isHero ? 5 : 3,
+        spiralArms: 2, spiralAmp: 0.012, uRepeat: 3.0, bevelNose: 0.020
+      });
+      normalizeForMerge(innerDiskGeom, 0xffffff);
+      const innerDiskMesh = new THREE.Mesh(innerDiskGeom, MATS.accretionInner);
+      innerDiskMesh.name = 'Part_AccretionInnerDisk';
+      registerDynamicDopplerMesh(innerDiskMesh, 2.35, 4.05, false);
+      root.add(innerDiskMesh);
+
+      const midParts = [normalizeForMerge(buildLenticularAnnulus({
+        rInner: 4.09, rOuter: 6.24, halfHeightMax: 0.115,
+        segsTheta: isHero ? 60 : 22, segsProf: isHero ? 5 : 3,
+        spiralArms: 3, spiralAmp: 0.024, uRepeat: 4.0, bevelNose: 0.018
+      }), 0xffffff)];
+      if (isHero) {
+        midParts.push(normalizeForMerge(buildLenticularAnnulus({
+          rInner: 4.85, rOuter: 5.38, halfHeightMax: 0.022, yOffset: 0.165,
+          segsTheta: 40, segsProf: 3, spiralArms: 3, spiralAmp: 0.015, uRepeat: 3.0
+        }), 0xffd584));
+      }
+      const midSpiralMesh = new THREE.Mesh(safeMerge(midParts), MATS.accretionMid);
+      midSpiralMesh.name = 'Part_AccretionMidSpiral';
+      registerDynamicDopplerMesh(midSpiralMesh, 4.09, 6.24, false);
+      root.add(midSpiralMesh);
+
+      const outerParts = [normalizeForMerge(buildLenticularAnnulus({
+        rInner: 6.28, rOuter: 8.50, halfHeightMax: 0.165,
+        segsTheta: isHero ? 60 : 22, segsProf: isHero ? 5 : 3,
+        spiralArms: 5, spiralAmp: 0.032, uRepeat: 5.0, bevelNose: 0.024
+      }), 0xffffff)];
+      if (isHero) {
+        outerParts.push(normalizeForMerge(buildLenticularAnnulus({
+          rInner: 7.05, rOuter: 7.55, halfHeightMax: 0.024, yOffset: -0.205,
+          segsTheta: 40, segsProf: 3, spiralArms: 5, spiralAmp: 0.016, uRepeat: 4.0
+        }), 0xe87a3d));
+      }
+      const outerDustMesh = new THREE.Mesh(safeMerge(outerParts), MATS.accretionOuter);
+      outerDustMesh.name = 'Part_AccretionOuterDust';
+      registerDynamicDopplerMesh(outerDustMesh, 6.28, 8.50, false);
+      root.add(outerDustMesh);
+
+      // 5. Bipolar Relativistic Plasma Jets & Double-Helix Magnetic Field Strands
+      const northJetMesh = new THREE.Mesh(buildPolarJetGeometry(1, isHero), MATS.polarJet);
+      northJetMesh.name = 'Part_NorthPolarJet';
+      northJetMesh.renderOrder = 2;
+      root.add(northJetMesh);
+
+      const southJetMesh = new THREE.Mesh(buildPolarJetGeometry(-1, isHero), MATS.polarJet);
+      southJetMesh.name = 'Part_SouthPolarJet';
+      southJetMesh.renderOrder = 2;
+      root.add(southJetMesh);
+
+      const helixMesh = new THREE.Mesh(buildMagneticHelixGeometry(isHero), MATS.magneticHelix);
+      helixMesh.name = 'Part_MagneticHelix';
+      root.add(helixMesh);
+
+      // 6. Outer Kerr Metric Telemetry Ring (R = 9.6m) & 3 Streamlined Sensor Observation Pods
+      const telemetryRingGroup = new THREE.Group();
+      telemetryRingGroup.name = 'Part_TelemetryRing';
+
+      const ringTiBuckets = [];
+      const ringEmBuckets = [];
+      const R_RING = 9.60;
+      const ringSegs = isHero ? 48 : 24;
+      const ringCirclePts = [];
+      for (let i = 0; i <= 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        ringCirclePts.push(new THREE.Vector3(R_RING * Math.cos(a), 0, -R_RING * Math.sin(a)));
+      }
+      const ringCurve = new THREE.CatmullRomCurve3(ringCirclePts, true);
+
+      // Upper & lower precision chamfered orbital rails
+      for (const railY of [0.165, -0.165]) {
+        const rail = buildSweptCurveLoft({
+          curve: ringCurve,
+          tubularSegs: ringSegs,
+          radialSegs: isHero ? 6 : 4,
+          profileShape: 'chamferOct',
+          rxFn: () => 0.056,
+          rbFn: () => 0.044,
+          closedCurve: true,
+          uRepeat: 1.0,
+          vMin: UV_BANDS.titanium.vMin,
+          vMax: UV_BANDS.titanium.vMax
+        });
+        rail.translate(0, railY, 0);
+        ringTiBuckets.push(normalizeForMerge(rail, 0xd8e4f0));
+      }
+
+      // Inner cyan telemetry horizon bezel ring
+      const emStrip = buildLenticularAnnulus({
+        rInner: 9.48, rOuter: 9.54, halfHeightMax: 0.020,
+        segsTheta: ringSegs, segsProf: isHero ? 3 : 2,
+        uRepeat: 2.0, vMin: UV_BANDS.core.vMin, vMax: UV_BANDS.core.vMax
+      });
+      const emStripUV = emStrip.getAttribute('uv');
+      for (let i = 0; i < emStripUV.count; i++) emStripUV.setX(i, 0.55 + (emStripUV.getX(i) % 1) * 0.40);
+      ringEmBuckets.push(normalizeForMerge(emStrip, 0x38bdf8));
+
+      // 12 curved arched C-ribs bridging upper & lower orbital rails (zero 90-deg boxes)
+      const nRibs = isHero ? 12 : 6;
+      for (let rIdx = 0; rIdx < nRibs; rIdx++) {
+        const ang = (rIdx / nRibs) * Math.PI * 2;
+        const cA = Math.cos(ang), sA = -Math.sin(ang);
+        const ribCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(R_RING * cA, 0.165, R_RING * sA),
+          new THREE.Vector3((R_RING + 0.16) * cA, 0.09, (R_RING + 0.16) * sA),
+          new THREE.Vector3((R_RING + 0.21) * cA, 0.0, (R_RING + 0.21) * sA),
+          new THREE.Vector3((R_RING + 0.16) * cA, -0.09, (R_RING + 0.16) * sA),
+          new THREE.Vector3(R_RING * cA, -0.165, R_RING * sA)
+        ]);
+        const rib = buildSweptCurveLoft({
+          curve: ribCurve,
+          tubularSegs: isHero ? 6 : 4,
+          radialSegs: isHero ? 5 : 4,
+          profileShape: 'chamferOct',
+          rxFn: () => 0.036,
+          rbFn: () => 0.052,
+          vMin: UV_BANDS.titanium.vMin,
+          vMax: UV_BANDS.titanium.vMax
+        });
+        ringTiBuckets.push(normalizeForMerge(rib, 0xbecad8));
+      }
+
+      const ringTiMesh = new THREE.Mesh(safeMerge(ringTiBuckets), MATS.titaniumHull);
+      ringTiMesh.name = 'TelemetryRing_Rails';
+      telemetryRingGroup.add(ringTiMesh);
+
+      const ringEmMesh = new THREE.Mesh(safeMerge(ringEmBuckets), MATS.telemetryEmissive);
+      ringEmMesh.name = 'TelemetryRing_OpticalStrip';
+      telemetryRingGroup.add(ringEmMesh);
+
+      // Sensor Nodes Group (3 streamlined pods at 0, 120, 240 deg)
+      const sensorNodesGroup = new THREE.Group();
+      sensorNodesGroup.name = 'Part_SensorNodes';
+
+      const podTemplate = buildSensorPodParts(isHero);
+      const podTiList = [], podGoldList = [], podEmList = [], podQuartzList = [];
+
+      for (let p = 0; p < 3; p++) {
+        const ang = (p / 3) * Math.PI * 2;
+        const m = new THREE.Matrix4()
+          .makeRotationY(ang)
+          .multiply(new THREE.Matrix4().makeTranslation(R_RING, 0, 0));
+
+        const cloneAndTransform = (srcGeom, list) => {
+          const g = srcGeom.clone();
+          g.applyMatrix4(m);
+          list.push(g);
+        };
+        cloneAndTransform(podTemplate.tiGeom, podTiList);
+        cloneAndTransform(podTemplate.goldGeom, podGoldList);
+        cloneAndTransform(podTemplate.emGeom, podEmList);
+        cloneAndTransform(podTemplate.quartzGeom, podQuartzList);
+      }
+      podTemplate.tiGeom.dispose();
+      podTemplate.goldGeom.dispose();
+      podTemplate.emGeom.dispose();
+      podTemplate.quartzGeom.dispose();
+
+      const podsTiMesh = new THREE.Mesh(safeMerge(podTiList), MATS.titaniumHull);
+      podsTiMesh.name = 'SensorNodes_Hulls_And_Gimbals';
+      sensorNodesGroup.add(podsTiMesh);
+
+      const podsGoldMesh = new THREE.Mesh(safeMerge(podGoldList), MATS.goldMirror);
+      podsGoldMesh.name = 'SensorNodes_GoldParabolicMirrors';
+      sensorNodesGroup.add(podsGoldMesh);
+
+      const podsEmMesh = new THREE.Mesh(safeMerge(podEmList), MATS.telemetryEmissive);
+      podsEmMesh.name = 'SensorNodes_PulsingCores';
+      sensorNodesGroup.add(podsEmMesh);
+
+      const podsQuartzMesh = new THREE.Mesh(safeMerge(podQuartzList), MATS.quartzDome);
+      podsQuartzMesh.name = 'SensorNodes_QuartzOpticalDomes';
+      podsQuartzMesh.renderOrder = 3;
+      sensorNodesGroup.add(podsQuartzMesh);
+
+      telemetryRingGroup.add(sensorNodesGroup);
+      telemetryRingGroup.visible = state.showTelemetry;
+      root.add(telemetryRingGroup);
+
+      // 7. Smooth Convex Collider Proxies (Zero raw boxes; hidden by default & excluded on rest-pose export)
+      const colGroup = new THREE.Group();
+      colGroup.name = 'Collider_Group';
+      colGroup.visible = document.getElementById('btn-colliders').classList.contains('active');
+
+      const addCollider = (name, geom, px = 0, py = 0, pz = 0) => {
+        const cMesh = new THREE.Mesh(geom, MATS.colliderMat);
+        cMesh.name = name;
+        cMesh.position.set(px, py, pz);
+        colGroup.add(cMesh);
+      };
+      addCollider('Collider_EventHorizon', new THREE.IcosahedronGeometry(1.92, 1));
+      const diskCol = new THREE.CylinderGeometry(8.5, 8.5, 0.42, 18, 1);
+      addCollider('Collider_AccretionDisk', diskCol);
+      const nJetCol = new THREE.CylinderGeometry(1.1, 0.28, 9.5, 10, 1);
+      addCollider('Collider_NorthJet', nJetCol, 0, 6.5, 0);
+      const sJetCol = new THREE.CylinderGeometry(0.28, 1.1, 9.5, 10, 1);
+      addCollider('Collider_SouthJet', sJetCol, 0, -6.5, 0);
+      for (let p = 0; p < 3; p++) {
+        const a = (p / 3) * Math.PI * 2;
+        addCollider(`Collider_SensorPod_0${p + 1}`, new THREE.IcosahedronGeometry(0.95, 1), R_RING * Math.cos(a), 0, -R_RING * Math.sin(a));
+      }
+      root.add(colGroup);
+
+      assetGroup = root;
+      colliderGroup = colGroup;
+      parts = {
+        Part_EventHorizon: eventHorizonGroup,
+        Part_PhotonRing: photonRingGroup,
+        Part_LensingUpperArc: upperArcMesh,
+        Part_LensingLowerArc: lowerArcMesh,
+        Part_AccretionInnerDisk: innerDiskMesh,
+        Part_AccretionMidSpiral: midSpiralMesh,
+        Part_AccretionOuterDust: outerDustMesh,
+        Part_NorthPolarJet: northJetMesh,
+        Part_SouthPolarJet: southJetMesh,
+        Part_MagneticHelix: helixMesh,
+        Part_TelemetryRing: telemetryRingGroup,
+        Part_SensorNodes: sensorNodesGroup
+      };
+
+      scene.add(assetGroup);
+      applyPhysicsParameters(0, 0);
+      updateHUDStats();
+    }
+
+    // Live rebuild of Lensing Curvature without tearing down entire model
+    function rebuildLensingArcsOnly() {
+      if (!parts) return;
+      const isHero = (state.lod === 'hero');
+      const newUpper = buildLensingArcGeometry(true, state.lensingCurvature, isHero);
+      const newLower = buildLensingArcGeometry(false, state.lensingCurvature, isHero);
+      parts.Part_LensingUpperArc.geometry.dispose();
+      parts.Part_LensingUpperArc.geometry = newUpper;
+      parts.Part_LensingLowerArc.geometry.dispose();
+      parts.Part_LensingLowerArc.geometry = newLower;
+      updateHUDStats();
+    }
+
+    // =========================================================================
+    // 9. REAL-TIME RELATIVISTIC SIMULATION & REST-POSE RESET
+    // =========================================================================
+    function applyPhysicsParameters(dt = 0, elapsed = 0) {
+      if (!parts) return;
+
+      // Keplerian differential rotation (v ~ r^(-3/2): inner fastest, outer slowest)
+      if (dt > 0 && state.spinSpeed > 0) {
+        const wBase = dt * state.spinSpeed;
+        parts.Part_PhotonRing.rotation.y += wBase * 1.15;
+        parts.Part_AccretionInnerDisk.rotation.y += wBase * 0.85;
+        parts.Part_AccretionMidSpiral.rotation.y += wBase * 0.41;
+        parts.Part_AccretionOuterDust.rotation.y += wBase * 0.20;
+        parts.Part_NorthPolarJet.rotation.y += wBase * 0.62;
+        parts.Part_SouthPolarJet.rotation.y -= wBase * 0.62;
+        parts.Part_MagneticHelix.rotation.y += wBase * 0.55;
+        parts.Part_TelemetryRing.rotation.y += wBase * 0.10;
+      }
+
+      // Update Relativistic Doppler & Blackbody Color Temperature (3,000K .. 15,000K)
+      const tempT = getTempNormalized();
+      updateDynamicDopplerColors();
+
+      // Scale material emissive tint & central singularity light with Planck temperature
+      const emCool = new THREE.Color(0xd9481e);
+      const emMid = new THREE.Color(0xffbd59);
+      const emHot = new THREE.Color(0xd8f3ff);
+      const emTint = tempT < 0.5
+        ? emCool.clone().lerp(emMid, tempT * 2.0)
+        : emMid.clone().lerp(emHot, (tempT - 0.5) * 2.0);
+
+      MATS.photonRing.emissive.copy(emTint).lerp(new THREE.Color(0xfff6d6), 0.35);
+      MATS.photonRing.emissiveIntensity = lerp(1.55, 2.75, tempT);
+      MATS.lensingArc.emissive.copy(emTint);
+      MATS.lensingArc.emissiveIntensity = lerp(1.15, 2.15, tempT);
+      MATS.accretionInner.emissive.copy(emTint);
+      MATS.accretionInner.emissiveIntensity = lerp(1.20, 2.25, tempT);
+      MATS.accretionMid.emissive.copy(emTint).lerp(emCool, 0.25);
+      MATS.accretionMid.emissiveIntensity = lerp(0.95, 1.72, tempT);
+      MATS.accretionOuter.emissive.copy(emCool).lerp(emTint, 0.35);
+      MATS.accretionOuter.emissiveIntensity = lerp(0.62, 1.18, tempT);
+
+      singularityPointLight.color.copy(emTint);
+      singularityPointLight.intensity = lerp(16.0, 28.0, tempT);
+
+      // Polar Jet Intensity (0% .. 100%)
+      const j = state.jetIntensity;
+      const jetActive = j > 0.01;
+      parts.Part_NorthPolarJet.visible = jetActive;
+      parts.Part_SouthPolarJet.visible = jetActive;
+      parts.Part_MagneticHelix.visible = jetActive;
+      if (jetActive) {
+        const sXZ = lerp(0.35, 1.05, j);
+        const sY = lerp(0.15, 1.0, j);
+        parts.Part_NorthPolarJet.scale.set(sXZ, sY, sXZ);
+        parts.Part_SouthPolarJet.scale.set(sXZ, sY, sXZ);
+        parts.Part_MagneticHelix.scale.set(sXZ, sY, sXZ);
+        const pulse = 0.92 + 0.08 * Math.sin(elapsed * 3.4);
+        MATS.polarJet.opacity = lerp(0.0, 0.54, j);
+        MATS.polarJet.emissiveIntensity = lerp(0.0, 1.65, j) * pulse;
+        MATS.magneticHelix.emissiveIntensity = lerp(0.0, 1.75, j) * pulse;
+      }
+
+      // Telemetry Array & Core Pulsing
+      parts.Part_TelemetryRing.visible = state.showTelemetry;
+      MATS.telemetryEmissive.emissiveIntensity = 1.65 + 0.55 * Math.sin(elapsed * 2.8);
+    }
+
+    function resetAllPosesForRest() {
+      if (!parts || !assetGroup) return;
+      assetGroup.position.set(0, 0, 0);
+      assetGroup.rotation.set(0, 0, 0);
+      assetGroup.scale.set(1, 1, 1);
+      for (const obj of Object.values(parts)) {
+        obj.rotation.set(0, 0, 0);
+        obj.position.set(0, 0, 0);
+      }
+      parts.Part_NorthPolarJet.scale.set(1, 1, 1);
+      parts.Part_SouthPolarJet.scale.set(1, 1, 1);
+      parts.Part_MagneticHelix.scale.set(1, 1, 1);
+      parts.Part_NorthPolarJet.visible = true;
+      parts.Part_SouthPolarJet.visible = true;
+      parts.Part_MagneticHelix.visible = true;
+      updateDynamicDopplerColors();
+    }
+
+    // =========================================================================
+    // 10. LIVE TELEMETRY HUD & CAMERA PRESETS
+    // =========================================================================
+    function updateHUDStats() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, calls = 0;
+      const mats = new Set();
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.visible) {
+          calls++;
+          const g = obj.geometry;
+          const pos = g.getAttribute('position');
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+          if (obj.material) mats.add(obj.material.name || obj.material.uuid);
+        }
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-calls').textContent = calls;
+      document.getElementById('stat-mats').textContent = mats.size;
+      document.getElementById('lod-badge').textContent = state.lod === 'hero' ? 'HERO LOD' : 'GAME-READY LOD';
+    }
+
+    const CAM_PRESETS = {
+      hero:    { pos: [4.2, 3.6, 20.5],  target: [0, 0, 0] },
+      equator: { pos: [0.0, 1.35, 19.2], target: [0, 0, 0] },
+      polar:   { pos: [0.0, 21.5, 5.2],  target: [0, 0, 0] },
+      jets:    { pos: [17.0, 2.2, 18.5], target: [0, 0, 0] },
+      pod:     null // Computed dynamically from current TelemetryRing orbit angle!
+    };
+
+    let camAnim = null;
+    function goToCameraPreset(key) {
+      let posArr, tgtArr;
+      if (key === 'pod') {
+        const ang = parts ? parts.Part_TelemetryRing.rotation.y : 0;
+        const cA = Math.cos(ang), sA = -Math.sin(ang);
+        const podPos = new THREE.Vector3(9.6 * cA, 0.0, 9.6 * sA);
+        const inward = new THREE.Vector3(-cA, 0, -sA);
+        const side = new THREE.Vector3(-sA, 0, cA);
+        const camPos = podPos.clone().addScaledVector(inward, 3.15).addScaledVector(side, 1.85).add(new THREE.Vector3(0, 1.05, 0));
+        posArr = [camPos.x, camPos.y, camPos.z];
+        tgtArr = [podPos.x - cA * 0.42, 0.0, podPos.z - sA * 0.42];
+      } else {
+        const p = CAM_PRESETS[key];
+        if (!p) return;
+        posArr = p.pos;
+        tgtArr = p.target;
+      }
+      camAnim = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        toPos: new THREE.Vector3(...posArr),
+        fromTgt: controls.target.clone(),
+        toTgt: new THREE.Vector3(...tgtArr)
+      };
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.cam === key));
+    }
+
+    // =========================================================================
+    // 11. EXPORTS (.GLB, .OBJ, .PNG) WITH MANDATORY PRE-EXPORT REST-POSE HOOK
+    // =========================================================================
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function setExportStatus(msg) { document.getElementById('export-status').textContent = msg; }
+
+    function captureStateSnapshot() {
+      return {
+        spinSpeed: state.spinSpeed,
+        jetIntensity: state.jetIntensity,
+        showTelemetry: state.showTelemetry,
+        colVis: colliderGroup ? colliderGroup.visible : false,
+        wire: MATS.accretionInner.wireframe,
+        rotations: parts ? Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, v.rotation.clone()])) : {}
+      };
+    }
+
+    function restoreStateSnapshot(snap) {
+      if (colliderGroup) colliderGroup.visible = snap.colVis;
+      for (const m of solidMaterials) m.wireframe = snap.wire;
+      state.spinSpeed = snap.spinSpeed;
+      state.jetIntensity = snap.jetIntensity;
+      state.showTelemetry = snap.showTelemetry;
+      if (parts) {
+        for (const [k, rot] of Object.entries(snap.rotations)) {
+          if (parts[k]) parts[k].rotation.copy(rot);
+        }
+      }
+      applyPhysicsParameters(0, performance.now() * 0.001);
+      updateHUDStats();
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      setExportStatus('Baking Rest-Pose .GLB...');
+      const snap = captureStateSnapshot();
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMaterials) m.wireframe = false;
+      state.showTelemetry = true;
+      parts.Part_TelemetryRing.visible = true;
+      resetAllPosesForRest();
+      assetGroup.updateMatrixWorld(true);
+
+      new GLTFExporter().parse(
+        assetGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'model/gltf-binary' });
+          triggerBlobDownload(blob, `GARGANTUA_IX_Singularity_${state.lod}.glb`);
+          restoreStateSnapshot(snap);
+          setExportStatus(`Exported .GLB (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+        },
+        (err) => {
+          console.error(err);
+          restoreStateSnapshot(snap);
+          setExportStatus('GLB Export Error!');
+        },
+        { binary: true, onlyVisible: true }
+      );
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      setExportStatus('Generating Rest-Pose .OBJ...');
+      const snap = captureStateSnapshot();
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMaterials) m.wireframe = false;
+      state.showTelemetry = true;
+      parts.Part_TelemetryRing.visible = true;
+      resetAllPosesForRest();
+      assetGroup.updateMatrixWorld(true);
+
+      try {
+        const objText = new OBJExporter().parse(assetGroup);
+        const blob = new Blob([objText], { type: 'text/plain' });
+        triggerBlobDownload(blob, `GARGANTUA_IX_Singularity_${state.lod}.obj`);
+        setExportStatus(`Exported .OBJ (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+      } finally {
+        restoreStateSnapshot(snap);
+      }
+    });
+
+    function downloadCanvasPNG(canvas, name) {
+      canvas.toBlob((blob) => { if (blob) triggerBlobDownload(blob, name); }, 'image/png');
+    }
+
+    document.getElementById('card-albedo').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvas, 'GARGANTUA_IX_Albedo.png');
+      setExportStatus('Downloaded GARGANTUA_IX_Albedo.png');
+    });
+    document.getElementById('card-normal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.normalCanvas, 'GARGANTUA_IX_Normal_Sobel.png');
+      setExportStatus('Downloaded GARGANTUA_IX_Normal_Sobel.png');
+    });
+    document.getElementById('card-rough').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.roughCanvas, 'GARGANTUA_IX_Roughness.png');
+      setExportStatus('Downloaded GARGANTUA_IX_Roughness.png');
+    });
+    document.getElementById('card-metal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.metalCanvas, 'GARGANTUA_IX_Metalness.png');
+      setExportStatus('Downloaded GARGANTUA_IX_Metalness.png');
+    });
+    document.getElementById('card-emissive').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.emissiveCanvas, 'GARGANTUA_IX_Emissive.png');
+      setExportStatus('Downloaded GARGANTUA_IX_Emissive.png');
+    });
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvas, 'GARGANTUA_IX_Albedo.png');
+      downloadCanvasPNG(TEX.normalCanvas, 'GARGANTUA_IX_Normal_Sobel.png');
+      downloadCanvasPNG(TEX.roughCanvas, 'GARGANTUA_IX_Roughness.png');
+      downloadCanvasPNG(TEX.metalCanvas, 'GARGANTUA_IX_Metalness.png');
+      downloadCanvasPNG(TEX.emissiveCanvas, 'GARGANTUA_IX_Emissive.png');
+      setExportStatus('Downloaded 5x 1024×1024 PBR Maps (.png)');
+    });
+
+    // =========================================================================
+    // 12. UI EVENT WIRING & MOBILE BOTTOM DRAWER
+    // =========================================================================
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => goToCameraPreset(btn.dataset.cam));
+    });
+
+    document.getElementById('btn-lod-hero').addEventListener('click', () => {
+      if (state.lod === 'hero') return;
+      state.lod = 'hero';
+      document.getElementById('btn-lod-hero').classList.add('active');
+      document.getElementById('btn-lod-game').classList.remove('active');
+      buildSingularityAsset('hero');
+    });
+
+    document.getElementById('btn-lod-game').addEventListener('click', () => {
+      if (state.lod === 'game') return;
+      state.lod = 'game';
+      document.getElementById('btn-lod-game').classList.add('active');
+      document.getElementById('btn-lod-hero').classList.remove('active');
+      buildSingularityAsset('game');
+    });
+
+    document.getElementById('sl-spin').addEventListener('input', (e) => {
+      state.spinSpeed = Number(e.target.value);
+      document.getElementById('val-spin').textContent = `${state.spinSpeed.toFixed(2)}x`;
+    });
+
+    document.getElementById('sl-temp').addEventListener('input', (e) => {
+      state.plasmaTempK = Number(e.target.value);
+      document.getElementById('val-temp').textContent = `${state.plasmaTempK.toLocaleString()} K`;
+      rebuildLensingArcsOnly();
+      applyPhysicsParameters(0, performance.now() * 0.001);
+    });
+
+    document.getElementById('sl-jet').addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      state.jetIntensity = pct / 100;
+      document.getElementById('val-jet').textContent = `${pct}%`;
+      applyPhysicsParameters(0, performance.now() * 0.001);
+      updateHUDStats();
+    });
+
+    document.getElementById('sl-lensing').addEventListener('input', (e) => {
+      state.lensingCurvature = Number(e.target.value);
+      document.getElementById('val-lensing').textContent = `${state.lensingCurvature.toFixed(2)}x`;
+      rebuildLensingArcsOnly();
+    });
+
+    document.getElementById('btn-telemetry').addEventListener('click', (e) => {
+      state.showTelemetry = !state.showTelemetry;
+      e.currentTarget.textContent = state.showTelemetry
+        ? '🛰 顯示外環觀測陣列 (Telemetry Array): 開'
+        : '🛰 顯示外環觀測陣列 (Telemetry Array): 關';
+      e.currentTarget.classList.toggle('active', state.showTelemetry);
+      applyPhysicsParameters(0, performance.now() * 0.001);
+      updateHUDStats();
+    });
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      const next = !MATS.accretionInner.wireframe;
+      for (const m of solidMaterials) m.wireframe = next;
+      e.currentTarget.classList.toggle('active', next);
+    });
+
+    document.getElementById('btn-colliders').addEventListener('click', (e) => {
+      if (!colliderGroup) return;
+      colliderGroup.visible = !colliderGroup.visible;
+      e.currentTarget.classList.toggle('active', colliderGroup.visible);
+      updateHUDStats();
+    });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => {
+      state.spinSpeed = 0;
+      document.getElementById('sl-spin').value = 0;
+      document.getElementById('val-spin').textContent = '0.00x';
+      resetAllPosesForRest();
+      applyPhysicsParameters(0, performance.now() * 0.001);
+      updateHUDStats();
+      setExportStatus('Rest-Pose Reset Complete (0, 0, 0)');
+    });
+
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlsPanel = document.getElementById('controls-panel');
+    if (mobileFab && controlsPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlsPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // =========================================================================
+    // 13. BOOTSTRAP & RENDER LOOP
+    // =========================================================================
+    buildSingularityAsset('hero');
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.3);
+        const s = smoothstep(0, 1, camAnim.t);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      applyPhysicsParameters(dt, elapsed);
+      controls.update();
+      composer.render();
+    }
+    animate();
+  </script>
+</body>
+</html>
