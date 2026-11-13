@@ -21,17 +21,21 @@
       font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
       padding: 48px 24px;
     }
-    .wrap { max-width: 1080px; margin: 0 auto; }
+    .wrap { max-width: 1140px; margin: 0 auto; }
     header { margin-bottom: 36px; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
     .tag {
       display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--accent);
       padding: 4px 10px; border-radius: 999px;
       background: rgba(56, 189, 248, 0.14); border: 1px solid rgba(56, 189, 248, 0.35);
-      margin-bottom: 12px;
+    }
+    .tag.count {
+      color: #a7f3d0;
+      background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.35);
     }
     h1 { font-size: 32px; font-weight: 800; letter-spacing: 0.02em; margin-bottom: 8px; }
-    p.sub { color: var(--dim); font-size: 14px; line-height: 1.6; max-width: 720px; }
+    p.sub { color: var(--dim); font-size: 14px; line-height: 1.6; max-width: 760px; }
     .grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 20px;
@@ -59,9 +63,12 @@
 <body>
   <div class="wrap">
     <header>
-      <span class="tag">Three.js &rarr; Unity URP / Blender</span>
+      <div class="tag-row">
+        <span class="tag">Three.js &rarr; Unity URP / Blender</span>
+        <span class="tag count">8 Procedural Models</span>
+      </div>
       <h1>threejs-model-forge</h1>
-      <p class="sub">程序化 3D 資產生成器集合。全模型支援 Hero / Game-Ready 雙 LOD、1024&times;1024 3&times;3 Sobel 法線與 PBR 貼圖烘焙、COLOR_0 頂點遮蔽以及一鍵 Rest-Pose 無損導出 .GLB / .OBJ / .PNG。</p>
+      <p class="sub">程序化 3D 資產生成器集合。全模型支援 1024&times;1024 程序化 PBR 與法線貼圖烘焙、COLOR_0 頂點環境遮蔽、層級化動態節點命名以及一鍵無損導出 .GLB / .OBJ / .PNG。</p>
     </header>
 
     <section class="grid">
@@ -93,6 +100,56 @@
           <div class="specs">Unity Script: StealthInterceptorController.cs</div>
         </div>
         <a class="launch" href="./wraith-ix-interceptor-forge/Tools/ModelForge/wraith_ix_interceptor_forge.html">啟動生成器 Open Forge &rarr;</a>
+      </article>
+
+      <article class="card">
+        <div>
+          <div class="meta">04 // Sci-Fi Propulsion</div>
+          <h2>AETHER-9 Vectored Plasma-Turbofan</h2>
+          <p>矢量電漿渦輪風扇引擎，包含複合材料進氣整流罩、對轉壓縮機轉子、熱能導管、16 片可收束矢量噴嘴與維修支架。</p>
+          <div class="specs">Unity Script: Aether9TurbineController.cs</div>
+        </div>
+        <a class="launch" href="./aether-9-turbofan-forge/Tools/ModelForge/aether_9_vectored_plasma_turbofan_engine_forge.html">啟動生成器 Open Forge &rarr;</a>
+      </article>
+
+      <article class="card">
+        <div>
+          <div class="meta">05 // Arcane Architecture</div>
+          <h2>Arcane Astrolabe Altar</h2>
+          <p>秘術星盤祭壇，整合哥德飛扶壁底座、方尖碑群、三軸嵌套星盤齒輪環、懸浮秘晶核心與螺旋環繞封閉碎片。</p>
+          <div class="specs">Unity Script: ArcaneAstrolabeAltarController.cs</div>
+        </div>
+        <a class="launch" href="./arcane-astrolabe-altar-forge/Tools/ModelForge/arcane_astrolabe_altar_procedural_3d_forge.html">啟動生成器 Open Forge &rarr;</a>
+      </article>
+
+      <article class="card">
+        <div>
+          <div class="meta">06 // Arcane Relic Weapon</div>
+          <h2>Sovereign's Eclipse Relic</h2>
+          <p>君王蝕日秘匣大劍與玄武岩神龕基座，具備雙軸旋轉陀螺儀護手、懸浮以太核心、符文劍刃鑲嵌與神龕封印裂紋。</p>
+          <div class="specs">Unity Script: SovereignRelicController.cs</div>
+        </div>
+        <a class="launch" href="./sovereigns-eclipse-relic-forge/Tools/ModelForge/sovereign_s_eclipse_arcane_relic_forge.html">啟動生成器 Open Forge &rarr;</a>
+      </article>
+
+      <article class="card">
+        <div>
+          <div class="meta">07 // 3A ARPG Hero Prop</div>
+          <h2>Sovereign's Oath 3A ARPG Forge</h2>
+          <p>3A ARPG 視角君王誓約祭壇，整合雙層螺旋反向軌道守護飛劍群、聖光禱環、撞擊裂隙、燭火光錐與碰撞代理盒。</p>
+          <div class="specs">Unity Script: SovereignsOathController.cs</div>
+        </div>
+        <a class="launch" href="./sovereigns-oath-arpg-forge/Tools/ModelForge/sovereign_s_oath_3a_arpg_asset_forge.html">啟動生成器 Open Forge &rarr;</a>
+      </article>
+
+      <article class="card">
+        <div>
+          <div class="meta">08 // Gothic Royal Altar</div>
+          <h2>Sovereign's Oath Gothic Altar</h2>
+          <p>哥德式皇家大劍祭壇版本，包含哥德拱廊浮雕基座、皇家寶石劍鍔核心、同步巡航守護劍陣與聖壇燭火特效節點。</p>
+          <div class="specs">Unity Script: SovereignsOathGothicController.cs</div>
+        </div>
+        <a class="launch" href="./sovereigns-oath-gothic-altar-forge/Tools/ModelForge/sovereign_s_oath_royal_greatsword_gothic_altar_forge.html">啟動生成器 Open Forge &rarr;</a>
       </article>
     </section>
   </div>

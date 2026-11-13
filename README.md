@@ -1,6 +1,6 @@
 # threejs-model-forge
 
-基於 Three.js (`0.170.0`) 與 `threejs-model-to-unity-pipeline` 工作流程建置的程序化 3D 模型生成器與 Unity URP 控制器合集。每個資產皆內建雙 LOD 切換（Hero / Game-Ready）、1024×1024 程序化 Canvas PBR 貼圖（3×3 Sobel 法線烘焙與嚴格 ColorSpace 分離）、頂點色彩 AO（`COLOR_0`），並支援一鍵 Rest-Pose 歸零後無損導出 `.glb`、`.obj` 與獨立 `.png` PBR 貼圖。
+基於 Three.js (`0.169.0`–`0.170.0`) 與 `threejs-model-to-unity-pipeline` 工作流程建置的程序化 3D 模型生成器與 Unity URP 控制器合集。資產普遍支援 LOD 切換、1024×1024 程序化 Canvas PBR 貼圖（3×3 Sobel 法線烘焙與嚴格 ColorSpace 分離）、頂點色彩 AO（`COLOR_0`），並支援一鍵無損導出 `.glb`、`.obj` 與獨立 `.png` PBR 貼圖。
 
 ## 收錄模型列表
 
@@ -9,6 +9,11 @@
 | **Astral Chronos Reliquary** | 精密機械天文渾天儀秘匣 | [astral_chronos_forge.html](./astral-chronos-forge/Tools/ModelForge/astral_chronos_forge.html) | `AstrolabeOrbitController.cs`, `ArcaneEmissionPulse.cs` |
 | **TRITON-IX Abyssal Submersible Rig** | 深海科學研究載人潛水器 | [triton_ix_submersible_forge.html](./triton-ix-submersible-forge/Tools/ModelForge/triton_ix_submersible_forge.html) | `SubmersibleThrusterController.cs`, `SubmersibleBeaconPulse.cs` |
 | **WRAITH-IX Tactical Stealth Interceptor** | 近未來微科幻戰術隱形戰機 | [wraith_ix_interceptor_forge.html](./wraith-ix-interceptor-forge/Tools/ModelForge/wraith_ix_interceptor_forge.html) | `StealthInterceptorController.cs` |
+| **AETHER-9 Vectored Plasma-Turbofan** | 科幻矢量電漿渦輪風扇引擎 | [aether_9_vectored_plasma_turbofan_engine_forge.html](./aether-9-turbofan-forge/Tools/ModelForge/aether_9_vectored_plasma_turbofan_engine_forge.html) | `Aether9TurbineController.cs` |
+| **Arcane Astrolabe Altar** | 哥德秘術星盤祭壇 | [arcane_astrolabe_altar_procedural_3d_forge.html](./arcane-astrolabe-altar-forge/Tools/ModelForge/arcane_astrolabe_altar_procedural_3d_forge.html) | `ArcaneAstrolabeAltarController.cs` |
+| **Sovereign's Eclipse Relic** | 君王蝕日秘匣大劍與神龕 | [sovereign_s_eclipse_arcane_relic_forge.html](./sovereigns-eclipse-relic-forge/Tools/ModelForge/sovereign_s_eclipse_arcane_relic_forge.html) | `SovereignRelicController.cs` |
+| **Sovereign's Oath (3A ARPG Forge)** | 3A ARPG 視角君王誓約祭壇 | [sovereign_s_oath_3a_arpg_asset_forge.html](./sovereigns-oath-arpg-forge/Tools/ModelForge/sovereign_s_oath_3a_arpg_asset_forge.html) | `SovereignsOathController.cs` |
+| **Sovereign's Oath (Gothic Altar)** | 哥德皇家大劍聖壇 | [sovereign_s_oath_royal_greatsword_gothic_altar_forge.html](./sovereigns-oath-gothic-altar-forge/Tools/ModelForge/sovereign_s_oath_royal_greatsword_gothic_altar_forge.html) | `SovereignsOathGothicController.cs` |
 
 ## 本機預覽方式
 

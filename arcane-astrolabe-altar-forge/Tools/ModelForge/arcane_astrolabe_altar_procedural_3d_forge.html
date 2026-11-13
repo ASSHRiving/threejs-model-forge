@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARCANE ASTROLABE ALTAR // PROCEDURAL 3D FORGE</title>
+
+  <!-- Tailwind CSS for responsive layout utilities -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Cinzel (Medieval Gothic Display), Inter (Clean UI), JetBrains Mono (Telemetry) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- ES Module Import Map for Three.js r170 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.170.0",
+        "three/addons/": "https://esm.sh/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-obsidian: #08090d;
+      --panel-obsidian: rgba(12, 14, 21, 0.80);
+      --panel-elevated: rgba(18, 21, 31, 0.88);
+      --gold-primary: #d4af37;
+      --gold-bright: #f3d473;
+      --gold-dim: rgba(212, 175, 55, 0.26);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --text-primary: #eceef4;
+      --text-muted: #8b93a7;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-obsidian);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #viewport-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: radial-gradient(circle at 50% 42%, #151926 0%, #090b10 58%, #040508 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+
+    /* Dark Medieval Dungeon Micro-Bevel Panel Styling */
+    .forge-panel {
+      background: var(--panel-obsidian);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border: 1px solid var(--gold-dim);
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.72),
+        inset 0 1px 0 rgba(255, 236, 179, 0.14),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+      border-radius: 10px;
+      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+    }
+
+    .forge-subcard {
+      background: rgba(8, 10, 15, 0.62);
+      border: 1px solid rgba(212, 175, 55, 0.16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+    }
+
+    .font-cinzel {
+      font-family: 'Cinzel', serif;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Custom Medieval Gold Range Sliders */
+    input[type="range"].forge-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 999px;
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].forge-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      transform: rotate(45deg);
+      background: linear-gradient(135deg, #f6dc84 0%, #c89d28 100%);
+      border: 1px solid #fff3c4;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.65);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type="range"].forge-slider::-webkit-slider-thumb:hover {
+      transform: rotate(45deg) scale(1.18);
+      box-shadow: 0 0 14px rgba(243, 212, 115, 0.95);
+    }
+
+    input[type="range"].forge-slider::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      transform: rotate(45deg);
+      background: linear-gradient(135deg, #f6dc84 0%, #c89d28 100%);
+      border: 1px solid #fff3c4;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.65);
+      cursor: pointer;
+    }
+
+    /* Custom Scrollbar for Floating Docks */
+    .forge-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .forge-scroll::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .forge-scroll::-webkit-scrollbar-thumb {
+      background: rgba(212, 175, 55, 0.32);
+      border-radius: 999px;
+    }
+    .forge-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.6);
+    }
+
+    /* Theme Card Active State */
+    .theme-btn {
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(12, 14, 20, 0.72);
+    }
+    .theme-btn:hover {
+      border-color: rgba(212, 175, 55, 0.45);
+      background: rgba(22, 26, 38, 0.85);
+    }
+    .theme-btn.active {
+      border-color: #d4af37;
+      background: linear-gradient(90deg, rgba(212, 175, 55, 0.16) 0%, rgba(16, 19, 28, 0.88) 100%);
+      box-shadow: inset 0 0 14px rgba(212, 175, 55, 0.15);
+    }
+
+    /* Action Toggle Buttons */
+    .action-btn {
+      background: rgba(15, 18, 27, 0.85);
+      border: 1px solid rgba(212, 175, 55, 0.24);
+      color: #dce0ec;
+      transition: all 0.18s ease;
+    }
+    .action-btn:hover {
+      border-color: rgba(212, 175, 55, 0.65);
+      background: rgba(28, 33, 48, 0.92);
+      color: #fff;
+    }
+    .action-btn.active {
+      background: rgba(212, 175, 55, 0.18);
+      border-color: #d4af37;
+      color: #f6dc84;
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.22);
+    }
+
+    /* Primary Gold Export Button */
+    .export-glb-btn {
+      background: linear-gradient(135deg, #d4af37 0%, #a8821c 50%, #d4af37 100%);
+      background-size: 200% auto;
+      color: #090a0e;
+      font-weight: 700;
+      border: 1px solid #ffe89e;
+      box-shadow: 0 6px 22px rgba(212, 175, 55, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+      transition: all 0.22s ease;
+    }
+    .export-glb-btn:hover {
+      background-position: right center;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(212, 175, 55, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+    .export-glb-btn:active {
+      transform: translateY(0px);
+    }
+
+    /* Collapsed Panel Utility */
+    .panel-collapsed-left {
+      transform: translateX(calc(-100% - 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+    .panel-collapsed-right {
+      transform: translateX(calc(100% + 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Toast Notification Animation */
+    @keyframes toastSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .toast-item {
+      animation: toastSlideIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WebGL Viewport -->
+  <div id="viewport-container"></div>
+
+  <!-- Top Atmospheric Header Bar -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex items-center justify-between gap-3 pointer-events-none">
+    <!-- Brand & Title Plaque -->
+    <div class="forge-panel px-4 py-2.5 flex items-center gap-3.5 pointer-events-auto max-w-full">
+      <!-- Arcane Astrolabe SVG Emblem -->
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center border border-[#d4af37]/50 bg-[#d4af37]/10 shrink-0 shadow-inner">
+        <svg class="w-5 h-5 text-[#f3d473]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5.5" stroke-dasharray="2 2" />
+          <polygon points="12,2 14.5,9.5 22,12 14.5,14.5 12,22 9.5,14.5 2,12 9.5,9.5" />
+          <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <h1 class="font-cinzel text-xs sm:text-sm md:text-base font-bold tracking-[0.14em] text-[#f4e4b2] truncate">
+            ARCANE ASTROLABE ALTAR <span class="text-[#d4af37] hidden sm:inline">// PROCEDURAL 3D FORGE</span>
+          </h1>
+          <span class="hidden lg:inline-block px-2 py-0.5 text-[10px] font-mono-tech uppercase tracking-wider rounded bg-[#d4af37]/15 text-[#f3d473] border border-[#d4af37]/30">
+            THREE.JS r170 PBR
+          </span>
+        </div>
+        <p class="text-[11px] text-[#8b93a7] truncate">
+          奧術星盤祭壇 · 程序化 3D 鍛造與 Unity/Blender GLB 資產管線
+        </p>
+      </div>
+    </div>
+
+    <!-- Panel Toggle Controls (Helpful on 2K & Mobile) -->
+    <div class="flex items-center gap-2 pointer-events-auto shrink-0">
+      <button id="toggle-left-btn" class="forge-panel px-3 py-2 text-xs font-mono-tech text-[#e5d4a1] hover:border-[#d4af37] flex items-center gap-1.5 cursor-pointer" title="Toggle Forge Parameters">
+        <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+        </svg>
+        <span class="hidden sm:inline">FORGE</span>
+      </button>
+      <button id="toggle-right-btn" class="forge-panel px-3 py-2 text-xs font-mono-tech text-[#e5d4a1] hover:border-[#d4af37] flex items-center gap-1.5 cursor-pointer" title="Toggle Telemetry & Export">
+        <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+        </svg>
+        <span class="hidden sm:inline">EXPORT</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- LEFT FLOATING SIDEBAR: Procedural Material Themes & Parametric Forge Controls -->
+  <aside id="left-sidebar" class="forge-panel forge-scroll fixed top-[74px] left-3 bottom-3 w-[336px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-4">
+
+    <!-- Section 1: Theme Presets -->
+    <div>
+      <div class="flex items-center justify-between mb-2.5">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          01 // Material & Rune Albedo
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8b93a7]">1024² PBR</span>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2" id="theme-selector">
+        <button data-theme="abyssal" class="theme-btn active rounded-lg p-2.5 text-left flex items-center justify-between cursor-pointer">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0" style="background: radial-gradient(circle, #38f2ff 0%, #d4af37 65%, #12131a 100%); box-shadow: 0 0 8px rgba(56,242,255,0.65);"></span>
+            <div>
+              <div class="text-xs font-semibold text-[#f3e6c0]">Abyssal Gold &amp; Obsidian</div>
+              <div class="text-[10px] text-[#8b93a7]">深淵黑曜石 · 古金鑄銅 · 星淵青金符文</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-mono-tech text-[#d4af37]">#D4AF37</span>
+        </button>
+
+        <button data-theme="crimson" class="theme-btn rounded-lg p-2.5 text-left flex items-center justify-between cursor-pointer">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0" style="background: radial-gradient(circle, #ff5533 0%, #991b1b 70%, #140c0c 100%); box-shadow: 0 0 8px rgba(255,59,48,0.7);"></span>
+            <div>
+              <div class="text-xs font-semibold text-[#f3e6c0]">Crimson Blood-Iron</div>
+              <div class="text-[10px] text-[#8b93a7]">焦黑玄武岩 · 鍛造血鐵 · 緋紅余燼符文</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-mono-tech text-[#ff6b5b]">#FF3B30</span>
+        </button>
+
+        <button data-theme="frost" class="theme-btn rounded-lg p-2.5 text-left flex items-center justify-between cursor-pointer">
+          <div class="flex items-center gap-2.5">
+            <span class="w-3.5 h-3.5 rounded-full border border-white/40 shrink-0" style="background: radial-gradient(circle, #e0f2fe 0%, #38bdf8 60%, #1e293b 100%); box-shadow: 0 0 8px rgba(56,189,248,0.7);"></span>
+            <div>
+              <div class="text-xs font-semibold text-[#f3e6c0]">Frost-Rune Mithril</div>
+              <div class="text-[10px] text-[#8b93a7]">冰川板岩 · 精靈秘銀 · 極光藍晶符文</div>
+            </div>
+          </div>
+          <span class="text-[10px] font-mono-tech text-[#38bdf8]">#38BDF8</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 2: Parametric Geometry & Shader Sliders -->
+    <div class="forge-subcard p-3.5 flex flex-col gap-3.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          02 // Parametric Geometry
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8b93a7]">REALTIME REBUILD</span>
+      </div>
+
+      <!-- Slider 1: Gimbal Ring Gear Teeth -->
+      <div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span class="text-[#cfd5e4]">Gimbal Gear Teeth <span class="text-[#8b93a7] text-[10px]">星環齒輪密度</span></span>
+          <span id="val-teeth" class="font-mono-tech text-[#f3d473] font-semibold">24</span>
+        </div>
+        <input id="slider-teeth" type="range" min="12" max="48" step="2" value="24" class="forge-slider" />
+      </div>
+
+      <!-- Slider 2: Floating Containment Shards Count -->
+      <div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span class="text-[#cfd5e4]">Containment Shards <span class="text-[#8b93a7] text-[10px]">懸浮禁錮晶簇</span></span>
+          <span id="val-shards" class="font-mono-tech text-[#f3d473] font-semibold">8</span>
+        </div>
+        <input id="slider-shards" type="range" min="4" max="12" step="1" value="8" class="forge-slider" />
+      </div>
+
+      <!-- Slider 3: Core Levitation Height -->
+      <div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span class="text-[#cfd5e4]">Core Levitation Height <span class="text-[#8b93a7] text-[10px]">星核懸浮高度</span></span>
+          <span id="val-height" class="font-mono-tech text-[#f3d473] font-semibold">2.65 m</span>
+        </div>
+        <input id="slider-height" type="range" min="2.20" max="3.40" step="0.05" value="2.65" class="forge-slider" />
+      </div>
+
+      <!-- Slider 4: Rune Emission Intensity -->
+      <div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span class="text-[#cfd5e4]">Rune Emission <span class="text-[#8b93a7] text-[10px]">奧術符文輝度</span></span>
+          <span id="val-emission" class="font-mono-tech text-[#f3d473] font-semibold">2.10</span>
+        </div>
+        <input id="slider-emission" type="range" min="0.50" max="3.50" step="0.10" value="2.10" class="forge-slider" />
+      </div>
+
+      <!-- Slider 5: Gimbal Rotation Speed -->
+      <div>
+        <div class="flex justify-between text-xs mb-1.5">
+          <span class="text-[#cfd5e4]">Gimbal Spin Speed <span class="text-[#8b93a7] text-[10px]">渾天儀轉速</span></span>
+          <span id="val-speed" class="font-mono-tech text-[#f3d473] font-semibold">0.85x</span>
+        </div>
+        <input id="slider-speed" type="range" min="0.00" max="2.50" step="0.05" value="0.85" class="forge-slider" />
+      </div>
+    </div>
+
+    <!-- Section 3: Viewport & Rigging Controls -->
+    <div class="forge-subcard p-3.5 flex flex-col gap-2.5">
+      <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+        03 // Rigging &amp; Viewport State
+      </span>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-toggle-anim" class="action-btn active rounded-lg px-2.5 py-2 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <span id="anim-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="anim-label">Live Motion</span>
+        </button>
+
+        <button id="btn-bind-pose" class="action-btn rounded-lg px-2.5 py-2 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer" title="Freeze and reset rotations to 0 for clean Unity/Blender prefab export">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          <span>Bind Pose (0°)</span>
+        </button>
+
+        <button id="btn-wireframe" class="action-btn rounded-lg px-2.5 py-2 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
+            <line x1="12" y1="22" x2="12" y2="15.5" />
+            <polyline points="22 8.5 12 15.5 2 8.5" />
+          </svg>
+          <span>Wireframe</span>
+        </button>
+
+        <button id="btn-auto-orbit" class="action-btn active rounded-lg px-2.5 py-2 text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="9" />
+            <ellipse cx="12" cy="12" rx="9" ry="3.5" />
+          </svg>
+          <span>Auto-Orbit</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Controls Hint -->
+    <div class="text-[10px] font-mono-tech text-[#757d92] leading-relaxed px-1">
+      LMB Drag: Orbit · RMB Drag: Pan · Scroll: Zoom · Double-Click: Reset Camera
+    </div>
+  </aside>
+
+  <!-- RIGHT FLOATING DOCK: Mesh Telemetry, Hierarchy & One-Click Export Pipeline -->
+  <aside id="right-sidebar" class="forge-panel forge-scroll fixed top-[74px] right-3 bottom-3 w-[328px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-4">
+
+    <!-- Telemetry Metrics -->
+    <div class="forge-subcard p-3.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-2.5">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          Asset Mesh Telemetry
+        </span>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono-tech rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+          URP / BLENDER OK
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <div class="bg-black/35 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8b93a7] uppercase">Triangles</div>
+          <div id="stat-tris" class="font-mono-tech text-sm font-semibold text-[#f3e6c0] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/35 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8b93a7] uppercase">Vertices</div>
+          <div id="stat-verts" class="font-mono-tech text-sm font-semibold text-[#f3e6c0] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/35 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8b93a7] uppercase">Sub-Meshes</div>
+          <div id="stat-meshes" class="font-mono-tech text-sm font-semibold text-[#f3d473] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/35 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8b93a7] uppercase">Root Pivot</div>
+          <div class="font-mono-tech text-xs font-semibold text-emerald-300 mt-1">(0.0, 0.0, 0.0)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unity / Blender Hierarchy Preview -->
+    <div class="forge-subcard p-3.5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          Export Node Hierarchy
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8b93a7]">CLEAN ROOT</span>
+      </div>
+
+      <div class="font-mono-tech text-[11px] text-[#b9c0d4] space-y-1 bg-black/40 p-2.5 rounded border border-white/5 leading-snug">
+        <div class="text-[#f3d473] font-semibold flex items-center gap-1.5">
+          <span>▼</span> <span>Arcane_Astrolabe_Altar</span>
+        </div>
+        <div class="pl-3.5 text-[#9aa3ba]">├─ Pedestal_Base_Foundation</div>
+        <div class="pl-3.5 text-[#9aa3ba]">├─ Floor_Rune_Plate</div>
+        <div class="pl-3.5 text-[#9aa3ba]">├─ Gothic_Buttresses (×8)</div>
+        <div class="pl-3.5 text-[#9aa3ba]">├─ Corner_Obelisks (×4)</div>
+        <div class="pl-3.5 text-[#d7be7a]">├─ Astrolabe_Gimbal_Assembly</div>
+        <div class="pl-7 text-[10px] text-[#8b93a7]">├─ Gimbal_Outer_Ring</div>
+        <div class="pl-7 text-[10px] text-[#8b93a7]">├─ Gimbal_Middle_Ring</div>
+        <div class="pl-7 text-[10px] text-[#8b93a7]">└─ Gimbal_Inner_Ring</div>
+        <div class="pl-3.5 text-[#7dd3fc]">├─ Relic_Crystal_Core</div>
+        <div class="pl-3.5 text-[#7dd3fc]">└─ Containment_Shards (<span id="tree-shard-count">8</span>)</div>
+      </div>
+    </div>
+
+    <!-- Live Procedural Canvas PBR Map Previews -->
+    <div class="forge-subcard p-3.5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          Procedural PBR Maps
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8b93a7]">1024×1024</span>
+      </div>
+      <div class="grid grid-cols-4 gap-2" id="pbr-preview-grid">
+        <div class="text-center">
+          <div id="preview-stone" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+          <span class="block text-[9px] font-mono-tech text-[#8b93a7] mt-1">Stone</span>
+        </div>
+        <div class="text-center">
+          <div id="preview-metal" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+          <span class="block text-[9px] font-mono-tech text-[#8b93a7] mt-1">Metal</span>
+        </div>
+        <div class="text-center">
+          <div id="preview-rune" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+          <span class="block text-[9px] font-mono-tech text-[#8b93a7] mt-1">Rune</span>
+        </div>
+        <div class="text-center">
+          <div id="preview-bump" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+          <span class="block text-[9px] font-mono-tech text-[#8b93a7] mt-1">Bump</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- One-Click Export Pipeline -->
+    <div class="forge-subcard p-3.5 flex flex-col gap-2.5 mt-auto">
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          One-Click Export Pipeline
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8b93a7]">ASSET ONLY</span>
+      </div>
+
+      <button id="btn-export-glb" class="export-glb-btn w-full py-2.5 px-3 rounded-lg text-xs tracking-wide flex items-center justify-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+        <span>Export .GLB (Unity/Blender Ready)</span>
+      </button>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-export-obj" class="action-btn py-2 px-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Export .OBJ</span>
+        </button>
+
+        <button id="btn-export-png" class="action-btn py-2 px-2.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span>PBR (.PNG)</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast Notification Container (Replaces alert() cleanly) -->
+  <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-md"></div>
+
+  <!-- Main Three.js Application Script -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // =========================================================================
+    // 1. TOAST NOTIFICATION UTILITY (Zero alert/confirm usage)
+    // =========================================================================
+    function showToast(title, detail = '', type = 'gold') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const borderColor = type === 'error' ? 'border-red-500/60' : 'border-[#d4af37]/70';
+      const iconColor = type === 'error' ? 'text-red-400' : 'text-[#f3d473]';
+
+      toast.className = `toast-item forge-panel px-4 py-2.5 w-full flex items-center gap-3 pointer-events-auto ${borderColor}`;
+      toast.innerHTML = `
+        <div class="${iconColor} shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-semibold text-[#f5ebd0] truncate">${title}</div>
+          ${detail ? `<div class="text-[11px] font-mono-tech text-[#9aa3ba] truncate">${detail}</div>` : ''}
+        </div>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+      }, 3600);
+    }
+
+    // =========================================================================
+    // 2. THEME DEFINITIONS
+    // =========================================================================
+    const THEMES = {
+      abyssal: {
+        name: 'Abyssal Gold & Obsidian',
+        stoneBase: '#191b24',
+        stoneDark: '#0c0d12',
+        stoneHighlight: '#2c3040',
+        stoneInlay: '#b8942e',
+        metalBase: '#c89e32',
+        metalBright: '#f5d97e',
+        metalPatina: '#3c2e14',
+        metalness: 0.90,
+        metalRoughness: 0.26,
+        runePrimary: '#38f2ff',
+        runeSecondary: '#ffd166',
+        crystalColor: '#67e8f9',
+        crystalEmissive: '#06b6d4',
+        lightColor: 0x38f2ff
+      },
+      crimson: {
+        name: 'Crimson Blood-Iron',
+        stoneBase: '#1d1719',
+        stoneDark: '#0d090a',
+        stoneHighlight: '#33272a',
+        stoneInlay: '#8f241e',
+        metalBase: '#565963',
+        metalBright: '#9aa0ad',
+        metalPatina: '#2b1212',
+        metalness: 0.88,
+        metalRoughness: 0.34,
+        runePrimary: '#ff3b30',
+        runeSecondary: '#ff9500',
+        crystalColor: '#ff6b5b',
+        crystalEmissive: '#dc2626',
+        lightColor: 0xff3b30
+      },
+      frost: {
+        name: 'Frost-Rune Mithril',
+        stoneBase: '#1b222c',
+        stoneDark: '#0e131a',
+        stoneHighlight: '#313d4f',
+        stoneInlay: '#5fa8d3',
+        metalBase: '#b8cde0',
+        metalBright: '#eef6fc',
+        metalPatina: '#2b3d52',
+        metalness: 0.92,
+        metalRoughness: 0.22,
+        runePrimary: '#38bdf8',
+        runeSecondary: '#e0f2fe',
+        crystalColor: '#bae6fd',
+        crystalEmissive: '#0284c7',
+        lightColor: 0x38bdf8
+      }
+    };
+
+    // =========================================================================
+    // 3. PROCEDURAL 1024x1024 PBR CANVAS TEXTURE ENGINE
+    // =========================================================================
+    class ProceduralTextureEngine {
+      constructor(size = 1024) {
+        this.size = size;
+        this.canvases = {
+          stoneAlbedo: this._createCanvas(),
+          stoneBump: this._createCanvas(),
+          stoneRoughness: this._createCanvas(),
+          metalAlbedo: this._createCanvas(),
+          metalRoughness: this._createCanvas(),
+          metalMetalness: this._createCanvas(),
+          metalBump: this._createCanvas(),
+          runeAlbedo: this._createCanvas(),
+          runeEmissive: this._createCanvas()
+        };
+
+        this.textures = {};
+        for (const [key, canvas] of Object.entries(this.canvases)) {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          tex.anisotropy = 8;
+
+          // Proper colorSpace configuration: SRGB for color/emissive, NoColorSpace for data maps
+          if (key.endsWith('Albedo') || key.endsWith('Emissive')) {
+            tex.colorSpace = THREE.SRGBColorSpace;
+          } else {
+            tex.colorSpace = THREE.NoColorSpace;
+          }
+          this.textures[key] = tex;
+        }
+
+        // Clamp rune circular textures so edges never wrap artifacts
+        this.textures.runeAlbedo.wrapS = THREE.ClampToEdgeWrapping;
+        this.textures.runeAlbedo.wrapT = THREE.ClampToEdgeWrapping;
+        this.textures.runeEmissive.wrapS = THREE.ClampToEdgeWrapping;
+        this.textures.runeEmissive.wrapT = THREE.ClampToEdgeWrapping;
+      }
+
+      _createCanvas() {
+        const c = document.createElement('canvas');
+        c.width = this.size;
+        c.height = this.size;
+        return c;
+      }
+
+      // Deterministic pseudo-random generator for crisp repeatable textures
+      _mulberry32(seed) {
+        return function () {
+          let t = (seed += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      generateAll(theme) {
+        this.generateStoneSet(theme);
+        this.generateMetalSet(theme);
+        this.generateRuneSet(theme);
+
+        for (const tex of Object.values(this.textures)) {
+          tex.needsUpdate = true;
+        }
+        this.updateUIThumbnails();
+      }
+
+      generateStoneSet(theme) {
+        const S = this.size;
+        const rand = this._mulberry32(104729);
+
+        const ctxA = this.canvases.stoneAlbedo.getContext('2d');
+        const ctxB = this.canvases.stoneBump.getContext('2d');
+        const ctxR = this.canvases.stoneRoughness.getContext('2d');
+
+        // Base fills
+        ctxA.fillStyle = theme.stoneBase;
+        ctxA.fillRect(0, 0, S, S);
+
+        ctxB.fillStyle = '#808080';
+        ctxB.fillRect(0, 0, S, S);
+
+        ctxR.fillStyle = '#c8c8c8'; // High base roughness (~0.78)
+        ctxR.fillRect(0, 0, S, S);
+
+        // Layered ashlar masonry stone blocks
+        const rows = 8;
+        const rowH = S / rows;
+        for (let r = 0; r < rows; r++) {
+          const cols = 4;
+          const colW = S / cols;
+          const offset = (r % 2) * (colW * 0.5);
+
+          for (let c = -1; c <= cols; c++) {
+            const x = c * colW + offset;
+            const y = r * rowH;
+            const shade = (rand() - 0.5) * 18;
+
+            ctxA.fillStyle = shade > 0 ? theme.stoneHighlight : theme.stoneDark;
+            ctxA.globalAlpha = Math.abs(shade) / 48;
+            ctxA.fillRect(x + 3, y + 3, colW - 6, rowH - 6);
+
+            // Slightly varied bump height per stone block
+            const bumpVal = Math.floor(124 + (rand() - 0.5) * 28);
+            ctxB.fillStyle = `rgb(${bumpVal},${bumpVal},${bumpVal})`;
+            ctxB.globalAlpha = 0.75;
+            ctxB.fillRect(x + 3, y + 3, colW - 6, rowH - 6);
+
+            // Mortar crevices
+            ctxA.globalAlpha = 0.85;
+            ctxA.strokeStyle = theme.stoneDark;
+            ctxA.lineWidth = 4;
+            ctxA.strokeRect(x + 1, y + 1, colW - 2, rowH - 2);
+
+            ctxB.globalAlpha = 0.95;
+            ctxB.strokeStyle = '#181818';
+            ctxB.lineWidth = 5;
+            ctxB.strokeRect(x + 1, y + 1, colW - 2, rowH - 2);
+
+            ctxR.globalAlpha = 0.9;
+            ctxR.strokeStyle = '#f5f5f5';
+            ctxR.lineWidth = 5;
+            ctxR.strokeRect(x + 1, y + 1, colW - 2, rowH - 2);
+          }
+        }
+
+        // Micro-speckle mineral grain & chiseling
+        ctxA.globalAlpha = 1.0;
+        ctxB.globalAlpha = 1.0;
+        ctxR.globalAlpha = 1.0;
+        for (let i = 0; i < 14000; i++) {
+          const px = rand() * S;
+          const py = rand() * S;
+          const sz = 1 + rand() * 2.2;
+          const bright = rand() > 0.5;
+
+          ctxA.fillStyle = bright ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.14)';
+          ctxA.fillRect(px, py, sz, sz);
+
+          ctxB.fillStyle = bright ? 'rgba(210,210,210,0.16)' : 'rgba(40,40,40,0.22)';
+          ctxB.fillRect(px, py, sz, sz);
+
+          ctxR.fillStyle = bright ? 'rgba(240,240,240,0.15)' : 'rgba(150,150,150,0.15)';
+          ctxR.fillRect(px, py, sz, sz);
+        }
+
+        // Organic chisel fracture veins
+        for (let f = 0; f < 42; f++) {
+          let fx = rand() * S;
+          let fy = rand() * S;
+          ctxA.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+          ctxB.strokeStyle = 'rgba(25, 25, 25, 0.65)';
+          ctxA.lineWidth = 1.2;
+          ctxB.lineWidth = 1.6;
+          ctxA.beginPath();
+          ctxB.beginPath();
+          ctxA.moveTo(fx, fy);
+          ctxB.moveTo(fx, fy);
+          for (let seg = 0; seg < 6; seg++) {
+            fx += (rand() - 0.5) * 44;
+            fy += (rand() - 0.5) * 44;
+            ctxA.lineTo(fx, fy);
+            ctxB.lineTo(fx, fy);
+          }
+          ctxA.stroke();
+          ctxB.stroke();
+        }
+
+        // Engraved metallic inlay trim near top & bottom borders
+        const drawTrimBand = (yPos) => {
+          ctxA.strokeStyle = theme.stoneInlay;
+          ctxA.lineWidth = 4;
+          ctxA.beginPath();
+          ctxA.moveTo(0, yPos);
+          ctxA.lineTo(S, yPos);
+          ctxA.stroke();
+
+          ctxB.strokeStyle = '#d8d8d8';
+          ctxB.lineWidth = 4;
+          ctxB.beginPath();
+          ctxB.moveTo(0, yPos);
+          ctxB.lineTo(S, yPos);
+          ctxB.stroke();
+
+          ctxR.strokeStyle = '#606060';
+          ctxR.lineWidth = 4;
+          ctxR.beginPath();
+          ctxR.moveTo(0, yPos);
+          ctxR.lineTo(S, yPos);
+          ctxR.stroke();
+        };
+        drawTrimBand(48);
+        drawTrimBand(S - 48);
+      }
+
+      generateMetalSet(theme) {
+        const S = this.size;
+        const rand = this._mulberry32(99371);
+
+        const ctxA = this.canvases.metalAlbedo.getContext('2d');
+        const ctxR = this.canvases.metalRoughness.getContext('2d');
+        const ctxM = this.canvases.metalMetalness.getContext('2d');
+        const ctxB = this.canvases.metalBump.getContext('2d');
+
+        // Base metallic fill
+        ctxA.fillStyle = theme.metalBase;
+        ctxA.fillRect(0, 0, S, S);
+
+        ctxR.fillStyle = '#484848'; // Smooth brushed metal (~0.28 roughness)
+        ctxR.fillRect(0, 0, S, S);
+
+        ctxM.fillStyle = '#f2f2f2'; // High metalness (~0.95)
+        ctxM.fillRect(0, 0, S, S);
+
+        ctxB.fillStyle = '#808080';
+        ctxB.fillRect(0, 0, S, S);
+
+        // Directional brushed metallic grain
+        for (let i = 0; i < 4200; i++) {
+          const y = rand() * S;
+          const x = rand() * S;
+          const len = 40 + rand() * 180;
+          const isHighlight = rand() > 0.48;
+
+          ctxA.strokeStyle = isHighlight ? theme.metalBright : theme.metalPatina;
+          ctxA.globalAlpha = 0.08;
+          ctxA.lineWidth = 1 + rand() * 1.4;
+          ctxA.beginPath();
+          ctxA.moveTo(x, y);
+          ctxA.lineTo(x + len, y);
+          ctxA.stroke();
+
+          ctxB.strokeStyle = isHighlight ? 'rgba(180,180,180,0.12)' : 'rgba(85,85,85,0.12)';
+          ctxB.globalAlpha = 1.0;
+          ctxB.beginPath();
+          ctxB.moveTo(x, y);
+          ctxB.lineTo(x + len, y);
+          ctxB.stroke();
+
+          ctxR.strokeStyle = isHighlight ? 'rgba(55,55,55,0.14)' : 'rgba(110,110,110,0.14)';
+          ctxR.beginPath();
+          ctxR.moveTo(x, y);
+          ctxR.lineTo(x + len, y);
+          ctxR.stroke();
+        }
+        ctxA.globalAlpha = 1.0;
+
+        // Oxidized patina recess bands
+        const bands = [0, 120, S - 120, S - 24];
+        for (const by of bands) {
+          ctxA.fillStyle = theme.metalPatina;
+          ctxA.globalAlpha = 0.55;
+          ctxA.fillRect(0, by, S, 24);
+
+          ctxR.fillStyle = '#9e9e9e';
+          ctxR.globalAlpha = 0.7;
+          ctxR.fillRect(0, by, S, 24);
+
+          ctxM.fillStyle = '#909090';
+          ctxM.globalAlpha = 0.6;
+          ctxM.fillRect(0, by, S, 24);
+
+          ctxB.fillStyle = '#404040';
+          ctxB.globalAlpha = 0.8;
+          ctxB.fillRect(0, by, S, 24);
+        }
+        ctxA.globalAlpha = 1.0;
+        ctxR.globalAlpha = 1.0;
+        ctxM.globalAlpha = 1.0;
+        ctxB.globalAlpha = 1.0;
+
+        // Engraved geometric filigree pattern across center band
+        ctxA.strokeStyle = theme.metalBright;
+        ctxB.strokeStyle = '#e5e5e5';
+        ctxA.lineWidth = 5;
+        ctxB.lineWidth = 6;
+        const step = 64;
+        for (let x = 0; x < S; x += step) {
+          const cy = S * 0.5;
+          // Interlocking arcane diamond filigree
+          ctxA.strokeRect(x + 12, cy - 36, step - 24, 72);
+          ctxB.strokeRect(x + 12, cy - 36, step - 24, 72);
+
+          ctxA.beginPath();
+          ctxA.moveTo(x + step * 0.5, cy - 52);
+          ctxA.lineTo(x + step - 6, cy);
+          ctxA.lineTo(x + step * 0.5, cy + 52);
+          ctxA.lineTo(x + 6, cy);
+          ctxA.closePath();
+          ctxA.stroke();
+
+          ctxB.beginPath();
+          ctxB.moveTo(x + step * 0.5, cy - 52);
+          ctxB.lineTo(x + step - 6, cy);
+          ctxB.lineTo(x + step * 0.5, cy + 52);
+          ctxB.lineTo(x + 6, cy);
+          ctxB.closePath();
+          ctxB.stroke();
+        }
+
+        // Hammered domed rivets along top & bottom edges
+        const rivetCount = 16;
+        const rivetSpacing = S / rivetCount;
+        for (let i = 0; i < rivetCount; i++) {
+          const rx = (i + 0.5) * rivetSpacing;
+          for (const ry of [76, S - 76]) {
+            // Albedo highlight
+            const gradA = ctxA.createRadialGradient(rx - 3, ry - 3, 2, rx, ry, 14);
+            gradA.addColorStop(0, theme.metalBright);
+            gradA.addColorStop(0.7, theme.metalBase);
+            gradA.addColorStop(1, theme.metalPatina);
+            ctxA.fillStyle = gradA;
+            ctxA.beginPath();
+            ctxA.arc(rx, ry, 14, 0, Math.PI * 2);
+            ctxA.fill();
+
+            // Bump dome
+            const gradB = ctxB.createRadialGradient(rx, ry, 1, rx, ry, 14);
+            gradB.addColorStop(0, '#ffffff');
+            gradB.addColorStop(0.8, '#a0a0a0');
+            gradB.addColorStop(1, '#303030');
+            ctxB.fillStyle = gradB;
+            ctxB.beginPath();
+            ctxB.arc(rx, ry, 14, 0, Math.PI * 2);
+            ctxB.fill();
+          }
+        }
+      }
+
+      generateRuneSet(theme) {
+        const S = this.size;
+        const cx = S * 0.5;
+        const cy = S * 0.5;
+
+        const ctxA = this.canvases.runeAlbedo.getContext('2d');
+        const ctxE = this.canvases.runeEmissive.getContext('2d');
+
+        // Albedo has dark obsidian-metal base; Emissive has pure black base so only runes glow
+        ctxA.fillStyle = theme.stoneDark;
+        ctxA.fillRect(0, 0, S, S);
+
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Subtle radial gradient in albedo
+        const bgGrad = ctxA.createRadialGradient(cx, cy, 30, cx, cy, S * 0.48);
+        bgGrad.addColorStop(0, theme.stoneHighlight);
+        bgGrad.addColorStop(0.75, theme.stoneBase);
+        bgGrad.addColorStop(1, theme.stoneDark);
+        ctxA.fillStyle = bgGrad;
+        ctxA.beginPath();
+        ctxA.arc(cx, cy, S * 0.49, 0, Math.PI * 2);
+        ctxA.fill();
+
+        const drawBothCircle = (r, width, colorA, colorE) => {
+          ctxA.strokeStyle = colorA;
+          ctxA.lineWidth = width;
+          ctxA.beginPath();
+          ctxA.arc(cx, cy, r, 0, Math.PI * 2);
+          ctxA.stroke();
+
+          if (colorE) {
+            ctxE.strokeStyle = colorE;
+            ctxE.lineWidth = width;
+            ctxE.beginPath();
+            ctxE.arc(cx, cy, r, 0, Math.PI * 2);
+            ctxE.stroke();
+          }
+        };
+
+        // Concentric Astrolabe Celestial Rings
+        drawBothCircle(478, 8, theme.metalBase, theme.runeSecondary);
+        drawBothCircle(458, 3, theme.metalBright, theme.runePrimary);
+        drawBothCircle(382, 6, theme.metalBase, theme.runePrimary);
+        drawBothCircle(362, 2.5, theme.metalBright, theme.runeSecondary);
+        drawBothCircle(255, 5, theme.metalBase, theme.runePrimary);
+        drawBothCircle(140, 4, theme.metalBright, theme.runeSecondary);
+
+        // 72 Astrological Degree Ticks around outer perimeter
+        for (let i = 0; i < 72; i++) {
+          const ang = (i / 72) * Math.PI * 2;
+          const isMajor = i % 3 === 0;
+          const r1 = isMajor ? 458 : 466;
+          const r2 = 478;
+          const x1 = cx + Math.cos(ang) * r1;
+          const y1 = cy + Math.sin(ang) * r1;
+          const x2 = cx + Math.cos(ang) * r2;
+          const y2 = cy + Math.sin(ang) * r2;
+
+          ctxA.strokeStyle = isMajor ? theme.metalBright : theme.metalBase;
+          ctxA.lineWidth = isMajor ? 3 : 1.5;
+          ctxA.beginPath();
+          ctxA.moveTo(x1, y1);
+          ctxA.lineTo(x2, y2);
+          ctxA.stroke();
+
+          ctxE.strokeStyle = isMajor ? theme.runePrimary : theme.runeSecondary;
+          ctxE.lineWidth = isMajor ? 3 : 1.5;
+          ctxE.beginPath();
+          ctxE.moveTo(x1, y1);
+          ctxE.lineTo(x2, y2);
+          ctxE.stroke();
+        }
+
+        // Sacred Geometry: Twin Overlapping Rotated Squares (Octagram Star)
+        for (let rot = 0; rot < 2; rot++) {
+          const offsetAng = rot * (Math.PI / 4);
+          const starR = 362;
+          ctxA.strokeStyle = theme.metalBase;
+          ctxE.strokeStyle = theme.runePrimary;
+          ctxA.lineWidth = 3.5;
+          ctxE.lineWidth = 3.5;
+
+          ctxA.beginPath();
+          ctxE.beginPath();
+          for (let v = 0; v <= 4; v++) {
+            const a = offsetAng + v * (Math.PI / 2);
+            const vx = cx + Math.cos(a) * starR;
+            const vy = cy + Math.sin(a) * starR;
+            if (v === 0) {
+              ctxA.moveTo(vx, vy);
+              ctxE.moveTo(vx, vy);
+            } else {
+              ctxA.lineTo(vx, vy);
+              ctxE.lineTo(vx, vy);
+            }
+          }
+          ctxA.stroke();
+          ctxE.stroke();
+        }
+
+        // 24 Procedural Arcane Bindrunes in the Outer Glyph Ring (R = 420)
+        const glyphCount = 24;
+        for (let g = 0; g < glyphCount; g++) {
+          const ang = (g / glyphCount) * Math.PI * 2;
+          const gx = cx + Math.cos(ang) * 420;
+          const gy = cy + Math.sin(ang) * 420;
+
+          ctxE.save();
+          ctxE.translate(gx, gy);
+          ctxE.rotate(ang + Math.PI / 2);
+          ctxE.strokeStyle = g % 2 === 0 ? theme.runePrimary : theme.runeSecondary;
+          ctxE.lineWidth = 3.2;
+          ctxE.lineCap = 'round';
+
+          // Draw distinct geometric arcane glyph strokes
+          ctxE.beginPath();
+          ctxE.moveTo(0, -16);
+          ctxE.lineTo(0, 16);
+          if (g % 4 === 0) {
+            ctxE.moveTo(0, -14);
+            ctxE.lineTo(11, -3);
+            ctxE.lineTo(0, 6);
+            ctxE.moveTo(0, 2);
+            ctxE.lineTo(-10, 13);
+          } else if (g % 4 === 1) {
+            ctxE.moveTo(-10, -10);
+            ctxE.lineTo(10, 10);
+            ctxE.moveTo(10, -10);
+            ctxE.lineTo(-10, 10);
+          } else if (g % 4 === 2) {
+            ctxE.moveTo(0, -15);
+            ctxE.lineTo(10, 0);
+            ctxE.lineTo(0, 15);
+            ctxE.lineTo(-10, 0);
+            ctxE.closePath();
+          } else {
+            ctxE.moveTo(-10, -12);
+            ctxE.lineTo(0, -2);
+            ctxE.lineTo(10, -12);
+            ctxE.moveTo(-8, 12);
+            ctxE.lineTo(8, 4);
+          }
+          ctxE.stroke();
+          ctxE.restore();
+        }
+
+        // Radial Energy Veins from Inner Core (R = 40 to 255)
+        for (let v = 0; v < 16; v++) {
+          const ang = (v / 16) * Math.PI * 2;
+          const x1 = cx + Math.cos(ang) * 48;
+          const y1 = cy + Math.sin(ang) * 48;
+          const x2 = cx + Math.cos(ang) * 255;
+          const y2 = cy + Math.sin(ang) * 255;
+
+          ctxE.strokeStyle = v % 2 === 0 ? theme.runePrimary : theme.runeSecondary;
+          ctxE.lineWidth = v % 2 === 0 ? 3 : 1.5;
+          ctxE.beginPath();
+          ctxE.moveTo(x1, y1);
+          ctxE.lineTo(x2, y2);
+          ctxE.stroke();
+        }
+
+        // Glowing Center Core Sunburst
+        const coreGrad = ctxE.createRadialGradient(cx, cy, 4, cx, cy, 74);
+        coreGrad.addColorStop(0, '#ffffff');
+        coreGrad.addColorStop(0.35, theme.runePrimary);
+        coreGrad.addColorStop(0.8, theme.runeSecondary);
+        coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctxE.fillStyle = coreGrad;
+        ctxE.beginPath();
+        ctxE.arc(cx, cy, 74, 0, Math.PI * 2);
+        ctxE.fill();
+      }
+
+      updateUIThumbnails() {
+        const attachPreview = (containerId, sourceCanvas) => {
+          const container = document.getElementById(containerId);
+          if (!container) return;
+          container.innerHTML = '';
+          const thumb = document.createElement('canvas');
+          thumb.width = 128;
+          thumb.height = 128;
+          thumb.className = 'w-full h-full object-cover';
+          thumb.getContext('2d').drawImage(sourceCanvas, 0, 0, 128, 128);
+          container.appendChild(thumb);
+        };
+
+        attachPreview('preview-stone', this.canvases.stoneAlbedo);
+        attachPreview('preview-metal', this.canvases.metalAlbedo);
+        attachPreview('preview-rune', this.canvases.runeEmissive);
+        attachPreview('preview-bump', this.canvases.metalBump);
+      }
+    }
+
+    // =========================================================================
+    // 4. SCENE, CAMERA, RENDERER & POST-PROCESSING SETUP
+    // =========================================================================
+    const container = document.getElementById('viewport-container');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07080c);
+    scene.fog = new THREE.FogExp2(0x07080c, 0.042);
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(5.4, 3.8, 6.2);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Studio IBL Environment via PMREMGenerator + RoomEnvironment for realistic metallic PBR reflections
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    const envRT = pmremGenerator.fromScene(roomEnv, 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.72;
+    roomEnv.dispose();
+
+    // OrbitControls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.055;
+    controls.target.set(0, 1.95, 0);
+    controls.minDistance = 2.6;
+    controls.maxDistance = 16.0;
+    controls.maxPolarAngle = Math.PI * 0.495;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.65;
+
+    // Dramatic Three-Point + Core Point Lighting (Outside export group)
+    const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.8);
+    keyLight.position.set(6.5, 10.5, 5.5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 1.0;
+    keyLight.shadow.camera.far = 26.0;
+    const d = 4.6;
+    keyLight.shadow.camera.left = -d;
+    keyLight.shadow.camera.right = d;
+    keyLight.shadow.camera.top = d;
+    keyLight.shadow.camera.bottom = -d;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x60a5fa, 1.45);
+    rimLight.position.set(-6.5, 5.5, -6.0);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.HemisphereLight(0x94a3b8, 0x0f111a, 0.55);
+    scene.add(fillLight);
+
+    // Central Arcane Core Point Light (Updates color & position dynamically)
+    const corePointLight = new THREE.PointLight(0x38f2ff, 4.5, 9.5, 1.6);
+    corePointLight.position.set(0, 2.65, 0);
+    scene.add(corePointLight);
+
+    // Showcase Floor & Atmospheric Grid (Strictly excluded from assetGroup export)
+    const showcaseEnvGroup = new THREE.Group();
+    showcaseEnvGroup.name = 'Showcase_Environment_NonExport';
+    scene.add(showcaseEnvGroup);
+
+    const floorGeo = new THREE.CircleGeometry(18, 64);
+    floorGeo.rotateX(-Math.PI / 2);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x090b10,
+      roughness: 0.82,
+      metalness: 0.18
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.receiveShadow = true;
+    showcaseEnvGroup.add(floorMesh);
+
+    const gridHelper = new THREE.GridHelper(16, 32, 0xd4af37, 0x1b2030);
+    gridHelper.position.y = 0.003;
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.24;
+    showcaseEnvGroup.add(gridHelper);
+
+    // Post-Processing Composer (Bloom for glowing runes & crystal + OutputPass for ACES tone mapping)
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.42, // subtle refined bloom strength
+      0.65, // bloom radius
+      0.82  // high luminance threshold so only runes & crystal glow
+    );
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // =========================================================================
+    // 5. PROCEDURAL PBR MATERIALS & 3D ASSET BUILDER
+    // =========================================================================
+    const texEngine = new ProceduralTextureEngine(1024);
+
+    // Application State
+    const state = {
+      themeKey: 'abyssal',
+      gearTeeth: 24,
+      shardCount: 8,
+      coreHeight: 2.65,
+      runeEmission: 2.10,
+      spinSpeed: 0.85,
+      isAnimating: true,
+      wireframe: false
+    };
+
+    // Shared PBR Materials (100% MeshStandardMaterial for clean GLTFExporter serialization)
+    const materials = {
+      stone: new THREE.MeshStandardMaterial({
+        name: 'M_Obsidian_Stone',
+        map: texEngine.textures.stoneAlbedo,
+        bumpMap: texEngine.textures.stoneBump,
+        bumpScale: 0.025,
+        roughnessMap: texEngine.textures.stoneRoughness,
+        roughness: 0.85,
+        metalness: 0.08
+      }),
+      metal: new THREE.MeshStandardMaterial({
+        name: 'M_Forged_Bronze_Gold',
+        map: texEngine.textures.metalAlbedo,
+        bumpMap: texEngine.textures.metalBump,
+        bumpScale: 0.022,
+        roughnessMap: texEngine.textures.metalRoughness,
+        metalnessMap: texEngine.textures.metalMetalness,
+        roughness: 0.28,
+        metalness: 0.90
+      }),
+      darkIron: new THREE.MeshStandardMaterial({
+        name: 'M_Tempered_Dark_Iron',
+        map: texEngine.textures.metalAlbedo,
+        bumpMap: texEngine.textures.metalBump,
+        bumpScale: 0.018,
+        color: 0x6b7280,
+        roughness: 0.42,
+        metalness: 0.86
+      }),
+      runePlate: new THREE.MeshStandardMaterial({
+        name: 'M_Arcane_Rune_Circle',
+        map: texEngine.textures.runeAlbedo,
+        emissiveMap: texEngine.textures.runeEmissive,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: state.runeEmission,
+        roughness: 0.35,
+        metalness: 0.65
+      }),
+      runeStrip: new THREE.MeshStandardMaterial({
+        name: 'M_Rune_Inlay_Glow',
+        color: 0x38f2ff,
+        emissive: new THREE.Color(0x38f2ff),
+        emissiveIntensity: state.runeEmission * 1.15,
+        roughness: 0.2,
+        metalness: 0.2
+      }),
+      crystal: new THREE.MeshStandardMaterial({
+        name: 'M_Relic_Arcane_Crystal',
+        color: 0x67e8f9,
+        emissive: new THREE.Color(0x06b6d4),
+        emissiveIntensity: state.runeEmission * 0.95,
+        roughness: 0.12,
+        metalness: 0.15,
+        flatShading: true
+      })
+    };
+
+    // Root Export Asset Group (Pivot strictly bottom-centered at 0,0,0)
+    const assetGroup = new THREE.Group();
+    assetGroup.name = 'Arcane_Astrolabe_Altar';
+    scene.add(assetGroup);
+
+    // Dynamic animated references
+    let animRefs = {
+      gimbalAssembly: null,
+      outerRing: null,
+      middleRing: null,
+      innerRing: null,
+      crystalCore: null,
+      innerEnergyOrb: null,
+      equatorRing: null,
+      shardsGroup: null,
+      shards: [],
+      obeliskCrystals: []
+    };
+
+    // Helper: Ensure valid UVs & normals on any BufferGeometry before export
+    function finalizeGeometry(geo) {
+      if (!geo.attributes.uv) {
+        const pos = geo.attributes.position;
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = pos.getX(i) * 0.5 + 0.5;
+          uvs[i * 2 + 1] = pos.getY(i) * 0.5 + 0.5;
+        }
+        geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    // Helper: Create rectangular-profile architectural 3D ring via LatheGeometry with clean UVs
+    function createArchitecturalRing(radius, radialDepth, height, radialSegments = 64) {
+      const halfD = radialDepth * 0.5;
+      const halfH = height * 0.5;
+      const bevel = Math.min(radialDepth, height) * 0.16;
+
+      // Closed beveled rectangular cross-section profile
+      const pts = [
+        new THREE.Vector2(radius - halfD + bevel, -halfH),
+        new THREE.Vector2(radius + halfD - bevel, -halfH),
+        new THREE.Vector2(radius + halfD, -halfH + bevel),
+        new THREE.Vector2(radius + halfD, halfH - bevel),
+        new THREE.Vector2(radius + halfD - bevel, halfH),
+        new THREE.Vector2(radius - halfD + bevel, halfH),
+        new THREE.Vector2(radius - halfD, halfH - bevel),
+        new THREE.Vector2(radius - halfD, -halfH + bevel),
+        new THREE.Vector2(radius - halfD + bevel, -halfH)
+      ];
+
+      const geo = new THREE.LatheGeometry(pts, radialSegments);
+      // Scale UVs along circumference for crisp metallic grain
+      const uv = geo.attributes.uv;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setX(i, uv.getX(i) * 6.0);
+      }
+      return finalizeGeometry(geo);
+    }
+
+    // Helper: Build a detailed gimbal ring with gear teeth, cardinal medallions & trunnion pins
+    function buildGimbalRing({
+      name,
+      radius,
+      radialDepth,
+      height,
+      teethCount,
+      ringMaterial,
+      accentMaterial,
+      pinAxis = 'x'
+    }) {
+      const group = new THREE.Group();
+      group.name = name;
+
+      // Primary structural band
+      const bandMesh = new THREE.Mesh(
+        createArchitecturalRing(radius, radialDepth, height, 72),
+        ringMaterial
+      );
+      bandMesh.name = `${name}_Band`;
+      bandMesh.castShadow = true;
+      bandMesh.receiveShadow = true;
+      group.add(bandMesh);
+
+      // Subtle inner glowing arcane channel
+      const glowTrack = new THREE.Mesh(
+        createArchitecturalRing(radius - radialDepth * 0.48, 0.014, height * 0.32, 64),
+        materials.runeStrip
+      );
+      glowTrack.name = `${name}_RuneTrack`;
+      group.add(glowTrack);
+
+      // Procedural 3D Gear Teeth / Fins around outer perimeter
+      const toothGeo = finalizeGeometry(
+        new THREE.BoxGeometry(radialDepth * 0.72, height * 0.58, (Math.PI * 2 * radius) / (teethCount * 2.4))
+      );
+      for (let i = 0; i < teethCount; i++) {
+        const theta = (i / teethCount) * Math.PI * 2;
+        const tooth = new THREE.Mesh(toothGeo, accentMaterial);
+        tooth.name = `${name}_GearTooth_${i}`;
+        tooth.position.set(
+          Math.cos(theta) * (radius + radialDepth * 0.65),
+          0,
+          Math.sin(theta) * (radius + radialDepth * 0.65)
+        );
+        tooth.rotation.y = -theta;
+        tooth.castShadow = true;
+        group.add(tooth);
+      }
+
+      // 4 Cardinal Rune Medallions & Mounting Trunnion Pins
+      const medGeo = finalizeGeometry(new THREE.CylinderGeometry(height * 0.72, height * 0.72, radialDepth * 1.35, 8));
+      medGeo.rotateZ(Math.PI / 2);
+
+      const pinGeo = finalizeGeometry(new THREE.CylinderGeometry(height * 0.28, height * 0.28, radialDepth * 2.1, 12));
+      pinGeo.rotateZ(Math.PI / 2);
+
+      for (let c = 0; c < 4; c++) {
+        const ang = (c * Math.PI) / 2;
+        const med = new THREE.Mesh(medGeo, accentMaterial);
+        med.position.set(Math.cos(ang) * radius, 0, Math.sin(ang) * radius);
+        med.rotation.y = -ang;
+        med.castShadow = true;
+        group.add(med);
+
+        const isAxisAligned =
+          (pinAxis === 'x' && (c === 0 || c === 2)) ||
+          (pinAxis === 'z' && (c === 1 || c === 3));
+
+        if (isAxisAligned) {
+          const pin = new THREE.Mesh(pinGeo, materials.darkIron);
+          pin.position.set(Math.cos(ang) * (radius + radialDepth * 0.75), 0, Math.sin(ang) * (radius + radialDepth * 0.75));
+          pin.rotation.y = -ang;
+          group.add(pin);
+        }
+      }
+
+      return group;
+    }
+
+    // Helper: Build custom faceted elongated Relic Crystal Core polyhedron
+    function createFacetedCrystalGeometry(radius = 0.28, halfHeight = 0.62, girdleHeight = 0.14) {
+      // Lathe profile with 8 radial segments + flatShading gives razor-sharp octagonal crystal facets
+      const pts = [
+        new THREE.Vector2(0.001, -halfHeight),
+        new THREE.Vector2(radius * 0.84, -girdleHeight),
+        new THREE.Vector2(radius, 0),
+        new THREE.Vector2(radius * 0.84, girdleHeight),
+        new THREE.Vector2(0.001, halfHeight)
+      ];
+      const geo = new THREE.LatheGeometry(pts, 8);
+      return finalizeGeometry(geo);
+    }
+
+    // =========================================================================
+    // 6. FULL PROCEDURAL ALTAR RECONSTRUCTION FUNCTION
+    // =========================================================================
+    function rebuildAltarAsset() {
+      // Dispose old geometries before rebuilding
+      assetGroup.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          child.geometry.dispose();
+        }
+      });
+      assetGroup.clear();
+
+      animRefs = {
+        gimbalAssembly: null,
+        outerRing: null,
+        middleRing: null,
+        innerRing: null,
+        crystalCore: null,
+        innerEnergyOrb: null,
+        equatorRing: null,
+        shardsGroup: null,
+        shards: [],
+        obeliskCrystals: []
+      };
+
+      // -----------------------------------------------------------------------
+      // A) PEDESTAL_BASE_FOUNDATION (3 Stepped Octagonal Stone Tiers + Rune Disc)
+      // -----------------------------------------------------------------------
+      const pedestalGroup = new THREE.Group();
+      pedestalGroup.name = 'Pedestal_Base_Foundation';
+      assetGroup.add(pedestalGroup);
+
+      const tierConfigs = [
+        { rBot: 2.86, rTop: 2.74, h: 0.26, y: 0.00 },
+        { rBot: 2.38, rTop: 2.28, h: 0.26, y: 0.26 },
+        { rBot: 1.92, rTop: 1.84, h: 0.28, y: 0.52 }
+      ];
+
+      tierConfigs.forEach((t, idx) => {
+        // Main octagonal stone body
+        const stoneGeo = finalizeGeometry(new THREE.CylinderGeometry(t.rTop, t.rBot, t.h, 8));
+        stoneGeo.rotateY(Math.PI / 8);
+        const stoneMesh = new THREE.Mesh(stoneGeo, materials.stone);
+        stoneMesh.name = `Pedestal_Stone_Tier_${idx + 1}`;
+        stoneMesh.position.y = t.y + t.h * 0.5;
+        stoneMesh.castShadow = true;
+        stoneMesh.receiveShadow = true;
+        pedestalGroup.add(stoneMesh);
+
+        // Forged bronze/gold upper chamfer collar
+        const trimGeo = finalizeGeometry(new THREE.CylinderGeometry(t.rTop + 0.03, t.rTop + 0.05, 0.045, 8));
+        trimGeo.rotateY(Math.PI / 8);
+        const trimMesh = new THREE.Mesh(trimGeo, materials.metal);
+        trimMesh.name = `Pedestal_Bronze_Trim_${idx + 1}`;
+        trimMesh.position.y = t.y + t.h - 0.015;
+        trimMesh.castShadow = true;
+        trimMesh.receiveShadow = true;
+        pedestalGroup.add(trimMesh);
+      });
+
+      // Top Glowing Arcane Rune Circle Disc (y = 0.805)
+      const runeDiscGeo = finalizeGeometry(new THREE.CircleGeometry(1.66, 64));
+      runeDiscGeo.rotateX(-Math.PI / 2);
+      const runeDiscMesh = new THREE.Mesh(runeDiscGeo, materials.runePlate);
+      runeDiscMesh.name = 'Floor_Rune_Plate';
+      runeDiscMesh.position.y = 0.804;
+      runeDiscMesh.receiveShadow = true;
+      assetGroup.add(runeDiscMesh);
+
+      // Ornate Octagonal Bezel Frame encircling the Floor Rune Plate
+      const bezelGeo = createArchitecturalRing(1.70, 0.12, 0.06, 64);
+      const bezelMesh = new THREE.Mesh(bezelGeo, materials.metal);
+      bezelMesh.name = 'Floor_Rune_Bezel';
+      bezelMesh.position.y = 0.81;
+      bezelMesh.castShadow = true;
+      pedestalGroup.add(bezelMesh);
+
+      // -----------------------------------------------------------------------
+      // B) GOTHIC_BUTTRESSES (8 Radial Stone-and-Iron Flying Arch Buttresses)
+      // -----------------------------------------------------------------------
+      const buttressesGroup = new THREE.Group();
+      buttressesGroup.name = 'Gothic_Buttresses';
+      assetGroup.add(buttressesGroup);
+
+      // Extruded flying-arch rib profile
+      const ribShape = new THREE.Shape();
+      ribShape.moveTo(0, 0);
+      ribShape.lineTo(0.46, 0);
+      ribShape.lineTo(0.42, 0.56);
+      ribShape.quadraticCurveTo(0.24, 1.05, -0.18, 1.24);
+      ribShape.lineTo(-0.24, 1.10);
+      ribShape.quadraticCurveTo(0.06, 0.90, 0.14, 0.45);
+      ribShape.lineTo(0, 0);
+
+      const ribGeo = finalizeGeometry(
+        new THREE.ExtrudeGeometry(ribShape, {
+          depth: 0.18,
+          bevelEnabled: true,
+          bevelThickness: 0.02,
+          bevelSize: 0.02,
+          bevelSegments: 2
+        })
+      );
+      ribGeo.translate(0, 0, -0.09);
+
+      const clampGeo = finalizeGeometry(new THREE.BoxGeometry(0.52, 0.09, 0.25));
+      const spireGeo = finalizeGeometry(new THREE.ConeGeometry(0.13, 0.34, 4));
+      spireGeo.rotateY(Math.PI / 4);
+
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * Math.PI) / 4 + Math.PI / 8;
+        const bNode = new THREE.Group();
+        bNode.name = `Gothic_Buttress_${i + 1}`;
+        bNode.rotation.y = angle;
+
+        // Stone rib body positioned on the outer step
+        const ribMesh = new THREE.Mesh(ribGeo, materials.stone);
+        ribMesh.position.set(2.14, 0.0, 0);
+        ribMesh.castShadow = true;
+        ribMesh.receiveShadow = true;
+        bNode.add(ribMesh);
+
+        // Riveted iron clamp bands
+        const clampLow = new THREE.Mesh(clampGeo, materials.darkIron);
+        clampLow.position.set(2.36, 0.28, 0);
+        clampLow.castShadow = true;
+        bNode.add(clampLow);
+
+        const clampMid = new THREE.Mesh(clampGeo, materials.metal);
+        clampMid.scale.set(0.84, 0.9, 0.96);
+        clampMid.position.set(2.26, 0.64, 0);
+        clampMid.rotation.z = 0.24;
+        clampMid.castShadow = true;
+        bNode.add(clampMid);
+
+        // Gothic finial spire atop the outer buttress shoulder
+        const spire = new THREE.Mesh(spireGeo, materials.metal);
+        spire.position.set(2.40, 0.88, 0);
+        spire.castShadow = true;
+        bNode.add(spire);
+
+        buttressesGroup.add(bNode);
+      }
+
+      // -----------------------------------------------------------------------
+      // C) CORNER_OBELISKS (4 Directional Rune Pillars at NE, NW, SE, SW)
+      // -----------------------------------------------------------------------
+      const obelisksGroup = new THREE.Group();
+      obelisksGroup.name = 'Corner_Obelisks';
+      assetGroup.add(obelisksGroup);
+
+      const obeliskDirs = ['NE', 'NW', 'SW', 'SE'];
+      const obeliskDist = 2.34;
+
+      const obBaseGeo = finalizeGeometry(new THREE.CylinderGeometry(0.32, 0.40, 0.56, 8));
+      obBaseGeo.rotateY(Math.PI / 8);
+
+      const obShaftGeo = finalizeGeometry(new THREE.CylinderGeometry(0.18, 0.27, 1.72, 8));
+      obShaftGeo.rotateY(Math.PI / 8);
+
+      const obCollarGeo = finalizeGeometry(new THREE.CylinderGeometry(0.24, 0.22, 0.16, 8));
+      obCollarGeo.rotateY(Math.PI / 8);
+
+      const obCapGeo = finalizeGeometry(new THREE.ConeGeometry(0.21, 0.44, 8));
+      obCapGeo.rotateY(Math.PI / 8);
+
+      const runeStripGeo = finalizeGeometry(new THREE.BoxGeometry(0.045, 1.38, 0.03));
+      const miniCrystalGeo = createFacetedCrystalGeometry(0.085, 0.22, 0.05);
+
+      for (let i = 0; i < 4; i++) {
+        const angle = Math.PI / 4 + (i * Math.PI) / 2;
+        const obGroup = new THREE.Group();
+        obGroup.name = `Corner_Obelisk_${obeliskDirs[i]}`;
+        obGroup.position.set(Math.cos(angle) * obeliskDist, 0, Math.sin(angle) * obeliskDist);
+        obGroup.rotation.y = -angle;
+
+        // Plinth base
+        const baseMesh = new THREE.Mesh(obBaseGeo, materials.stone);
+        baseMesh.position.y = 0.28;
+        baseMesh.castShadow = true;
+        baseMesh.receiveShadow = true;
+        obGroup.add(baseMesh);
+
+        // Tapered octagonal obsidian shaft
+        const shaftMesh = new THREE.Mesh(obShaftGeo, materials.stone);
+        shaftMesh.position.y = 1.42;
+        shaftMesh.castShadow = true;
+        shaftMesh.receiveShadow = true;
+        obGroup.add(shaftMesh);
+
+        // 4 Embedded glowing arcane rune strips on cardinal faces
+        for (let f = 0; f < 4; f++) {
+          const fAng = (f * Math.PI) / 2;
+          const strip = new THREE.Mesh(runeStripGeo, materials.runeStrip);
+          strip.position.set(Math.cos(fAng) * 0.21, 1.42, Math.sin(fAng) * 0.21);
+          strip.rotation.y = -fAng + Math.PI / 2;
+          strip.rotation.x = f === 0 ? 0.052 : f === 2 ? -0.052 : 0;
+          strip.rotation.z = f === 1 ? -0.052 : f === 3 ? 0.052 : 0;
+          obGroup.add(strip);
+        }
+
+        // Forged bronze capital collar
+        const collarMesh = new THREE.Mesh(obCollarGeo, materials.metal);
+        collarMesh.position.y = 2.34;
+        collarMesh.castShadow = true;
+        obGroup.add(collarMesh);
+
+        // Pyramidal capstone
+        const capMesh = new THREE.Mesh(obCapGeo, materials.metal);
+        capMesh.position.y = 2.64;
+        capMesh.castShadow = true;
+        obGroup.add(capMesh);
+
+        // Floating spire mini-crystal
+        const miniCrystal = new THREE.Mesh(miniCrystalGeo, materials.crystal);
+        miniCrystal.name = `Obelisk_Spire_Crystal_${obeliskDirs[i]}`;
+        miniCrystal.position.y = 3.12;
+        miniCrystal.userData.baseY = 3.12;
+        miniCrystal.userData.phase = i * 1.57;
+        obGroup.add(miniCrystal);
+        animRefs.obeliskCrystals.push(miniCrystal);
+
+        obelisksGroup.add(obGroup);
+      }
+
+      // -----------------------------------------------------------------------
+      // D) ASTROLABE_GIMBAL_ASSEMBLY (Centered at y = state.coreHeight)
+      // -----------------------------------------------------------------------
+      const gimbalAssembly = new THREE.Group();
+      gimbalAssembly.name = 'Astrolabe_Gimbal_Assembly';
+      assetGroup.add(gimbalAssembly);
+      animRefs.gimbalAssembly = gimbalAssembly;
+
+      // Twin Curved Cradle Arms anchoring the outer gimbal to the altar dais
+      const cradleGroup = new THREE.Group();
+      cradleGroup.name = 'Gimbal_Support_Cradle';
+      gimbalAssembly.add(cradleGroup);
+
+      const archHalfGeo = finalizeGeometry(
+        new THREE.TorusGeometry(1.52, 0.055, 10, 48, Math.PI)
+      );
+      archHalfGeo.rotateZ(Math.PI);
+      const cradleArch = new THREE.Mesh(archHalfGeo, materials.metal);
+      cradleArch.position.y = state.coreHeight;
+      cradleArch.castShadow = true;
+      cradleGroup.add(cradleArch);
+
+      // Vertical support stanchions from y=0.80 up to cradle arch base
+      const stanchionH = Math.max(0.15, state.coreHeight - 0.80);
+      const stanchionGeo = finalizeGeometry(new THREE.CylinderGeometry(0.065, 0.095, stanchionH, 8));
+      for (const side of [-1, 1]) {
+        const stanchion = new THREE.Mesh(stanchionGeo, materials.darkIron);
+        stanchion.position.set(side * 1.52, 0.80 + stanchionH * 0.5, 0);
+        stanchion.castShadow = true;
+        cradleGroup.add(stanchion);
+      }
+
+      // Pivot Center Group at (0, state.coreHeight, 0)
+      const gimbalCenter = new THREE.Group();
+      gimbalCenter.name = 'Gimbal_Rings_Pivot';
+      gimbalCenter.position.y = state.coreHeight;
+      gimbalAssembly.add(gimbalCenter);
+
+      // 1. Outer Ring (Radius 1.36)
+      const outerRing = buildGimbalRing({
+        name: 'Gimbal_Outer_Ring',
+        radius: 1.36,
+        radialDepth: 0.095,
+        height: 0.13,
+        teethCount: state.gearTeeth,
+        ringMaterial: materials.metal,
+        accentMaterial: materials.darkIron,
+        pinAxis: 'x'
+      });
+      gimbalCenter.add(outerRing);
+      animRefs.outerRing = outerRing;
+
+      // 2. Middle Ring (Radius 1.10)
+      const middleRing = buildGimbalRing({
+        name: 'Gimbal_Middle_Ring',
+        radius: 1.10,
+        radialDepth: 0.08,
+        height: 0.105,
+        teethCount: Math.max(8, Math.floor(state.gearTeeth * 0.75)),
+        ringMaterial: materials.darkIron,
+        accentMaterial: materials.metal,
+        pinAxis: 'z'
+      });
+      gimbalCenter.add(middleRing);
+      animRefs.middleRing = middleRing;
+
+      // 3. Inner Ring (Radius 0.84)
+      const innerRing = buildGimbalRing({
+        name: 'Gimbal_Inner_Ring',
+        radius: 0.84,
+        radialDepth: 0.065,
+        height: 0.085,
+        teethCount: Math.max(8, Math.floor(state.gearTeeth * 0.5)),
+        ringMaterial: materials.metal,
+        accentMaterial: materials.metal,
+        pinAxis: 'x'
+      });
+      gimbalCenter.add(innerRing);
+      animRefs.innerRing = innerRing;
+
+      // -----------------------------------------------------------------------
+      // E) RELIC_CRYSTAL_CORE & CONTAINMENT_SHARDS
+      // -----------------------------------------------------------------------
+      const crystalCore = new THREE.Group();
+      crystalCore.name = 'Relic_Crystal_Core';
+      crystalCore.position.y = state.coreHeight;
+      assetGroup.add(crystalCore);
+      animRefs.crystalCore = crystalCore;
+
+      // Faceted elongated crystal polyhedron
+      const mainCrystalMesh = new THREE.Mesh(
+        createFacetedCrystalGeometry(0.26, 0.58, 0.13),
+        materials.crystal
+      );
+      mainCrystalMesh.name = 'Relic_Crystal_Polyhedron';
+      mainCrystalMesh.castShadow = true;
+      crystalCore.add(mainCrystalMesh);
+
+      // High-intensity inner arcane core octahedron
+      const innerOrbMesh = new THREE.Mesh(
+        finalizeGeometry(new THREE.OctahedronGeometry(0.14, 0)),
+        materials.runeStrip
+      );
+      innerOrbMesh.name = 'Relic_Inner_Energy_Core';
+      crystalCore.add(innerOrbMesh);
+      animRefs.innerEnergyOrb = innerOrbMesh;
+
+      // Equatorial arcane energy halo ring
+      const eqRingMesh = new THREE.Mesh(
+        createArchitecturalRing(0.42, 0.018, 0.018, 48),
+        materials.runeStrip
+      );
+      eqRingMesh.name = 'Relic_Equatorial_Halo';
+      eqRingMesh.rotation.x = 0.28;
+      crystalCore.add(eqRingMesh);
+      animRefs.equatorRing = eqRingMesh;
+
+      // Floating Containment Shards Crown (4 to 12 shards)
+      const shardsGroup = new THREE.Group();
+      shardsGroup.name = 'Containment_Shards';
+      shardsGroup.position.y = state.coreHeight;
+      assetGroup.add(shardsGroup);
+      animRefs.shardsGroup = shardsGroup;
+
+      const shardCrystalGeo = createFacetedCrystalGeometry(0.052, 0.17, 0.04);
+      const shardCapGeo = finalizeGeometry(new THREE.ConeGeometry(0.058, 0.075, 6));
+
+      for (let s = 0; s < state.shardCount; s++) {
+        const angle = (s / state.shardCount) * Math.PI * 2;
+        const orbitR = 0.56 + (s % 2) * 0.07;
+        const verticalOffset = ((s % 3) - 1) * 0.14;
+
+        const shardNode = new THREE.Group();
+        shardNode.name = `Containment_Shard_${s + 1}`;
+        shardNode.position.set(
+          Math.cos(angle) * orbitR,
+          verticalOffset,
+          Math.sin(angle) * orbitR
+        );
+        // Tilt slightly inward toward the central crystal
+        shardNode.lookAt(0, verticalOffset * 0.4, 0);
+        shardNode.rotateX(0.22);
+
+        const sBody = new THREE.Mesh(shardCrystalGeo, materials.crystal);
+        shardNode.add(sBody);
+
+        const topCap = new THREE.Mesh(shardCapGeo, materials.metal);
+        topCap.position.y = 0.16;
+        shardNode.add(topCap);
+
+        const botCap = new THREE.Mesh(shardCapGeo, materials.metal);
+        botCap.rotation.x = Math.PI;
+        botCap.position.y = -0.16;
+        shardNode.add(botCap);
+
+        shardNode.userData = {
+          baseAngle: angle,
+          orbitR,
+          baseY: verticalOffset,
+          phase: s * 0.85
+        };
+
+        shardsGroup.add(shardNode);
+        animRefs.shards.push(shardNode);
+      }
+
+      // Sync point light height, wireframe state, and live telemetry
+      corePointLight.position.y = state.coreHeight;
+      applyWireframeState();
+      updateMeshTelemetry();
+    }
+
+    // =========================================================================
+    // 7. THEME APPLICATION, WIREFRAME & TELEMETRY UPDATERS
+    // =========================================================================
+    function applyTheme(themeKey) {
+      state.themeKey = themeKey;
+      const theme = THEMES[themeKey];
+
+      // Regenerate 1024x1024 procedural PBR canvases
+      texEngine.generateAll(theme);
+
+      // Update PBR material properties
+      materials.metal.metalness = theme.metalness;
+      materials.metal.roughness = theme.metalRoughness;
+
+      materials.runeStrip.color.set(theme.runePrimary);
+      materials.runeStrip.emissive.set(theme.runePrimary);
+
+      materials.crystal.color.set(theme.crystalColor);
+      materials.crystal.emissive.set(theme.crystalEmissive);
+
+      corePointLight.color.setHex(theme.lightColor);
+      applyEmissionIntensity();
+
+      // Update active theme card UI
+      document.querySelectorAll('.theme-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.theme === themeKey);
+      });
+    }
+
+    function applyEmissionIntensity() {
+      const e = state.runeEmission;
+      materials.runePlate.emissiveIntensity = e;
+      materials.runeStrip.emissiveIntensity = e * 1.15;
+      materials.crystal.emissiveIntensity = e * 0.95;
+      corePointLight.intensity = 2.2 + e * 1.25;
+    }
+
+    function applyWireframeState() {
+      assetGroup.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.wireframe = state.wireframe;
+        }
+      });
+    }
+
+    function updateMeshTelemetry() {
+      let totalTris = 0;
+      let totalVerts = 0;
+      let subMeshes = 0;
+
+      assetGroup.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+          subMeshes++;
+          const geo = child.geometry;
+          const pos = geo.attributes.position;
+          if (pos) totalVerts += pos.count;
+          if (geo.index) {
+            totalTris += geo.index.count / 3;
+          } else if (pos) {
+            totalTris += pos.count / 3;
+          }
+        }
+      });
+
+      document.getElementById('stat-tris').textContent = Math.round(totalTris).toLocaleString();
+      document.getElementById('stat-verts').textContent = totalVerts.toLocaleString();
+      document.getElementById('stat-meshes').textContent = subMeshes.toString();
+      document.getElementById('tree-shard-count').textContent = state.shardCount.toString();
+    }
+
+    // Reset all animated parts to exact 0-degree Unity/Blender Bind Pose
+    function resetToBindPose() {
+      state.isAnimating = false;
+      updateAnimButtonUI();
+
+      if (animRefs.outerRing) animRefs.outerRing.rotation.set(0, 0, 0);
+      if (animRefs.middleRing) animRefs.middleRing.rotation.set(0, 0, 0);
+      if (animRefs.innerRing) animRefs.innerRing.rotation.set(0, 0, 0);
+
+      if (animRefs.crystalCore) {
+        animRefs.crystalCore.position.y = state.coreHeight;
+        animRefs.crystalCore.rotation.set(0, 0, 0);
+      }
+      if (animRefs.innerEnergyOrb) animRefs.innerEnergyOrb.rotation.set(0, 0, 0);
+      if (animRefs.equatorRing) animRefs.equatorRing.rotation.set(0.28, 0, 0);
+
+      if (animRefs.shardsGroup) {
+        animRefs.shardsGroup.position.y = state.coreHeight;
+        animRefs.shardsGroup.rotation.set(0, 0, 0);
+      }
+
+      animRefs.shards.forEach((shard) => {
+        const { baseAngle, orbitR, baseY } = shard.userData;
+        shard.position.set(Math.cos(baseAngle) * orbitR, baseY, Math.sin(baseAngle) * orbitR);
+        shard.lookAt(0, baseY * 0.4, 0);
+        shard.rotateX(0.22);
+      });
+
+      animRefs.obeliskCrystals.forEach((c) => {
+        c.position.y = c.userData.baseY;
+        c.rotation.set(0, 0, 0);
+      });
+
+      assetGroup.updateMatrixWorld(true);
+      showToast('Bind Pose Applied (0°, 0°, 0°)', 'Hierarchy aligned at Origin (0,0,0) for clean GLB/OBJ export.');
+    }
+
+    // =========================================================================
+    // 8. ONE-CLICK EXPORT PIPELINE (.GLB, .OBJ, .PNG PBR MAPS)
+    // =========================================================================
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    // Export 1: Binary .GLB (Strictly ONLY assetGroup, excluding lights/grid/floor)
+    function exportGLB() {
+      showToast('Compiling Binary .GLB...', 'Serializing meshes & embedded 1024² PBR textures...');
+      assetGroup.updateMatrixWorld(true);
+
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        assetGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'model/gltf-binary' });
+          triggerDownload(blob, 'Arcane_Astrolabe_Altar.glb');
+          const kb = (blob.size / 1024).toFixed(1);
+          showToast('Exported Arcane_Astrolabe_Altar.glb', `Binary GLTF 2.0 ready (${kb} KB) · Pivot (0,0,0)`);
+        },
+        (error) => {
+          console.error('GLB Export Error:', error);
+          showToast('GLB Export Failed', error.message || 'Unknown serialization error', 'error');
+        },
+        {
+          binary: true,
+          onlyVisible: true,
+          includeCustomExtensions: false
+        }
+      );
+    }
+
+    // Export 2: Wavefront .OBJ (Strictly ONLY assetGroup)
+    function exportOBJ() {
+      assetGroup.updateMatrixWorld(true);
+      const exporter = new OBJExporter();
+      const objData = exporter.parse(assetGroup);
+      const blob = new Blob([objData], { type: 'text/plain;charset=utf-8' });
+      triggerDownload(blob, 'Arcane_Astrolabe_Altar.obj');
+      const kb = (blob.size / 1024).toFixed(1);
+      showToast('Exported Arcane_Astrolabe_Altar.obj', `Wavefront OBJ mesh exported (${kb} KB)`);
+    }
+
+    // Export 3: Standalone 1024x1024 Procedural PBR Textures (.PNG)
+    function exportPBRTextures() {
+      const files = [
+        { canvas: texEngine.canvases.stoneAlbedo, name: 'Altar_Stone_Albedo.png' },
+        { canvas: texEngine.canvases.metalAlbedo, name: 'Altar_Metal_Albedo.png' },
+        { canvas: texEngine.canvases.runeEmissive, name: 'Altar_Rune_Emissive.png' },
+        { canvas: texEngine.canvases.stoneBump, name: 'Altar_Bump_Map.png' }
+      ];
+
+      files.forEach((item, index) => {
+        setTimeout(() => {
+          item.canvas.toBlob((blob) => {
+            if (blob) triggerDownload(blob, item.name);
+          }, 'image/png');
+        }, index * 180);
+      });
+
+      showToast('Exporting 4 PBR Texture Maps (.PNG)', '1024×1024 Albedo, Emissive & Bump maps downloading...');
+    }
+
+    // =========================================================================
+    // 9. UI EVENT LISTENERS & BINDINGS
+    // =========================================================================
+    function updateAnimButtonUI() {
+      const btn = document.getElementById('btn-toggle-anim');
+      const indicator = document.getElementById('anim-indicator');
+      const label = document.getElementById('anim-label');
+
+      btn.classList.toggle('active', state.isAnimating);
+      if (state.isAnimating) {
+        indicator.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        label.textContent = 'Live Motion';
+      } else {
+        indicator.className = 'w-2 h-2 rounded-full bg-amber-400';
+        label.textContent = 'Pose Frozen';
+      }
+    }
+
+    // Theme selector buttons
+    document.getElementById('theme-selector').addEventListener('click', (e) => {
+      const btn = e.target.closest('.theme-btn');
+      if (!btn) return;
+      applyTheme(btn.dataset.theme);
+      showToast(`Theme Switched: ${THEMES[btn.dataset.theme].name}`, 'Procedural 1024² PBR textures regenerated.');
+    });
+
+    // Parametric Sliders
+    const sliderTeeth = document.getElementById('slider-teeth');
+    sliderTeeth.addEventListener('input', (e) => {
+      state.gearTeeth = parseInt(e.target.value, 10);
+      document.getElementById('val-teeth').textContent = state.gearTeeth;
+      rebuildAltarAsset();
+    });
+
+    const sliderShards = document.getElementById('slider-shards');
+    sliderShards.addEventListener('input', (e) => {
+      state.shardCount = parseInt(e.target.value, 10);
+      document.getElementById('val-shards').textContent = state.shardCount;
+      rebuildAltarAsset();
+    });
+
+    const sliderHeight = document.getElementById('slider-height');
+    sliderHeight.addEventListener('input', (e) => {
+      state.coreHeight = parseFloat(e.target.value);
+      document.getElementById('val-height').textContent = `${state.coreHeight.toFixed(2)} m`;
+      rebuildAltarAsset();
+    });
+
+    const sliderEmission = document.getElementById('slider-emission');
+    sliderEmission.addEventListener('input', (e) => {
+      state.runeEmission = parseFloat(e.target.value);
+      document.getElementById('val-emission').textContent = state.runeEmission.toFixed(2);
+      applyEmissionIntensity();
+    });
+
+    const sliderSpeed = document.getElementById('slider-speed');
+    sliderSpeed.addEventListener('input', (e) => {
+      state.spinSpeed = parseFloat(e.target.value);
+      document.getElementById('val-speed').textContent = `${state.spinSpeed.toFixed(2)}x`;
+    });
+
+    // Action Toggles
+    document.getElementById('btn-toggle-anim').addEventListener('click', () => {
+      state.isAnimating = !state.isAnimating;
+      updateAnimButtonUI();
+    });
+
+    document.getElementById('btn-bind-pose').addEventListener('click', resetToBindPose);
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      state.wireframe = !state.wireframe;
+      e.currentTarget.classList.toggle('active', state.wireframe);
+      applyWireframeState();
+    });
+
+    document.getElementById('btn-auto-orbit').addEventListener('click', (e) => {
+      controls.autoRotate = !controls.autoRotate;
+      e.currentTarget.classList.toggle('active', controls.autoRotate);
+    });
+
+    // Export Buttons
+    document.getElementById('btn-export-glb').addEventListener('click', exportGLB);
+    document.getElementById('btn-export-obj').addEventListener('click', exportOBJ);
+    document.getElementById('btn-export-png').addEventListener('click', exportPBRTextures);
+
+    // Collapsible Sidebars
+    document.getElementById('toggle-left-btn').addEventListener('click', () => {
+      document.getElementById('left-sidebar').classList.toggle('panel-collapsed-left');
+    });
+    document.getElementById('toggle-right-btn').addEventListener('click', () => {
+      document.getElementById('right-sidebar').classList.toggle('panel-collapsed-right');
+    });
+
+    // Double-click canvas to reset camera framing
+    renderer.domElement.addEventListener('dblclick', () => {
+      camera.position.set(5.4, 3.8, 6.2);
+      controls.target.set(0, 1.95, 0);
+      controls.update();
+    });
+
+    // Responsive Resize Handler
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloomPass.resolution.set(w, h);
+    });
+
+    // =========================================================================
+    // 10. INITIALIZATION & ANIMATION LOOP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let simTime = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (state.isAnimating) {
+        simTime += dt * state.spinSpeed;
+
+        // Multi-axis concentric astrolabe gimbal precession
+        if (animRefs.outerRing) {
+          animRefs.outerRing.rotation.x = Math.sin(simTime * 0.65) * 0.42;
+          animRefs.outerRing.rotation.y = simTime * 0.28;
+        }
+        if (animRefs.middleRing) {
+          animRefs.middleRing.rotation.z = simTime * 0.55;
+          animRefs.middleRing.rotation.x = Math.cos(simTime * 0.45) * 0.35;
+        }
+        if (animRefs.innerRing) {
+          animRefs.innerRing.rotation.y = -simTime * 0.85;
+          animRefs.innerRing.rotation.z = Math.sin(simTime * 0.8) * 0.48;
+        }
+
+        // Central Relic Crystal harmonic levitation & spin
+        if (animRefs.crystalCore) {
+          const hoverY = state.coreHeight + Math.sin(simTime * 2.1) * 0.065;
+          animRefs.crystalCore.position.y = hoverY;
+          animRefs.crystalCore.rotation.y = simTime * 0.75;
+          corePointLight.position.y = hoverY;
+        }
+        if (animRefs.innerEnergyOrb) {
+          animRefs.innerEnergyOrb.rotation.x = -simTime * 1.4;
+          animRefs.innerEnergyOrb.rotation.z = simTime * 1.1;
+        }
+        if (animRefs.equatorRing) {
+          animRefs.equatorRing.rotation.z = simTime * 1.2;
+        }
+
+        // Helical Containment Shards orbit
+        if (animRefs.shardsGroup) {
+          animRefs.shardsGroup.position.y = state.coreHeight;
+          animRefs.shardsGroup.rotation.y = -simTime * 0.65;
+        }
+        animRefs.shards.forEach((shard) => {
+          const { baseY, phase } = shard.userData;
+          shard.position.y = baseY + Math.sin(simTime * 2.6 + phase) * 0.055;
+        });
+
+        // Corner Obelisk floating spire crystals
+        animRefs.obeliskCrystals.forEach((crystal) => {
+          const { baseY, phase } = crystal.userData;
+          crystal.position.y = baseY + Math.sin(simTime * 2.0 + phase) * 0.06;
+          crystal.rotation.y = simTime * 1.1 + phase;
+        });
+      }
+
+      controls.update();
+      composer.render();
+    }
+
+    // Boot application on window load
+    window.addEventListener('load', () => {
+      // Collapse panels automatically on narrow mobile screens so 3D viewport is clear
+      if (window.innerWidth < 860) {
+        document.getElementById('left-sidebar').classList.add('panel-collapsed-left');
+        document.getElementById('right-sidebar').classList.add('panel-collapsed-right');
+      }
+
+      applyTheme('abyssal');
+      rebuildAltarAsset();
+      animate();
+    });
+  </script>
+</body>
+</html>

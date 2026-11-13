@@ -1,0 +1,2710 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AETHER-9 // VECTORED PLASMA-TURBOFAN ENGINE FORGE</title>
+
+  <!-- Tailwind CSS for responsive 2K (2560x1440) and 1080p aerospace HUD layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Aerospace Typography: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Three.js v0.169.0 ES Module Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.169.0",
+        "three/addons/": "https://esm.sh/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-void: #080c12;
+      --hud-glass: rgba(10, 15, 24, 0.86);
+      --hud-card: rgba(7, 11, 18, 0.78);
+      --cyan-core: #00e5ff;
+      --cyan-dim: rgba(0, 229, 255, 0.28);
+      --orange-core: #ff6b2b;
+      --text-main: #edf2f9;
+      --text-dim: #8695ab;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-void);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: clamp(12.5px, 0.62vw, 14.5px);
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: radial-gradient(circle at 48% 45%, #121b29 0%, #080c12 65%, #04060a 100%);
+    }
+
+    /* Subtle aerospace optical vignette */
+    #viewport::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, transparent 58%, rgba(3, 5, 9, 0.72) 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+
+    /* Slate-Glass Telemetry HUD Panels */
+    .aero-hud {
+      background: var(--hud-glass);
+      backdrop-filter: blur(16px) saturate(140%);
+      -webkit-backdrop-filter: blur(16px) saturate(140%);
+      border: 1px solid var(--cyan-dim);
+      box-shadow:
+        0 24px 56px rgba(0, 0, 0, 0.82),
+        inset 0 1px 0 rgba(0, 229, 255, 0.16),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+      border-radius: 10px;
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    }
+
+    .aero-card {
+      background: var(--hud-card);
+      border: 1px solid rgba(0, 229, 255, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Precision Aerospace Range Sliders */
+    input[type="range"].aero-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.26);
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].aero-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      background: linear-gradient(135deg, #7ef4ff 0%, #00b8d4 100%);
+      border: 1px solid #e0fcff;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    input[type="range"].aero-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.16);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 1);
+    }
+
+    input[type="range"].aero-slider.throttle-slider::-webkit-slider-thumb {
+      background: linear-gradient(135deg, #ff9d6c 0%, #ff5714 100%);
+      border: 1px solid #ffe4d6;
+      box-shadow: 0 0 10px rgba(255, 107, 43, 0.85);
+    }
+
+    input[type="range"].aero-slider::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      background: linear-gradient(135deg, #7ef4ff 0%, #00b8d4 100%);
+      border: 1px solid #e0fcff;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+      cursor: pointer;
+    }
+
+    /* Custom Scrollbars */
+    .hud-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .hud-scroll::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .hud-scroll::-webkit-scrollbar-thumb {
+      background: rgba(0, 229, 255, 0.35);
+      border-radius: 999px;
+    }
+    .hud-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 229, 255, 0.65);
+    }
+
+    /* Tactile Aerospace Buttons */
+    .aero-btn {
+      background: rgba(13, 20, 31, 0.9);
+      border: 1px solid rgba(0, 229, 255, 0.22);
+      color: #cbd5e1;
+      transition: all 0.16s ease;
+    }
+    .aero-btn:hover {
+      border-color: rgba(0, 229, 255, 0.68);
+      background: rgba(20, 31, 48, 0.96);
+      color: #ffffff;
+    }
+    .aero-btn.active {
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.22) 0%, rgba(12, 20, 32, 0.95) 100%);
+      border-color: #00e5ff;
+      color: #7ef4ff;
+      box-shadow: inset 0 0 12px rgba(0, 229, 255, 0.2);
+    }
+    .aero-btn.active-orange {
+      background: linear-gradient(135deg, rgba(255, 107, 43, 0.25) 0%, rgba(16, 18, 28, 0.95) 100%);
+      border-color: #ff6b2b;
+      color: #ffad87;
+      box-shadow: inset 0 0 12px rgba(255, 107, 43, 0.22);
+    }
+
+    /* Primary GLB Export CTA */
+    .btn-cyan-cta {
+      background: linear-gradient(135deg, #29f0ff 0%, #009eb8 50%, #29f0ff 100%);
+      background-size: 200% auto;
+      color: #04080e;
+      font-weight: 700;
+      border: 1px solid #b8fbff;
+      box-shadow: 0 6px 24px rgba(0, 229, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+      transition: all 0.2s ease;
+    }
+    .btn-cyan-cta:hover {
+      background-position: right center;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(0, 229, 255, 0.54), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    .btn-cyan-cta:active {
+      transform: translateY(0px);
+    }
+
+    .collapsed-right {
+      transform: translateX(calc(100% + 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .selectable-code {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
+    @keyframes toastSlide {
+      from { opacity: 0; transform: translateY(14px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast-card {
+      animation: toastSlide 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WebGL Viewport -->
+  <div id="viewport"></div>
+
+  <!-- TOP-LEFT AEROSPACE TELEMETRY, LIVE BUDGET & CAMERA PRESETS -->
+  <header class="fixed top-3 left-3 z-20 flex flex-col gap-2.5 max-w-[calc(100vw-24px)] lg:max-w-[540px] pointer-events-none">
+    <!-- Title & Live Asset Budget Plaque -->
+    <div class="aero-hud px-4 py-3 flex flex-col gap-2.5 pointer-events-auto">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <!-- Vector Turbofan Emblem SVG -->
+          <div class="w-9 h-9 rounded-lg border border-[#00e5ff]/55 bg-[#00e5ff]/12 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-[#00e5ff]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="2.5" />
+              <path d="M12 3C14 6 14 9 12 9.5" />
+              <path d="M21 12C18 14 15 14 14.5 12" />
+              <path d="M12 21C10 18 10 15 12 14.5" />
+              <path d="M3 12C6 10 9 10 9.5 12" />
+              <path d="M18.36 5.64C17.5 9 15.5 10.5 13.8 10.2" />
+              <path d="M5.64 18.36C6.5 15 8.5 13.5 10.2 13.8" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h1 class="font-mono-tech text-xs sm:text-sm font-bold tracking-[0.1em] text-[#edf2f9] truncate">
+                AETHER-9 <span class="text-[#00e5ff]">//</span> VECTORED PLASMA-TURBOFAN
+              </h1>
+            </div>
+            <p class="text-[11px] text-[#8695ab] truncate">
+              1024² Sobel PBR · COLOR_0 Vertex AO · Arc-Length Airfoils · 16-Petal Thrust Vectoring
+            </p>
+          </div>
+        </div>
+
+        <button id="toggle-right" class="aero-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech shrink-0 cursor-pointer" title="Toggle Inspector Panel">
+          HUD
+        </button>
+      </div>
+
+      <!-- Real-Time Asset Budget Bar -->
+      <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-white/10">
+        <div class="bg-black/45 rounded px-2.5 py-1.5 border border-white/5">
+          <div class="text-[9px] font-mono-tech uppercase text-[#8695ab]">Triangles</div>
+          <div id="stat-tris" class="font-mono-tech text-xs sm:text-sm font-bold text-[#edf2f9]">0</div>
+        </div>
+        <div class="bg-black/45 rounded px-2.5 py-1.5 border border-white/5">
+          <div class="text-[9px] font-mono-tech uppercase text-[#8695ab]">Vertices</div>
+          <div id="stat-verts" class="font-mono-tech text-xs sm:text-sm font-bold text-[#edf2f9]">0</div>
+        </div>
+        <div class="bg-black/45 rounded px-2.5 py-1.5 border border-white/5">
+          <div class="text-[9px] font-mono-tech uppercase text-[#8695ab]">Meshes</div>
+          <div id="stat-meshes" class="font-mono-tech text-xs sm:text-sm font-bold text-[#00e5ff]">0</div>
+        </div>
+        <div class="bg-black/45 rounded px-2.5 py-1.5 border border-white/5">
+          <div class="text-[9px] font-mono-tech uppercase text-[#8695ab]">Merged Calls</div>
+          <div id="stat-saved" class="font-mono-tech text-xs sm:text-sm font-bold text-emerald-400">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera Presets Bar -->
+    <div class="aero-hud p-1.5 flex flex-wrap items-center gap-1 pointer-events-auto w-fit">
+      <span class="text-[10px] font-mono-tech uppercase tracking-wider text-[#8695ab] px-2">CAM //</span>
+      <button data-cam="hero" class="cam-btn aero-btn active px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">3/4 Hero</button>
+      <button data-cam="intake" class="cam-btn aero-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Intake Fan</button>
+      <button data-cam="nozzle" class="cam-btn aero-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Vectoring Nozzle</button>
+      <button data-cam="side" class="cam-btn aero-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Side Blueprint</button>
+    </div>
+  </header>
+
+  <!-- RIGHT CONTROL & UNITY URP EXPORT PANEL -->
+  <aside id="right-hud" class="aero-hud hud-scroll fixed top-3 right-3 bottom-3 w-[382px] max-w-[calc(100vw-24px)] z-20 overflow-y-auto p-4 flex flex-col gap-3">
+
+    <!-- 01 // LOD Detail & Mount Pivot -->
+    <div class="aero-card p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#00e5ff] font-semibold">
+          01 // LOD Budget &amp; Mount Pivot
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8695ab]">1 UNIT = 1M</span>
+      </div>
+
+      <!-- LOD Toggle -->
+      <div class="grid grid-cols-2 gap-1.5" id="lod-group">
+        <button data-lod="hero" class="lod-btn aero-btn active rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#edf2f9]">Hero Showcase</div>
+          <div class="text-[9px] font-mono-tech text-[#00e5ff] mt-0.5">~22k Tris · High Subdiv</div>
+        </button>
+        <button data-lod="game" class="lod-btn aero-btn rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#edf2f9]">Game-Ready LOD</div>
+          <div class="text-[9px] font-mono-tech text-[#8695ab] mt-0.5">~6.5k Tris · Optimized</div>
+        </button>
+      </div>
+
+      <!-- Mount Pivot Toggle -->
+      <div class="grid grid-cols-2 gap-1.5" id="pivot-group">
+        <button data-pivot="com" class="pivot-btn aero-btn active rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#edf2f9]">Center-of-Mass (0,0,0)</div>
+          <div class="text-[9px] font-mono-tech text-[#8695ab] mt-0.5">Hardpoint Axis Pivot</div>
+        </button>
+        <button data-pivot="cradle" class="pivot-btn aero-btn rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#edf2f9]">Service Cradle (y=0)</div>
+          <div class="text-[9px] font-mono-tech text-[#8695ab] mt-0.5">Gantry Stand Base y=0</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 02 // Thermal Livery Presets -->
+    <div class="aero-card p-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#00e5ff] font-semibold">
+          02 // Thermal Livery &amp; Plasma Spectrum
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8695ab]">1024² PBR</span>
+      </div>
+      <div class="flex flex-col gap-1.5" id="livery-group">
+        <button data-livery="cyan" class="livery-btn aero-btn active rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/40" style="background: radial-gradient(circle, #00e5ff 0%, #c88a4b 68%, #18202c 100%); box-shadow: 0 0 8px rgba(0,229,255,0.6);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#edf2f9]">Orbital Titanium Cyan</div>
+            <div class="text-[9px] text-[#8695ab]">Carbon-Slate Nacelle · Brushed Titanium · Ion Cyan</div>
+          </div>
+        </button>
+
+        <button data-livery="crimson" class="livery-btn aero-btn rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/40" style="background: radial-gradient(circle, #ff4d2b 0%, #d4af37 68%, #1e181c 100%); box-shadow: 0 0 8px rgba(255,77,43,0.6);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#edf2f9]">Valkyrie Crimson Afterburner</div>
+            <div class="text-[9px] text-[#8695ab]">Stealth Gunmetal · Gold Conduits · Crimson Plasma</div>
+          </div>
+        </button>
+
+        <button data-livery="amber" class="livery-btn aero-btn rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/40" style="background: radial-gradient(circle, #ffab00 0%, #94a3b8 68%, #22252a 100%); box-shadow: 0 0 8px rgba(255,171,0,0.6);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#edf2f9]">Industrial Amber Prototype</div>
+            <div class="text-[9px] text-[#8695ab]">Raw Ceramic Grey · Copper Coils · Fusion Amber</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 03 // Propulsion & Vectoring Controls -->
+    <div class="aero-card p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#ff6b2b] font-semibold">
+          03 // Propulsion &amp; Vectoring Controls
+        </span>
+        <span id="lbl-rpm" class="text-[10px] font-mono-tech text-[#00e5ff]">14,800 RPM</span>
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#cbd5e1]">Afterburner Throttle</span>
+          <span id="lbl-throttle" class="font-mono-tech font-semibold text-[#ff6b2b]">68%</span>
+        </div>
+        <input id="sld-throttle" type="range" min="0" max="100" step="1" value="68" class="aero-slider throttle-slider" />
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#cbd5e1]">Primary Fan Blade Count</span>
+          <span id="lbl-blades" class="font-mono-tech text-[#7ef4ff]">24 Blades</span>
+        </div>
+        <input id="sld-blades" type="range" min="16" max="32" step="2" value="24" class="aero-slider" />
+      </div>
+
+      <!-- Animation & Collision Proxy Controls -->
+      <div class="grid grid-cols-2 gap-1.5 pt-1">
+        <button id="tgl-anim" class="aero-btn active rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Anim: RUNNING
+        </button>
+        <button id="btn-reset-pose" class="aero-btn rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Reset Pose (0°)
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="tgl-colliders" class="aero-btn rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Preview Colliders: OFF
+        </button>
+        <button id="tgl-wireframe" class="aero-btn rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Wireframe: OFF
+        </button>
+      </div>
+
+      <label class="flex items-center justify-between bg-black/45 px-2.5 py-1.5 rounded border border-white/5 cursor-pointer text-[11px] text-[#cbd5e1]">
+        <span>Include Collider_* in .GLB Export</span>
+        <input id="chk-export-colliders" type="checkbox" class="accent-[#00e5ff] w-3.5 h-3.5 cursor-pointer" />
+      </label>
+    </div>
+
+    <!-- 04 // PBR Texture & 3x3 Sobel Normal Map Inspector -->
+    <div class="aero-card p-3">
+      <div class="flex items-center justify-between cursor-pointer" id="inspector-header">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#00e5ff] font-semibold">
+          04 // Sobel PBR Texture Inspector
+        </span>
+        <span id="inspector-chevron" class="text-xs font-mono-tech text-[#7ef4ff]">[ − ]</span>
+      </div>
+
+      <div id="inspector-body" class="mt-2 flex flex-col gap-2">
+        <div class="grid grid-cols-4 gap-1" id="pbr-tab-group">
+          <button data-mat="base" class="pbr-tab aero-btn active py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Nacelle</button>
+          <button data-mat="metal" class="pbr-tab aero-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Titanium</button>
+          <button data-mat="trim" class="pbr-tab aero-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Conduits</button>
+          <button data-mat="emissive" class="pbr-tab aero-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Plasma</button>
+        </div>
+
+        <div class="grid grid-cols-5 gap-1.5 text-center">
+          <div>
+            <div id="thumb-albedo" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8695ab] mt-1">Albedo</span>
+          </div>
+          <div>
+            <div id="thumb-normal" class="aspect-square rounded border border-[#8080ff]/50 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#a5b4fc] mt-1">Normal</span>
+          </div>
+          <div>
+            <div id="thumb-rough" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8695ab] mt-1">Rough</span>
+          </div>
+          <div>
+            <div id="thumb-metal" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8695ab] mt-1">Metal</span>
+          </div>
+          <div>
+            <div id="thumb-emissive" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8695ab] mt-1">Emissive</span>
+          </div>
+        </div>
+
+        <div class="text-[9px] font-mono-tech text-[#6d7c94] flex justify-between">
+          <span>Albedo/Emissive: SRGBColorSpace</span>
+          <span>Normal/ORM: NoColorSpace</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 // Unity URP Export Suite & Quick-Reference Drawer -->
+    <div class="aero-card p-3 flex flex-col gap-2 mt-auto">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#00e5ff] font-semibold">
+          05 // Unity URP &amp; Blender Export Suite
+        </span>
+        <span class="text-[9px] font-mono-tech text-emerald-400">AUTO-RESET 0°</span>
+      </div>
+
+      <button id="btn-export-glb" class="btn-cyan-cta w-full py-2.5 px-3 rounded-lg text-xs tracking-wide flex items-center justify-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+        <span>Download .GLB (Unity URP Ready)</span>
+      </button>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="btn-export-obj" class="aero-btn py-2 px-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#00e5ff]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Download .OBJ</span>
+        </button>
+
+        <button id="btn-export-png" class="aero-btn py-2 px-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#00e5ff]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span>Download PBR .PNGs</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Unity URP Import & C# Rotor Script Drawer -->
+      <div class="border-t border-white/10 pt-2">
+        <button id="toggle-unity-drawer" class="w-full flex items-center justify-between text-left text-[11px] font-mono-tech text-[#7ef4ff] hover:text-white cursor-pointer">
+          <span>Unity URP Import &amp; C# Rotor Script</span>
+          <span id="unity-drawer-chevron">[ + ]</span>
+        </button>
+
+        <div id="unity-drawer-body" class="hidden mt-2 space-y-2 text-[10px] text-[#b5c2d6]">
+          <div class="bg-black/50 p-2.5 rounded border border-white/10 space-y-1 leading-relaxed">
+            <div class="font-mono-tech text-[#00e5ff] font-semibold">URP &amp; glTFast Setup:</div>
+            <div>1. Import <code class="text-[#7ef4ff]">.glb</code> via <strong>Unity glTFast</strong> (1 unit = 1m, Z-forward).</div>
+            <div>2. Native <code class="text-emerald-400">COLOR_0</code> Vertex AO auto-multiplies in <strong>URP Lit</strong>.</div>
+            <div>3. For standalone <code class="text-[#7ef4ff]">.png</code> maps: mark <code class="text-[#7ef4ff]">*_Normal_Sobel.png</code> as <strong>Normal map</strong> Texture Type.</div>
+          </div>
+
+          <div class="bg-black/65 p-2.5 rounded border border-white/10">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="font-mono-tech text-[#ff6b2b] font-semibold">Aether9TurbineController.cs</span>
+              <button id="copy-csharp-btn" class="aero-btn px-2 py-0.5 rounded text-[10px] font-mono-tech text-[#00e5ff] cursor-pointer">
+                Copy C#
+              </button>
+            </div>
+            <pre id="csharp-code-block" class="selectable-code font-mono-tech text-[10px] text-[#cbd5e1] overflow-x-auto leading-normal">using UnityEngine;
+
+public class Aether9TurbineController : MonoBehaviour
+{
+    [Range(0f, 1f)] public float throttle = 0.68f;
+    public Transform spinnerCone;
+    public Transform primaryFanRotor;
+    public Transform compressorStage02;
+    public Transform exhaustNozzleGroup;
+
+    private readonly Transform[] _petals = new Transform[16];
+
+    private void Start()
+    {
+        spinnerCone = FindChild(transform, "Part_Intake_Spinner_Cone");
+        primaryFanRotor = FindChild(transform, "Part_Primary_Fan_Rotor");
+        compressorStage02 = FindChild(transform, "Part_Compressor_Stage_02");
+        exhaustNozzleGroup = FindChild(transform, "Part_Exhaust_Nozzle_Petals");
+
+        for (int i = 0; i &lt; 16; i++)
+            _petals[i] = FindChild(transform, $"Part_Nozzle_Petal_{i + 1:00}");
+    }
+
+    private void Update()
+    {
+        float rpmSpeed = Mathf.Lerp(180f, 1650f, throttle) * Time.deltaTime;
+        if (spinnerCone) spinnerCone.Rotate(0f, 0f, rpmSpeed, Space.Self);
+        if (primaryFanRotor) primaryFanRotor.Rotate(0f, 0f, rpmSpeed, Space.Self);
+        if (compressorStage02) compressorStage02.Rotate(0f, 0f, -rpmSpeed * 1.35f, Space.Self);
+
+        float constrictDeg = Mathf.Lerp(-4f, 16f, throttle);
+        for (int i = 0; i &lt; _petals.Length; i++)
+            if (_petals[i]) _petals[i].localRotation = Quaternion.Euler(constrictDeg, 0f, 0f);
+    }
+
+    private static Transform FindChild(Transform p, string n)
+    {
+        foreach (Transform c in p)
+        {
+            if (c.name == n) return c;
+            var r = FindChild(c, n);
+            if (r) return r;
+        }
+        return null;
+    }
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Toast Stack -->
+  <div id="toast-stack" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-md"></div>
+
+  <!-- MAIN THREE.JS APPLICATION -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // =========================================================================
+    // 1. NON-BLOCKING TOAST NOTIFICATION HELPER
+    // =========================================================================
+    function showToast(title, subtitle = '', isError = false) {
+      const stack = document.getElementById('toast-stack');
+      const el = document.createElement('div');
+      el.className = `toast-card aero-hud px-4 py-2.5 w-full flex items-center gap-3 pointer-events-auto ${
+        isError ? 'border-red-500/65' : 'border-[#00e5ff]/70'
+      }`;
+      el.innerHTML = `
+        <div class="${isError ? 'text-red-400' : 'text-[#00e5ff]'} shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-semibold text-[#edf2f9] truncate">${title}</div>
+          ${subtitle ? `<div class="text-[10px] font-mono-tech text-[#8695ab] truncate">${subtitle}</div>` : ''}
+        </div>
+      `;
+      stack.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        el.style.transition = 'all 0.24s ease';
+        setTimeout(() => el.remove(), 250);
+      }, 3600);
+    }
+
+    // =========================================================================
+    // 2. THERMAL LIVERY & PLASMA SPECTRUM PRESETS
+    // =========================================================================
+    const LIVERIES = {
+      cyan: {
+        name: 'Orbital Titanium Cyan',
+        nacelleBase: '#1a2230',
+        nacelleWeave: '#2b374d',
+        nacelleAccent: '#00e5ff',
+        chevronColor: '#ff6b2b',
+        titaniumBase: '#8a97ab',
+        titaniumHighlight: '#e2ecfa',
+        titaniumHeat: '#6c7c96',
+        conduitBase: '#c88746',
+        conduitHighlight: '#f7c88b',
+        conduitBand: '#283242',
+        plasmaPrimary: '#00e5ff',
+        plasmaSecondary: '#38bdf8',
+        plasmaHex: 0x00e5ff,
+        plasmaEmissiveHex: 0x00b8d4,
+        rimHex: 0x38bdf8
+      },
+      crimson: {
+        name: 'Valkyrie Crimson Afterburner',
+        nacelleBase: '#19171e',
+        nacelleWeave: '#2b2633',
+        nacelleAccent: '#ff4d2b',
+        chevronColor: '#f59e0b',
+        titaniumBase: '#636978',
+        titaniumHighlight: '#c6cedd',
+        titaniumHeat: '#5e3c36',
+        conduitBase: '#cfa438',
+        conduitHighlight: '#fae08c',
+        conduitBand: '#241c20',
+        plasmaPrimary: '#ff4d2b',
+        plasmaSecondary: '#ff944d',
+        plasmaHex: 0xff4d2b,
+        plasmaEmissiveHex: 0xdc2626,
+        rimHex: 0xf87171
+      },
+      amber: {
+        name: 'Industrial Amber Prototype',
+        nacelleBase: '#282c34',
+        nacelleWeave: '#3c424e',
+        nacelleAccent: '#ffab00',
+        chevronColor: '#ff6b2b',
+        titaniumBase: '#9aa4b2',
+        titaniumHighlight: '#f1f5f9',
+        titaniumHeat: '#82735c',
+        conduitBase: '#b86238',
+        conduitHighlight: '#efa074',
+        conduitBand: '#252930',
+        plasmaPrimary: '#ffab00',
+        plasmaSecondary: '#ffe066',
+        plasmaHex: 0xffab00,
+        plasmaEmissiveHex: 0xd97706,
+        rimHex: 0xfbbf24
+      }
+    };
+
+    // =========================================================================
+    // 3. 1024x1024 PROCEDURAL PBR ENGINE + 3x3 SOBEL NORMAL MAP BAKER
+    // =========================================================================
+    class AerospacePBREngine {
+      constructor(size = 1024) {
+        this.size = size;
+        this.sets = {
+          base: this._createMapSet(),
+          metal: this._createMapSet(),
+          trim: this._createMapSet(),
+          emissive: this._createMapSet()
+        };
+      }
+
+      _createCanvas() {
+        const c = document.createElement('canvas');
+        c.width = this.size;
+        c.height = this.size;
+        return c;
+      }
+
+      _createMapSet() {
+        const canvases = {
+          albedo: this._createCanvas(),
+          height: this._createCanvas(),
+          normal: this._createCanvas(),
+          roughness: this._createCanvas(),
+          metalness: this._createCanvas(),
+          emissive: this._createCanvas()
+        };
+
+        const textures = {};
+        for (const [channel, canvas] of Object.entries(canvases)) {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          tex.anisotropy = 8;
+
+          // STRICT COLORSPACE RULES:
+          // SRGBColorSpace ONLY on map (albedo) and emissiveMap
+          // NoColorSpace (linear) on normalMap, roughnessMap, and metalnessMap
+          if (channel === 'albedo' || channel === 'emissive') {
+            tex.colorSpace = THREE.SRGBColorSpace;
+          } else {
+            tex.colorSpace = THREE.NoColorSpace;
+          }
+          textures[channel] = tex;
+        }
+        return { canvases, textures };
+      }
+
+      _rng(seed) {
+        return () => {
+          let t = (seed += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      /**
+       * True 3x3 Sobel Filter Height-to-Normal Baker
+       */
+      bakeNormalFromHeight(heightCanvas, normalCanvas, strength = 2.8, wrap = true) {
+        const w = heightCanvas.width;
+        const h = heightCanvas.height;
+        const hCtx = heightCanvas.getContext('2d');
+        const nCtx = normalCanvas.getContext('2d');
+
+        const src = hCtx.getImageData(0, 0, w, h).data;
+        const outImg = nCtx.createImageData(w, h);
+        const dst = outImg.data;
+
+        const sample = (x, y) => {
+          if (wrap) {
+            x = (x + w) % w;
+            y = (y + h) % h;
+          } else {
+            x = Math.max(0, Math.min(w - 1, x));
+            y = Math.max(0, Math.min(h - 1, y));
+          }
+          return src[(y * w + x) * 4] / 255.0;
+        };
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const tl = sample(x - 1, y - 1);
+            const t  = sample(x,     y - 1);
+            const tr = sample(x + 1, y - 1);
+            const l  = sample(x - 1, y);
+            const r  = sample(x + 1, y);
+            const bl = sample(x - 1, y + 1);
+            const b  = sample(x,     y + 1);
+            const br = sample(x + 1, y + 1);
+
+            const dX = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
+            const dY = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
+
+            let nx = -dX * strength;
+            let ny = -dY * strength;
+            let nz = 1.0;
+
+            const invLen = 1.0 / Math.hypot(nx, ny, nz);
+            nx *= invLen;
+            ny *= invLen;
+            nz *= invLen;
+
+            const idx = (y * w + x) * 4;
+            dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+            dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+            dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+            dst[idx + 3] = 255;
+          }
+        }
+        nCtx.putImageData(outImg, 0, 0);
+      }
+
+      generateAll(livery) {
+        this._generateCarbonCompositeNacelle(livery);
+        this._generateAerospaceTitanium(livery);
+        this._generateAnodizedConduits(livery);
+        this._generatePlasmaCoreAccent(livery);
+
+        for (const set of Object.values(this.sets)) {
+          for (const tex of Object.values(set.textures)) {
+            tex.needsUpdate = true;
+          }
+        }
+      }
+
+      // 1. MAT_Surface_Base: Carbon-Composite Nacelle with Panel Seams, Rivets, Chevrons & Stencils
+      _generateCarbonCompositeNacelle(livery) {
+        const S = this.size;
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.base.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = livery.nacelleBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#808080';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#6e6e6e';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#383838';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Hexagonal Carbon-Fiber Micro-Weave
+        const step = 16;
+        for (let y = 0; y < S; y += step) {
+          const rowShift = ((y / step) % 2) * (step * 0.5);
+          for (let x = 0; x < S; x += step) {
+            const px = (x + rowShift) % S;
+            ctxA.fillStyle = livery.nacelleWeave;
+            ctxA.fillRect(px + 2, y + 2, step * 0.55, step * 0.35);
+            ctxA.fillRect(px + step * 0.45, y + step * 0.5, step * 0.45, step * 0.35);
+
+            ctxH.fillStyle = '#929292';
+            ctxH.fillRect(px + 2, y + 2, step * 0.55, step * 0.35);
+            ctxR.fillStyle = '#545454';
+            ctxR.fillRect(px + 2, y + 2, step * 0.55, step * 0.35);
+          }
+        }
+
+        // Aerospace Cowling Panel Seams & Recessed Hatch Lines
+        ctxA.strokeStyle = '#080b10';
+        ctxH.strokeStyle = '#1e1e1e';
+        ctxR.strokeStyle = '#b4b4b4';
+        ctxA.lineWidth = 4;
+        ctxH.lineWidth = 5;
+        ctxR.lineWidth = 5;
+
+        const vLines = [0, 256, 512, 768];
+        const hLines = [140, 340, 620, 860];
+
+        for (const vx of vLines) {
+          ctxA.beginPath(); ctxA.moveTo(vx, 0); ctxA.lineTo(vx, S); ctxA.stroke();
+          ctxH.beginPath(); ctxH.moveTo(vx, 0); ctxH.lineTo(vx, S); ctxH.stroke();
+          ctxR.beginPath(); ctxR.moveTo(vx, 0); ctxR.lineTo(vx, S); ctxR.stroke();
+        }
+        for (const hy of hLines) {
+          ctxA.beginPath(); ctxA.moveTo(0, hy); ctxA.lineTo(S, hy); ctxA.stroke();
+          ctxH.beginPath(); ctxH.moveTo(0, hy); ctxH.lineTo(S, hy); ctxH.stroke();
+          ctxR.beginPath(); ctxR.moveTo(0, hy); ctxR.lineTo(S, hy); ctxR.stroke();
+        }
+
+        // Countersunk Titanium Rivets along Panel Borders
+        for (const hy of hLines) {
+          for (let rx = 16; rx < S; rx += 32) {
+            for (const dy of [-12, 12]) {
+              const ry = (hy + dy + S) % S;
+              ctxA.fillStyle = '#9aa8bd';
+              ctxA.beginPath(); ctxA.arc(rx, ry, 2.5, 0, Math.PI * 2); ctxA.fill();
+
+              ctxH.fillStyle = '#d4d4d4';
+              ctxH.beginPath(); ctxH.arc(rx, ry, 2.8, 0, Math.PI * 2); ctxH.fill();
+
+              ctxM.fillStyle = '#e8e8e8';
+              ctxM.beginPath(); ctxM.arc(rx, ry, 2.8, 0, Math.PI * 2); ctxM.fill();
+            }
+          }
+        }
+
+        // Intake Warning Chevrons & Accent Stripe
+        ctxA.fillStyle = livery.nacelleAccent;
+        ctxA.fillRect(0, 175, S, 10);
+        ctxE.fillStyle = livery.nacelleAccent;
+        ctxE.fillRect(0, 177, S, 5);
+
+        ctxA.fillStyle = livery.chevronColor;
+        for (let cx = 0; cx < S; cx += 64) {
+          ctxA.beginPath();
+          ctxA.moveTo(cx, 202);
+          ctxA.lineTo(cx + 28, 202);
+          ctxA.lineTo(cx + 44, 224);
+          ctxA.lineTo(cx + 16, 224);
+          ctxA.closePath();
+          ctxA.fill();
+        }
+
+        // Aerospace Serial Stencil Typography
+        ctxA.save();
+        ctxA.fillStyle = 'rgba(235, 244, 255, 0.85)';
+        ctxA.font = '700 26px "JetBrains Mono", monospace';
+        ctxA.fillText('AETHER-09 // VECTORED THRUST', 42, 415);
+        ctxA.fillText('AETHER-09 // VECTORED THRUST', 554, 415);
+        ctxA.font = '600 18px "JetBrains Mono", monospace';
+        ctxA.fillStyle = livery.nacelleAccent;
+        ctxA.fillText('CAUTION: HIGH-ENERGY PLASMA EXHAUST', 42, 444);
+        ctxA.fillText('DANGER: INTAKE SUCTION ZONE', 554, 444);
+        ctxA.restore();
+
+        this.bakeNormalFromHeight(height, normal, 2.7, true);
+      }
+
+      // 2. MAT_Primary_Metal: Aerospace Brushed Titanium Alloy
+      _generateAerospaceTitanium(livery) {
+        const S = this.size;
+        const rand = this._rng(4109);
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.metal.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        // Subtle heat-tempering gradient along V
+        const heatGrad = ctxA.createLinearGradient(0, 0, 0, S);
+        heatGrad.addColorStop(0.0, livery.titaniumHighlight);
+        heatGrad.addColorStop(0.45, livery.titaniumBase);
+        heatGrad.addColorStop(1.0, livery.titaniumHeat);
+        ctxA.fillStyle = heatGrad;
+        ctxA.fillRect(0, 0, S, S);
+
+        ctxH.fillStyle = '#808080';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#3c3c3c';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#f5f5f5';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Fine directional aerospace CNC brushed grain
+        for (let i = 0; i < 4200; i++) {
+          const x = rand() * S;
+          const y = rand() * S;
+          const len = 30 + rand() * 140;
+          const hi = rand() > 0.48;
+          ctxA.strokeStyle = hi ? 'rgba(255,255,255,0.11)' : 'rgba(15,20,30,0.12)';
+          ctxA.lineWidth = 1.1;
+          ctxA.beginPath();
+          ctxA.moveTo(x, y);
+          ctxA.lineTo(x + len, y);
+          ctxA.stroke();
+
+          ctxH.strokeStyle = hi ? 'rgba(166,166,166,0.18)' : 'rgba(92,92,92,0.18)';
+          ctxH.beginPath();
+          ctxH.moveTo(x, y);
+          ctxH.lineTo(x + len, y);
+          ctxH.stroke();
+        }
+
+        // Machined cooling slots & structural ribs
+        ctxA.fillStyle = '#1b222e';
+        ctxH.fillStyle = '#242424';
+        ctxR.fillStyle = '#909090';
+        for (let row = 0; row < 8; row++) {
+          const y = 64 + row * 124;
+          for (let col = 0; col < 16; col++) {
+            const x = 20 + col * 62;
+            ctxA.fillRect(x, y, 36, 10);
+            ctxH.fillRect(x, y, 36, 10);
+            ctxR.fillRect(x, y, 36, 10);
+          }
+        }
+
+        this.bakeNormalFromHeight(height, normal, 2.9, true);
+      }
+
+      // 3. MAT_Secondary_Trim: Anodized Copper/Gold Thermal Conduits
+      _generateAnodizedConduits(livery) {
+        const S = this.size;
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.trim.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = livery.conduitBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#808080';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#363636';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#f8f8f8';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Ribbed thermal bellows coils along U (arc length)
+        const ribStep = 32;
+        for (let x = 0; x < S; x += ribStep) {
+          const gradA = ctxA.createLinearGradient(x, 0, x + ribStep, 0);
+          gradA.addColorStop(0.0, livery.conduitBand);
+          gradA.addColorStop(0.5, livery.conduitHighlight);
+          gradA.addColorStop(1.0, livery.conduitBand);
+          ctxA.fillStyle = gradA;
+          ctxA.fillRect(x, 0, ribStep, S);
+
+          const gradH = ctxH.createLinearGradient(x, 0, x + ribStep, 0);
+          gradH.addColorStop(0.0, '#2a2a2a');
+          gradH.addColorStop(0.5, '#efefef');
+          gradH.addColorStop(1.0, '#2a2a2a');
+          ctxH.fillStyle = gradH;
+          ctxH.fillRect(x, 0, ribStep, S);
+        }
+
+        // Pressure Collar Bands
+        for (const bandX of [128, 384, 640, 896]) {
+          ctxA.fillStyle = livery.conduitBand;
+          ctxA.fillRect(bandX - 18, 0, 36, S);
+          ctxH.fillStyle = '#dcdcdc';
+          ctxH.fillRect(bandX - 18, 0, 36, S);
+          ctxR.fillStyle = '#606060';
+          ctxR.fillRect(bandX - 18, 0, 36, S);
+        }
+
+        this.bakeNormalFromHeight(height, normal, 3.1, true);
+      }
+
+      // 4. MAT_Emissive_Accent: Plasma Core & Diagnostic Telemetry Lattice
+      _generatePlasmaCoreAccent(livery) {
+        const S = this.size;
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.emissive.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = '#0c121c';
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#606060';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#262626';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#404040';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = livery.plasmaSecondary;
+        ctxE.fillRect(0, 0, S, S);
+
+        // High-energy plasma grid & diagnostic bars
+        ctxE.strokeStyle = '#ffffff';
+        ctxE.lineWidth = 6;
+        ctxH.strokeStyle = '#f0f0f0';
+        ctxH.lineWidth = 6;
+
+        for (let y = 0; y < S; y += 64) {
+          ctxE.beginPath(); ctxE.moveTo(0, y); ctxE.lineTo(S, y); ctxE.stroke();
+          ctxH.beginPath(); ctxH.moveTo(0, y); ctxH.lineTo(S, y); ctxH.stroke();
+        }
+        for (let x = 0; x < S; x += 64) {
+          ctxE.beginPath(); ctxE.moveTo(x, 0); ctxE.lineTo(x, S); ctxE.stroke();
+          ctxH.beginPath(); ctxH.moveTo(x, 0); ctxH.lineTo(x, S); ctxH.stroke();
+        }
+
+        ctxA.fillStyle = livery.plasmaPrimary;
+        ctxA.fillRect(0, 0, S, S);
+
+        this.bakeNormalFromHeight(height, normal, 2.5, true);
+      }
+    }
+
+    // =========================================================================
+    // 4. SCENE, PMREM STUDIO LIGHTING & POST-PROCESSING
+    // =========================================================================
+    const viewport = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x080c12);
+    scene.fog = new THREE.FogExp2(0x080c12, 0.036);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 80);
+    camera.position.set(2.45, 1.35, 2.65);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewport.appendChild(renderer.domElement);
+
+    // PMREMGenerator + RoomEnvironment for realistic metallic reflections matching Unity URP Reflection Probes
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    const envRT = pmremGenerator.fromScene(roomEnv, 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.92;
+    roomEnv.dispose();
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.055;
+    controls.target.set(0, 0, 0);
+    controls.minDistance = 0.85;
+    controls.maxDistance = 12.0;
+
+    // Consolidated Aerospace Studio Lighting (1 Key + 1 Rim + 1 Dynamic Exhaust PointLight)
+    const keyLight = new THREE.DirectionalLight(0xf8fbff, 2.4);
+    keyLight.position.set(4.5, 6.2, 4.8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 18;
+    const sBounds = 3.2;
+    keyLight.shadow.camera.left = -sBounds;
+    keyLight.shadow.camera.right = sBounds;
+    keyLight.shadow.camera.top = sBounds;
+    keyLight.shadow.camera.bottom = -sBounds;
+    keyLight.shadow.bias = -0.0004;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.45);
+    rimLight.position.set(-4.8, 3.6, -4.6);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.HemisphereLight(0x94a3b8, 0x0a0f18, 0.45);
+    scene.add(fillLight);
+
+    // Single Dynamic PointLight inside the rear exhaust plasma chamber
+    const plasmaPointLight = new THREE.PointLight(0x00e5ff, 3.2, 5.5, 1.6);
+    plasmaPointLight.position.set(0, 0, -1.05);
+    scene.add(plasmaPointLight);
+
+    // Non-Exported Aerospace Test-Cell Floor & Grid
+    const envNonExport = new THREE.Group();
+    envNonExport.name = 'Viewport_Environment_NonExport';
+    scene.add(envNonExport);
+
+    const testFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(14, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x070a10, roughness: 0.85, metalness: 0.18 })
+    );
+    testFloor.position.y = -1.15;
+    testFloor.receiveShadow = true;
+    envNonExport.add(testFloor);
+
+    const testGrid = new THREE.GridHelper(12, 24, 0x00e5ff, 0x162030);
+    testGrid.position.y = -1.148;
+    testGrid.material.transparent = true;
+    testGrid.material.opacity = 0.22;
+    envNonExport.add(testGrid);
+
+    // Post-Processing Pipeline (Bloom excluded automatically from GLB export)
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.34,
+      0.58,
+      0.86
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 5. SEMANTIC UNITY PBR MATERIALS WITH VERTEX COLOR AO (`COLOR_0`)
+    // =========================================================================
+    const pbrEngine = new AerospacePBREngine(1024);
+
+    const state = {
+      lodLevel: 'hero',     // 'hero' (~22k tris) | 'game' (~6.5k tris)
+      pivotMode: 'com',     // 'com' (0,0,0) | 'cradle' (y=0)
+      liveryKey: 'cyan',    // 'cyan' | 'crimson' | 'amber'
+      throttle: 0.68,       // 0.0 to 1.0
+      bladeCount: 24,       // 16 to 32
+      animRunning: true,
+      showColliders: false,
+      includeColliders: false,
+      wireframe: false,
+      inspectorMat: 'base'
+    };
+
+    const materials = {
+      surfaceBase: new THREE.MeshStandardMaterial({
+        name: 'MAT_Surface_Base',
+        map: pbrEngine.sets.base.textures.albedo,
+        normalMap: pbrEngine.sets.base.textures.normal,
+        normalScale: new THREE.Vector2(1.15, 1.15),
+        roughnessMap: pbrEngine.sets.base.textures.roughness,
+        metalnessMap: pbrEngine.sets.base.textures.metalness,
+        emissiveMap: pbrEngine.sets.base.textures.emissive,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 1.4,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      primaryMetal: new THREE.MeshStandardMaterial({
+        name: 'MAT_Primary_Metal',
+        map: pbrEngine.sets.metal.textures.albedo,
+        normalMap: pbrEngine.sets.metal.textures.normal,
+        normalScale: new THREE.Vector2(1.1, 1.1),
+        roughnessMap: pbrEngine.sets.metal.textures.roughness,
+        metalnessMap: pbrEngine.sets.metal.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0,
+        side: THREE.DoubleSide
+      }),
+      secondaryTrim: new THREE.MeshStandardMaterial({
+        name: 'MAT_Secondary_Trim',
+        map: pbrEngine.sets.trim.textures.albedo,
+        normalMap: pbrEngine.sets.trim.textures.normal,
+        normalScale: new THREE.Vector2(1.2, 1.2),
+        roughnessMap: pbrEngine.sets.trim.textures.roughness,
+        metalnessMap: pbrEngine.sets.trim.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      emissiveAccent: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Accent',
+        map: pbrEngine.sets.emissive.textures.albedo,
+        normalMap: pbrEngine.sets.emissive.textures.normal,
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        emissiveMap: pbrEngine.sets.emissive.textures.emissive,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 2.2,
+        vertexColors: true,
+        roughness: 0.15,
+        metalness: 0.2,
+        side: THREE.DoubleSide
+      }),
+      afterburnerPlume: new THREE.MeshStandardMaterial({
+        name: 'MAT_Afterburner_Plasma_Plume',
+        color: 0x00e5ff,
+        emissive: new THREE.Color(0x00b8d4),
+        emissiveIntensity: 2.6,
+        transparent: true,
+        opacity: 0.72,
+        depthWrite: false,
+        roughness: 0.1,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+      }),
+      colliderProxy: new THREE.MeshBasicMaterial({
+        name: 'MAT_Convex_Collider_Proxy',
+        color: 0x10b981,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.68
+      })
+    };
+
+    // Root Export Asset Group
+    const assetGroup = new THREE.Group();
+    assetGroup.name = 'SciFi_Plasma_Turbine_Engine';
+    scene.add(assetGroup);
+
+    // Dynamic Unmerged Child Nodes (Reset cleanly on GLB/OBJ export)
+    let dynamicNodes = {
+      spinnerCone: null,
+      primaryFanRotor: null,
+      compressorStage02: null,
+      exhaustNozzleGroup: null,
+      nozzlePetals: [],
+      afterburnerCore: null,
+      colliderGroup: null
+    };
+
+    // =========================================================================
+    // 6. VERTEX COLOR AO BAKER, TRIPLANAR UVS & SMART MERGE UTILITIES
+    // =========================================================================
+
+    /**
+     * Bakes procedural Ambient Occlusion (`COLOR_0`) into a BufferGeometry
+     */
+    function bakeVertexAO(geo, opts = {}) {
+      const {
+        minAO = 0.50,
+        maxAO = 1.06,
+        axis = 'radial', // 'radial' | 'z' | 'y' | 'centerDist'
+        invert = false
+      } = opts;
+
+      geo.computeBoundingBox();
+      if (!geo.attributes.normal) geo.computeVertexNormals();
+
+      const bb = geo.boundingBox;
+      const pos = geo.attributes.position;
+      const count = pos.count;
+      const colors = new Float32Array(count * 3);
+
+      const center = new THREE.Vector3();
+      bb.getCenter(center);
+      const maxExtent = Math.max(
+        0.001,
+        Math.hypot(bb.max.x - center.x, bb.max.y - center.y, bb.max.z - center.z)
+      );
+      const maxR = Math.max(
+        0.001,
+        Math.hypot(Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x)), Math.max(Math.abs(bb.min.y), Math.abs(bb.max.y)))
+      );
+
+      for (let i = 0; i < count; i++) {
+        const vx = pos.getX(i);
+        const vy = pos.getY(i);
+        const vz = pos.getZ(i);
+
+        let t = 0.5;
+        if (axis === 'radial') {
+          t = Math.min(1, Math.hypot(vx, vy) / maxR);
+        } else if (axis === 'z') {
+          t = (vz - bb.min.z) / Math.max(0.0001, bb.max.z - bb.min.z);
+        } else if (axis === 'y') {
+          t = (vy - bb.min.y) / Math.max(0.0001, bb.max.y - bb.min.y);
+        } else if (axis === 'centerDist') {
+          t = Math.min(1, Math.hypot(vx - center.x, vy - center.y, vz - center.z) / maxExtent);
+        }
+
+        if (invert) t = 1.0 - t;
+        const eased = Math.pow(Math.max(0, Math.min(1, t)), 0.72);
+        const ao = Math.max(0.32, Math.min(1.10, minAO + (maxAO - minAO) * eased));
+
+        colors[i * 3] = ao;
+        colors[i * 3 + 1] = ao;
+        colors[i * 3 + 2] = ao * 1.01;
+      }
+
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return geo;
+    }
+
+    /**
+     * Triplanar Box UVs for structural pylons, brackets, gantry stands, and ceramic tiles
+     */
+    function applyTriplanarBoxUVs(rawGeo, scale = 1.8) {
+      const geo = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo;
+      geo.computeVertexNormals();
+      const pos = geo.attributes.position;
+      const norm = geo.attributes.normal;
+      const count = pos.count;
+      const uvs = new Float32Array(count * 2);
+
+      for (let i = 0; i < count; i++) {
+        const px = pos.getX(i);
+        const py = pos.getY(i);
+        const pz = pos.getZ(i);
+        const ax = Math.abs(norm.getX(i));
+        const ay = Math.abs(norm.getY(i));
+        const az = Math.abs(norm.getZ(i));
+
+        let u, v;
+        if (ax >= ay && ax >= az) {
+          u = pz * scale;
+          v = py * scale;
+        } else if (ay >= ax && ay >= az) {
+          u = px * scale;
+          v = pz * scale;
+        } else {
+          u = px * scale;
+          v = py * scale;
+        }
+        uvs[i * 2] = u;
+        uvs[i * 2 + 1] = v;
+      }
+
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      return geo;
+    }
+
+    /**
+     * Normalizes vertex attributes (`position`, `normal`, `uv`, `color`) & merges static sub-meshes
+     */
+    function normalizeAndMerge(geoList) {
+      const normalized = geoList.map((rawGeo) => {
+        const g = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo.clone();
+        if (!g.attributes.normal) {
+          g.computeVertexNormals();
+        }
+        const pos = g.attributes.position;
+        if (!g.attributes.uv) {
+          const uvs = new Float32Array(pos.count * 2);
+          for (let i = 0; i < pos.count; i++) {
+            uvs[i * 2] = pos.getX(i) * 1.5 + 0.5;
+            uvs[i * 2 + 1] = pos.getZ(i) * 1.5 + 0.5;
+          }
+          g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        }
+        if (!g.attributes.color) {
+          const cols = new Float32Array(pos.count * 3);
+          cols.fill(1.0);
+          g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        } else if (g.attributes.color.itemSize !== 3) {
+          const srcCol = g.attributes.color;
+          const cols = new Float32Array(pos.count * 3);
+          for (let i = 0; i < pos.count; i++) {
+            cols[i * 3] = srcCol.getX(i);
+            cols[i * 3 + 1] = srcCol.getY(i);
+            cols[i * 3 + 2] = srcCol.getZ(i);
+          }
+          g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        }
+
+        for (const attrName of Object.keys(g.attributes)) {
+          if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+            g.deleteAttribute(attrName);
+          }
+        }
+        return g;
+      });
+
+      const merged = mergeGeometries(normalized, false);
+      normalized.forEach((g) => g.dispose());
+      return merged;
+    }
+
+    // =========================================================================
+    // 7. AEROSPACE GEOMETRY BUILDERS (ARC-LENGTH UVS + AIRFOILS + CONDUITS)
+    // =========================================================================
+
+    /**
+     * Lathe Geometry around the Z-axis with Cumulative Arc-Length V coordinates
+     * profilePoints: Array of [radius, zPos, vertexAO]
+     */
+    function buildZLatheArcLengthGeometry(profilePoints, radialSegments = 48, uRepeat = 3.0, vScale = 1.0) {
+      const positions = [];
+      const uvs = [];
+      const colors = [];
+      const indices = [];
+
+      // Compute cumulative Euclidean arc length along profile
+      const arcV = [0];
+      let totalArc = 0;
+      for (let i = 1; i < profilePoints.length; i++) {
+        const dr = profilePoints[i][0] - profilePoints[i - 1][0];
+        const dz = profilePoints[i][1] - profilePoints[i - 1][1];
+        totalArc += Math.hypot(dr, dz);
+        arcV.push(totalArc);
+      }
+      const normDiv = totalArc > 0.0001 ? totalArc : 1.0;
+
+      const stride = radialSegments + 1;
+      for (let i = 0; i < profilePoints.length; i++) {
+        const [r, z, ao] = profilePoints[i];
+        const vCoord = (arcV[i] / normDiv) * vScale;
+
+        for (let j = 0; j <= radialSegments; j++) {
+          const uFrac = j / radialSegments;
+          const theta = uFrac * Math.PI * 2;
+          const x = Math.cos(theta) * r;
+          const y = Math.sin(theta) * r;
+
+          positions.push(x, y, z);
+          uvs.push(uFrac * uRepeat, vCoord);
+          colors.push(ao, ao, ao * 1.01);
+        }
+      }
+
+      for (let i = 0; i < profilePoints.length - 1; i++) {
+        for (let j = 0; j < radialSegments; j++) {
+          const a = i * stride + j;
+          const b = (i + 1) * stride + j;
+          const c = (i + 1) * stride + (j + 1);
+          const d = i * stride + (j + 1);
+          indices.push(a, d, b, b, d, c);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /**
+     * Custom-Lofted Twisted Scimitar Airfoil Fan Blade with Cumulative Arc-Length UVs
+     */
+    function buildTwistedAirfoilBladeGeometry(opts = {}) {
+      const {
+        rootR = 0.145,
+        tipR = 0.455,
+        spanStations = 10,
+        chordBase = 0.145,
+        twistRoot = 0.96,   // ~55 deg
+        twistTip = 0.42,    // ~24 deg
+        sweepScale = 0.042,
+        thicknessRatio = 0.11
+      } = opts;
+
+      // 8-point closed cambered airfoil cross section (s in [-0.5, 0.5])
+      const airfoilProfile = [
+        [ 0.50,  0.000, 1.06], // 0: Leading Edge
+        [ 0.25,  0.052, 1.02], // 1: Upper Fore
+        [-0.08,  0.044, 0.98], // 2: Upper Mid
+        [-0.50,  0.004, 1.04], // 3: Trailing Edge Top
+        [-0.50, -0.004, 0.96], // 4: Trailing Edge Bottom
+        [-0.08, -0.022, 0.88], // 5: Lower Mid Camber
+        [ 0.25, -0.028, 0.90], // 6: Lower Fore
+        [ 0.50,  0.000, 1.06]  // 7: Seam Close
+      ];
+      const pCount = airfoilProfile.length;
+
+      const positions = [];
+      const uvs = [];
+      const colors = [];
+      const indices = [];
+
+      let cumArc = 0;
+      let prevR = rootR;
+      let prevSweepZ = 0;
+
+      for (let i = 0; i <= spanStations; i++) {
+        const t = i / spanStations; // 0 at root -> 1 at tip
+        const r = rootR + t * (tipR - rootR);
+
+        // Wide-chord scimitar envelope
+        const chordEnv = 0.78 + Math.sin(t * Math.PI * 0.85) * 0.44 - Math.pow(t, 3) * 0.16;
+        const chord = chordBase * chordEnv;
+        const twist = twistRoot + (twistTip - twistRoot) * Math.pow(t, 0.85);
+        const sweepZ = Math.sin(t * Math.PI * 1.15) * sweepScale;
+        const leanX = Math.sin(t * Math.PI) * 0.018;
+
+        if (i > 0) {
+          cumArc += Math.hypot(r - prevR, sweepZ - prevSweepZ);
+        }
+        prevR = r;
+        prevSweepZ = sweepZ;
+
+        // Root hub crevice AO darkening -> bright metallic tip highlight
+        const spanAO = 0.48 + 0.58 * Math.pow(t, 0.55);
+        const cosT = Math.cos(twist);
+        const sinT = Math.sin(twist);
+
+        for (let j = 0; j < pCount; j++) {
+          const [sChord, nThick, localAO] = airfoilProfile[j];
+          const cLocal = sChord * chord;
+          const nLocal = nThick * chord * (thicknessRatio / 0.11) * (1.0 - t * 0.35);
+
+          // Rotate airfoil section by pitch twist in (X, Z) plane while extending radially along +Y
+          const px = leanX + cLocal * cosT - nLocal * sinT;
+          const py = r;
+          const pz = sweepZ + cLocal * sinT + nLocal * cosT;
+
+          positions.push(px, py, pz);
+          uvs.push(sChord + 0.5, cumArc * 3.0);
+
+          const finalAO = Math.max(0.38, Math.min(1.10, spanAO * localAO));
+          colors.push(finalAO, finalAO, finalAO * 1.01);
+        }
+
+        if (i < spanStations) {
+          const rowA = i * pCount;
+          const rowB = (i + 1) * pCount;
+          for (let j = 0; j < pCount - 1; j++) {
+            indices.push(rowA + j, rowB + j, rowB + j + 1);
+            indices.push(rowA + j, rowB + j + 1, rowA + j + 1);
+          }
+        }
+      }
+
+      // Tip Cap
+      const topRow = spanStations * pCount;
+      indices.push(topRow + 0, topRow + 1, topRow + 2);
+      indices.push(topRow + 0, topRow + 2, topRow + 3);
+      indices.push(topRow + 0, topRow + 4, topRow + 5);
+      indices.push(topRow + 0, topRow + 5, topRow + 6);
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /**
+     * Swept TubeGeometry along CatmullRomCurve3 with Cumulative Euclidean Arc-Length UVs
+     */
+    function buildArcLengthPipeGeometry(points, tubularSegments = 32, radius = 0.018, radialSegments = 10) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geo = new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
+
+      // Recompute U along true Euclidean arc length so ribbed conduit rings never stretch
+      const pos = geo.attributes.position;
+      const uv = geo.attributes.uv;
+      const ringStride = radialSegments + 1;
+      const totalRings = tubularSegments + 1;
+
+      const ringArcs = [0];
+      let cumLen = 0;
+      const prevCenter = new THREE.Vector3();
+      const currCenter = new THREE.Vector3();
+
+      for (let i = 0; i < totalRings; i++) {
+        currCenter.set(0, 0, 0);
+        for (let j = 0; j < radialSegments; j++) {
+          const idx = i * ringStride + j;
+          currCenter.x += pos.getX(idx);
+          currCenter.y += pos.getY(idx);
+          currCenter.z += pos.getZ(idx);
+        }
+        currCenter.divideScalar(radialSegments);
+        if (i > 0) {
+          cumLen += currCenter.distanceTo(prevCenter);
+          ringArcs.push(cumLen);
+        }
+        prevCenter.copy(currCenter);
+      }
+
+      for (let i = 0; i < totalRings; i++) {
+        const uArc = ringArcs[i] * 2.6;
+        for (let j = 0; j < ringStride; j++) {
+          const idx = i * ringStride + j;
+          uv.setXY(idx, uArc, j / radialSegments);
+        }
+      }
+      uv.needsUpdate = true;
+      return bakeVertexAO(geo, { minAO: 0.56, maxAO: 1.04, axis: 'radial' });
+    }
+
+    // =========================================================================
+    // 8. MAIN ENGINE BUILDER (HERO ~22k TRIS vs GAME-READY ~6.5k TRIS)
+    // =========================================================================
+    function rebuildEngineAsset() {
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) {
+          obj.geometry.dispose();
+        }
+      });
+      assetGroup.clear();
+
+      dynamicNodes = {
+        spinnerCone: null,
+        primaryFanRotor: null,
+        compressorStage02: null,
+        exhaustNozzleGroup: null,
+        nozzlePetals: [],
+        afterburnerCore: null,
+        colliderGroup: null
+      };
+
+      const isHero = state.lodLevel === 'hero';
+      let unmergedStaticCount = 0;
+      let mergedStaticCount = 0;
+
+      // Centerline height: 0.0m in Center-of-Mass mode, 1.05m when mounted on Service Cradle (y=0)
+      const engineCenterY = state.pivotMode === 'cradle' ? 1.05 : 0.0;
+
+      const engineRoot = new THREE.Group();
+      engineRoot.name = 'Engine_Core_Assembly';
+      engineRoot.position.set(0, engineCenterY, 0);
+      assetGroup.add(engineRoot);
+
+      const nacelleParts = [];
+      const titaniumParts = [];
+      const conduitParts = [];
+      const emissiveParts = [];
+
+      // -----------------------------------------------------------------------
+      // A) STATIC COMPOSITE NACELLE (`Static_Composite_Nacelle` / MAT_Surface_Base)
+      // Engine spans z = +1.34m (Intake Front) to z = -0.84m (Nozzle Hinge Plane)
+      // -----------------------------------------------------------------------
+      const radSegs = isHero ? 48 : 24;
+      const nacelleProfile = [
+        // Inner Fan Duct Wall (z = +0.52m forward to intake lip at z = +1.34m)
+        [0.465,  0.52, 0.44],
+        [0.465,  0.88, 0.52],
+        [0.472,  1.12, 0.64],
+        [0.495,  1.28, 0.82],
+        [0.525,  1.34, 1.04], // Rounded aerodynamic intake lip highlight
+        [0.558,  1.31, 1.02],
+        [0.592,  1.16, 0.96],
+        [0.625,  0.86, 0.94], // Forward cowl swell (1.25m outer diameter)
+        [0.625,  0.48, 0.92],
+        // Recessed circumferential cowling panel groove
+        [0.606,  0.45, 0.56],
+        [0.606,  0.41, 0.56],
+        [0.622,  0.38, 0.92],
+        // Mid-nacelle area-ruled waist
+        [0.592,  0.02, 0.88],
+        [0.585, -0.34, 0.86],
+        // Second cowling groove
+        [0.568, -0.37, 0.54],
+        [0.568, -0.41, 0.54],
+        [0.582, -0.44, 0.88],
+        // Rear nacelle fairing tapering to nozzle hinge ring
+        [0.545, -0.78, 0.84],
+        [0.495, -0.84, 0.62],
+        [0.455, -0.84, 0.48]
+      ];
+      const cowlingGeo = buildZLatheArcLengthGeometry(nacelleProfile, radSegs, 3.0, 1.8);
+      nacelleParts.push(cowlingGeo);
+
+      // Dorsal & Ventral Hardpoint Mounting Pylons + Side Sensor Pods (Triplanar Box UVs)
+      for (const sideY of [1, -1]) {
+        const pylon = new THREE.BoxGeometry(0.18, 0.14, 1.15);
+        pylon.translate(0, sideY * 0.635, 0.05);
+        applyTriplanarBoxUVs(pylon, 1.6);
+        bakeVertexAO(pylon, { minAO: 0.48, maxAO: 0.98, axis: 'y', invert: sideY < 0 });
+        nacelleParts.push(pylon);
+
+        const pylonCap = new THREE.BoxGeometry(0.12, 0.05, 0.92);
+        pylonCap.translate(0, sideY * 0.71, 0.05);
+        applyTriplanarBoxUVs(pylonCap, 1.6);
+        bakeVertexAO(pylonCap, { minAO: 0.58, maxAO: 1.04, axis: 'y', invert: sideY < 0 });
+        nacelleParts.push(pylonCap);
+      }
+
+      for (const sideX of [1, -1]) {
+        const cheekPod = new THREE.BoxGeometry(0.09, 0.16, 0.74);
+        cheekPod.translate(sideX * 0.615, -0.06, 0.14);
+        applyTriplanarBoxUVs(cheekPod, 1.8);
+        bakeVertexAO(cheekPod, { minAO: 0.52, maxAO: 0.96, axis: 'radial' });
+        nacelleParts.push(cheekPod);
+      }
+
+      // 8 Swept Intake Bypass Stator Struts bridging inner core hub to outer fan duct
+      for (let s = 0; s < 8; s++) {
+        const ang = (s / 8) * Math.PI * 2 + Math.PI / 8;
+        const strut = new THREE.BoxGeometry(0.018, 0.25, 0.11);
+        strut.rotateZ(0.18);
+        strut.translate(0, 0.345, 0.68);
+        strut.rotateZ(ang);
+        bakeVertexAO(strut, { minAO: 0.44, maxAO: 0.96, axis: 'radial' });
+        nacelleParts.push(strut);
+      }
+
+      // -----------------------------------------------------------------------
+      // B) STATIC TITANIUM CORE (`Static_Titanium_Core` / MAT_Primary_Metal)
+      // -----------------------------------------------------------------------
+      const coreProfile = [
+        [0.145,  0.90, 0.52],
+        [0.235,  0.66, 0.64],
+        [0.275,  0.34, 0.72],
+        [0.325, -0.15, 0.68],
+        [0.375, -0.62, 0.62],
+        [0.445, -0.83, 0.56],
+        [0.385, -0.83, 0.44],
+        [0.295, -0.66, 0.38],
+        // Inner Exhaust Center Mixer Cone extending aft to z = -1.08m
+        [0.185, -0.74, 0.54],
+        [0.095, -0.92, 0.78],
+        [0.012, -1.08, 0.96]
+      ];
+      const coreGeo = buildZLatheArcLengthGeometry(coreProfile, radSegs, 3.0, 2.0);
+      titaniumParts.push(coreGeo);
+
+      // Rear Actuator Structural Ring & Bolted Flanges
+      const flangeSegs = isHero ? 48 : 24;
+      for (const fz of [0.50, -0.12, -0.81]) {
+        const fr = fz > 0 ? 0.472 : fz > -0.5 ? 0.34 : 0.472;
+        const flange = new THREE.TorusGeometry(fr, 0.018, isHero ? 8 : 5, flangeSegs);
+        flange.translate(0, 0, fz);
+        bakeVertexAO(flange, { minAO: 0.55, maxAO: 1.02, axis: 'radial' });
+        titaniumParts.push(flange);
+      }
+
+      // Internal Stator Guide Vanes behind Compressor Stage 02
+      const vaneCount = isHero ? 20 : 12;
+      for (let v = 0; v < vaneCount; v++) {
+        const ang = (v / vaneCount) * Math.PI * 2;
+        const vane = new THREE.BoxGeometry(0.010, 0.165, 0.065);
+        vane.rotateY(0.38);
+        vane.translate(0, 0.355, 0.56);
+        vane.rotateZ(ang);
+        bakeVertexAO(vane, { minAO: 0.42, maxAO: 0.94, axis: 'radial' });
+        titaniumParts.push(vane);
+      }
+
+      // -----------------------------------------------------------------------
+      // C) STATIC THERMAL CONDUITS (`Static_Thermal_Conduits` / MAT_Secondary_Trim)
+      // -----------------------------------------------------------------------
+      const pipeTubularSegs = isHero ? 32 : 14;
+      const pipeRadSegs = isHero ? 10 : 6;
+      const pipeAngles = isHero
+        ? [0.36, 0.62, Math.PI - 0.36, Math.PI - 0.62, Math.PI + 0.36, -0.36]
+        : [0.42, Math.PI - 0.42, Math.PI + 0.42, -0.42];
+
+      for (let p = 0; p < pipeAngles.length; p++) {
+        const ang = pipeAngles[p];
+        const rMid = 0.602 + (p % 2) * 0.014;
+        const pts = [
+          new THREE.Vector3(Math.cos(ang) * 0.585, Math.sin(ang) * 0.585,  0.46),
+          new THREE.Vector3(Math.cos(ang) * rMid,  Math.sin(ang) * rMid,   0.18),
+          new THREE.Vector3(Math.cos(ang + 0.08) * (rMid - 0.012), Math.sin(ang + 0.08) * (rMid - 0.012), -0.18),
+          new THREE.Vector3(Math.cos(ang + 0.08) * 0.575, Math.sin(ang + 0.08) * 0.575, -0.52),
+          new THREE.Vector3(Math.cos(ang) * 0.515, Math.sin(ang) * 0.515, -0.78)
+        ];
+        const pipeGeo = buildArcLengthPipeGeometry(pts, pipeTubularSegs, 0.014, pipeRadSegs);
+        conduitParts.push(pipeGeo);
+      }
+
+      // Toroidal Magnetic Plasma Containment Coils around Rear Combustion Section
+      const coilZPositions = isHero ? [-0.22, -0.48, -0.68] : [-0.28, -0.62];
+      const coilSegs = isHero ? 48 : 24;
+      const coilTube = isHero ? 10 : 6;
+      for (const cz of coilZPositions) {
+        const cr = cz > -0.35 ? 0.592 : cz > -0.55 ? 0.582 : 0.558;
+        const coil = new THREE.TorusGeometry(cr, 0.016, coilTube, coilSegs);
+        coil.translate(0, 0, cz);
+        bakeVertexAO(coil, { minAO: 0.58, maxAO: 1.05, axis: 'radial' });
+        conduitParts.push(coil);
+      }
+
+      // 16 Hydraulic Actuator Cylinders around Rear Nozzle Ring
+      const cylSegs = isHero ? 10 : 6;
+      for (let a = 0; a < 16; a++) {
+        const ang = (a / 16) * Math.PI * 2;
+        const cyl = new THREE.CylinderGeometry(0.012, 0.015, 0.22, cylSegs);
+        cyl.rotateX(Math.PI / 2);
+        cyl.translate(0, 0.495, -0.72);
+        cyl.rotateZ(ang);
+        bakeVertexAO(cyl, { minAO: 0.52, maxAO: 1.02, axis: 'z' });
+        conduitParts.push(cyl);
+      }
+
+      // -----------------------------------------------------------------------
+      // D) STATIC PLASMA CORE STRUCTURE (`Static_Plasma_Core_Structure` / MAT_Emissive_Accent)
+      // -----------------------------------------------------------------------
+      const ringSegs = isHero ? 48 : 24;
+      for (const pz of [-0.74, -0.84]) {
+        const pr = pz > -0.8 ? 0.35 : 0.39;
+        const plasmaRing = new THREE.TorusGeometry(pr, 0.014, isHero ? 8 : 5, ringSegs);
+        plasmaRing.translate(0, 0, pz);
+        emissiveParts.push(plasmaRing);
+      }
+
+      // External Nacelle Telemetry Light Strips
+      for (const sideX of [-1, 1]) {
+        const strip = new THREE.BoxGeometry(0.012, 0.022, 0.66);
+        strip.translate(sideX * 0.662, -0.06, 0.14);
+        emissiveParts.push(strip);
+      }
+
+      // Merge Static Material Groups
+      const nacelleMesh = new THREE.Mesh(normalizeAndMerge(nacelleParts), materials.surfaceBase);
+      nacelleMesh.name = 'Static_Composite_Nacelle';
+      nacelleMesh.castShadow = true;
+      nacelleMesh.receiveShadow = true;
+      engineRoot.add(nacelleMesh);
+      unmergedStaticCount += nacelleParts.length;
+      mergedStaticCount++;
+
+      const titaniumMesh = new THREE.Mesh(normalizeAndMerge(titaniumParts), materials.primaryMetal);
+      titaniumMesh.name = 'Static_Titanium_Core';
+      titaniumMesh.castShadow = true;
+      titaniumMesh.receiveShadow = true;
+      engineRoot.add(titaniumMesh);
+      unmergedStaticCount += titaniumParts.length;
+      mergedStaticCount++;
+
+      const conduitMesh = new THREE.Mesh(normalizeAndMerge(conduitParts), materials.secondaryTrim);
+      conduitMesh.name = 'Static_Thermal_Conduits';
+      conduitMesh.castShadow = true;
+      conduitMesh.receiveShadow = true;
+      engineRoot.add(conduitMesh);
+      unmergedStaticCount += conduitParts.length;
+      mergedStaticCount++;
+
+      const emissiveMesh = new THREE.Mesh(normalizeAndMerge(emissiveParts), materials.emissiveAccent);
+      emissiveMesh.name = 'Static_Plasma_Core_Structure';
+      engineRoot.add(emissiveMesh);
+      unmergedStaticCount += emissiveParts.length;
+      mergedStaticCount++;
+
+      // -----------------------------------------------------------------------
+      // E) OPTIONAL SERVICE CRADLE GANTRY (`Static_Service_Cradle` / y = 0)
+      // -----------------------------------------------------------------------
+      if (state.pivotMode === 'cradle') {
+        const cradleSteelParts = [];
+        const cradleTrimParts = [];
+
+        // Ground Base Frame resting flush at y = 0.00m
+        for (const sx of [-0.68, 0.68]) {
+          const rail = new THREE.BoxGeometry(0.12, 0.08, 1.85);
+          rail.translate(sx, 0.04, 0.05);
+          applyTriplanarBoxUVs(rail, 1.5);
+          bakeVertexAO(rail, { minAO: 0.42, maxAO: 0.96, axis: 'y' });
+          cradleSteelParts.push(rail);
+        }
+        for (const sz of [-0.75, 0.85]) {
+          const crossBeam = new THREE.BoxGeometry(1.48, 0.075, 0.12);
+          crossBeam.translate(0, 0.0375, sz);
+          applyTriplanarBoxUVs(crossBeam, 1.5);
+          bakeVertexAO(crossBeam, { minAO: 0.42, maxAO: 0.96, axis: 'y' });
+          cradleSteelParts.push(crossBeam);
+        }
+
+        // Angled A-Frame Struts rising from Base Rails to Engine Side Trunnions (y = 1.05m)
+        for (const sx of [-1, 1]) {
+          for (const sz of [-0.42, 0.48]) {
+            const strutPts = [
+              new THREE.Vector3(sx * 0.68, 0.07, sz * 1.45),
+              new THREE.Vector3(sx * 0.65, 0.98, sz)
+            ];
+            const leg = buildArcLengthPipeGeometry(strutPts, isHero ? 10 : 4, 0.036, isHero ? 8 : 6);
+            cradleSteelParts.push(leg);
+          }
+
+          // Side Trunnion Saddle Clamp embracing the engine cheek
+          const clamp = new THREE.BoxGeometry(0.11, 0.24, 1.02);
+          clamp.translate(sx * 0.68, 1.01, 0.03);
+          applyTriplanarBoxUVs(clamp, 1.8);
+          bakeVertexAO(clamp, { minAO: 0.50, maxAO: 1.02, axis: 'y' });
+          cradleTrimParts.push(clamp);
+        }
+
+        // Curved Lower Cradle Arc under the nacelle
+        const cradleArc = new THREE.TorusGeometry(0.67, 0.028, isHero ? 8 : 5, isHero ? 24 : 12, Math.PI * 0.82);
+        cradleArc.rotateZ(Math.PI + Math.PI * 0.09);
+        cradleArc.translate(0, 1.05, 0.03);
+        bakeVertexAO(cradleArc, { minAO: 0.48, maxAO: 0.98, axis: 'y' });
+        cradleSteelParts.push(cradleArc);
+
+        const cradleSteelMesh = new THREE.Mesh(normalizeAndMerge(cradleSteelParts), materials.surfaceBase);
+        cradleSteelMesh.name = 'Static_Service_Cradle_Frame';
+        cradleSteelMesh.castShadow = true;
+        cradleSteelMesh.receiveShadow = true;
+        assetGroup.add(cradleSteelMesh);
+        unmergedStaticCount += cradleSteelParts.length;
+        mergedStaticCount++;
+
+        const cradleTrimMesh = new THREE.Mesh(normalizeAndMerge(cradleTrimParts), materials.secondaryTrim);
+        cradleTrimMesh.name = 'Static_Service_Cradle_Clamps';
+        cradleTrimMesh.castShadow = true;
+        assetGroup.add(cradleTrimMesh);
+        unmergedStaticCount += cradleTrimParts.length;
+        mergedStaticCount++;
+      }
+
+      // -----------------------------------------------------------------------
+      // F) DISTINCT ANIMATED CHILD NODE 1: `Part_Intake_Spinner_Cone`
+      // -----------------------------------------------------------------------
+      const spinnerGroup = new THREE.Group();
+      spinnerGroup.name = 'Part_Intake_Spinner_Cone';
+      spinnerGroup.position.set(0, 0, 0.90);
+      engineRoot.add(spinnerGroup);
+      dynamicNodes.spinnerCone = spinnerGroup;
+
+      const spinnerSegs = isHero ? 32 : 16;
+      const spinnerProfile = [
+        [0.145, 0.00, 0.56],
+        [0.132, 0.09, 0.76],
+        [0.104, 0.19, 0.88],
+        [0.068, 0.28, 0.96],
+        [0.028, 0.36, 1.02],
+        [0.003, 0.42, 1.06]
+      ];
+      const spinnerParts = [buildZLatheArcLengthGeometry(spinnerProfile, spinnerSegs, 2.0, 1.0)];
+
+      // Tip Sensor Pitot Probe
+      const probe = new THREE.CylinderGeometry(0.003, 0.007, 0.09, isHero ? 8 : 6);
+      probe.rotateX(Math.PI / 2);
+      probe.translate(0, 0, 0.455);
+      spinnerParts.push(probe);
+
+      const spinnerMesh = new THREE.Mesh(normalizeAndMerge(spinnerParts), materials.primaryMetal);
+      spinnerMesh.name = 'Spinner_Cone_Mesh';
+      spinnerMesh.castShadow = true;
+      spinnerGroup.add(spinnerMesh);
+
+      // Spiral Aerodynamic Balancing Stripe on Spinner Cone
+      const spiralPts = [];
+      const spiralSteps = isHero ? 20 : 10;
+      for (let i = 0; i <= spiralSteps; i++) {
+        const t = i / spiralSteps;
+        const z = 0.04 + t * 0.31;
+        const r = (0.142 * (1.0 - t * 0.82)) + 0.004;
+        const a = t * Math.PI * 2.2;
+        spiralPts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z));
+      }
+      const spiralStripe = new THREE.Mesh(
+        buildArcLengthPipeGeometry(spiralPts, spiralSteps, 0.0045, isHero ? 6 : 4),
+        materials.emissiveAccent
+      );
+      spiralStripe.name = 'Spinner_Spiral_Stripe';
+      spinnerGroup.add(spiralStripe);
+
+      // -----------------------------------------------------------------------
+      // G) DISTINCT ANIMATED CHILD NODE 2: `Part_Primary_Fan_Rotor`
+      // -----------------------------------------------------------------------
+      const fanRotorGroup = new THREE.Group();
+      fanRotorGroup.name = 'Part_Primary_Fan_Rotor';
+      fanRotorGroup.position.set(0, 0, 0.83);
+      engineRoot.add(fanRotorGroup);
+      dynamicNodes.primaryFanRotor = fanRotorGroup;
+
+      const fanParts = [];
+      const hubCylinder = new THREE.CylinderGeometry(0.152, 0.165, 0.14, isHero ? 32 : 16);
+      hubCylinder.rotateX(Math.PI / 2);
+      bakeVertexAO(hubCylinder, { minAO: 0.48, maxAO: 0.92, axis: 'z' });
+      fanParts.push(hubCylinder);
+
+      const bladeSpanStations = isHero ? 10 : 4;
+      const singleBladeGeo = buildTwistedAirfoilBladeGeometry({
+        rootR: 0.145,
+        tipR: 0.456,
+        spanStations: bladeSpanStations,
+        chordBase: 0.148 * (24 / state.bladeCount),
+        twistRoot: 0.96,
+        twistTip: 0.42
+      });
+
+      for (let b = 0; b < state.bladeCount; b++) {
+        const ang = (b / state.bladeCount) * Math.PI * 2;
+        const bladeClone = singleBladeGeo.clone();
+        bladeClone.rotateZ(ang);
+        fanParts.push(bladeClone);
+      }
+      singleBladeGeo.dispose();
+
+      const fanRotorMesh = new THREE.Mesh(normalizeAndMerge(fanParts), materials.primaryMetal);
+      fanRotorMesh.name = 'Primary_Fan_Blades_Mesh';
+      fanRotorMesh.castShadow = true;
+      fanRotorMesh.receiveShadow = true;
+      fanRotorGroup.add(fanRotorMesh);
+
+      // -----------------------------------------------------------------------
+      // H) DISTINCT ANIMATED CHILD NODE 3: `Part_Compressor_Stage_02`
+      // -----------------------------------------------------------------------
+      const compGroup = new THREE.Group();
+      compGroup.name = 'Part_Compressor_Stage_02';
+      compGroup.position.set(0, 0, 0.66);
+      engineRoot.add(compGroup);
+      dynamicNodes.compressorStage02 = compGroup;
+
+      const compParts = [];
+      const compHub = new THREE.CylinderGeometry(0.225, 0.245, 0.12, isHero ? 24 : 12);
+      compHub.rotateX(Math.PI / 2);
+      bakeVertexAO(compHub, { minAO: 0.45, maxAO: 0.88, axis: 'z' });
+      compParts.push(compHub);
+
+      const compBladeCount = isHero ? 24 : 16;
+      const compBladeTemplate = buildTwistedAirfoilBladeGeometry({
+        rootR: 0.22,
+        tipR: 0.452,
+        spanStations: isHero ? 6 : 3,
+        chordBase: 0.095,
+        twistRoot: -0.88, // Counter-angled high-pressure compressor stage
+        twistTip: -0.46,
+        sweepScale: -0.022
+      });
+
+      for (let c = 0; c < compBladeCount; c++) {
+        const ang = (c / compBladeCount) * Math.PI * 2;
+        const cb = compBladeTemplate.clone();
+        cb.rotateZ(ang);
+        compParts.push(cb);
+      }
+      compBladeTemplate.dispose();
+
+      const compMesh = new THREE.Mesh(normalizeAndMerge(compParts), materials.secondaryTrim);
+      compMesh.name = 'Compressor_Stage_02_Mesh';
+      compGroup.add(compMesh);
+
+      // -----------------------------------------------------------------------
+      // I) DISTINCT ANIMATED CHILD NODE 4: `Part_Exhaust_Nozzle_Petals` (16 Hinged Petals)
+      // -----------------------------------------------------------------------
+      const nozzleGroup = new THREE.Group();
+      nozzleGroup.name = 'Part_Exhaust_Nozzle_Petals';
+      nozzleGroup.position.set(0, 0, -0.83);
+      engineRoot.add(nozzleGroup);
+      dynamicNodes.exhaustNozzleGroup = nozzleGroup;
+
+      // Build reusable single hinged nozzle petal geometry (origin at hinge root (0,0,0), extending along -Z)
+      const petalLen = 0.46;
+      const petalWRoot = 0.195;
+      const petalWTip = 0.132;
+      const petalThick = 0.018;
+
+      const petalShape = new THREE.Shape();
+      petalShape.moveTo(-petalWRoot * 0.5, 0);
+      petalShape.lineTo(petalWRoot * 0.5, 0);
+      petalShape.lineTo(petalWTip * 0.5, -petalLen);
+      petalShape.lineTo(-petalWTip * 0.5, -petalLen);
+      petalShape.closePath();
+
+      const outerTileGeo = new THREE.ExtrudeGeometry(petalShape, {
+        depth: petalThick,
+        bevelEnabled: true,
+        bevelThickness: 0.004,
+        bevelSize: 0.004,
+        bevelSegments: 1
+      });
+      // Orient so petal extends from z=0 to z=-petalLen along -Z, with thickness outward along +Y
+      outerTileGeo.rotateX(Math.PI / 2);
+      outerTileGeo.translate(0, petalThick, 0);
+      applyTriplanarBoxUVs(outerTileGeo, 2.4);
+      bakeVertexAO(outerTileGeo, { minAO: 0.52, maxAO: 1.04, axis: 'z', invert: true });
+
+      const innerLinerGeo = new THREE.BoxGeometry(petalWTip * 0.86, 0.010, petalLen * 0.94);
+      innerLinerGeo.translate(0, -0.005, -petalLen * 0.48);
+      bakeVertexAO(innerLinerGeo, { minAO: 0.44, maxAO: 0.92, axis: 'z', invert: true });
+
+      const hingeR = 0.465;
+      for (let p = 0; p < 16; p++) {
+        const ringAngle = (p / 16) * Math.PI * 2;
+        const petalPivot = new THREE.Group();
+        petalPivot.name = `Part_Nozzle_Petal_${String(p + 1).padStart(2, '0')}`;
+
+        // Position each petal on the circular hinge ring and orient local +Y radially outward
+        petalPivot.position.set(Math.cos(ringAngle) * hingeR, Math.sin(ringAngle) * hingeR, 0);
+        petalPivot.rotation.set(0, 0, ringAngle - Math.PI / 2);
+
+        // Inner sub-holder gives shingle overlap roll (0.11 rad) + clean X-axis pitch hinge for constriction
+        const petalShingle = new THREE.Group();
+        petalShingle.name = `Petal_Hinge_${String(p + 1).padStart(2, '0')}`;
+        petalShingle.rotation.set(0, 0, 0.11); // Shingled overlap preventing z-fighting
+
+        const outerTileMesh = new THREE.Mesh(outerTileGeo, materials.surfaceBase);
+        outerTileMesh.castShadow = true;
+        outerTileMesh.receiveShadow = true;
+
+        const innerLinerMesh = new THREE.Mesh(innerLinerGeo, materials.primaryMetal);
+
+        petalShingle.add(outerTileMesh, innerLinerMesh);
+        petalPivot.add(petalShingle);
+        nozzleGroup.add(petalPivot);
+
+        dynamicNodes.nozzlePetals.push(petalShingle);
+      }
+
+      // Inner Vectored Afterburner Plasma Plume Core (`Part_Afterburner_Core`)
+      const plumeGeo = new THREE.ConeGeometry(0.28, 0.72, isHero ? 24 : 12, 1, true);
+      plumeGeo.rotateX(-Math.PI / 2);
+      plumeGeo.translate(0, 0, -0.34);
+      const plumeMesh = new THREE.Mesh(plumeGeo, materials.afterburnerPlume);
+      plumeMesh.name = 'Part_Afterburner_Core';
+      nozzleGroup.add(plumeMesh);
+      dynamicNodes.afterburnerCore = plumeMesh;
+
+      // -----------------------------------------------------------------------
+      // J) TOGGLEABLE LOW-POLY CONVEX COLLISION PROXIES (`Collider_*`)
+      // -----------------------------------------------------------------------
+      const colliderGroup = new THREE.Group();
+      colliderGroup.name = 'Collision_Proxies';
+      colliderGroup.visible = state.showColliders;
+      assetGroup.add(colliderGroup);
+      dynamicNodes.colliderGroup = colliderGroup;
+
+      const nacelleColliderGeo = new THREE.CylinderGeometry(0.625, 0.565, 2.18, 12);
+      nacelleColliderGeo.rotateX(Math.PI / 2);
+      nacelleColliderGeo.translate(0, engineCenterY, 0.25);
+      const nacelleCollider = new THREE.Mesh(nacelleColliderGeo, materials.colliderProxy);
+      nacelleCollider.name = 'Collider_Engine_Nacelle';
+      colliderGroup.add(nacelleCollider);
+
+      const nozzleColliderGeo = new THREE.CylinderGeometry(0.475, 0.395, 0.48, 12);
+      nozzleColliderGeo.rotateX(Math.PI / 2);
+      nozzleColliderGeo.translate(0, engineCenterY, -1.06);
+      const nozzleCollider = new THREE.Mesh(nozzleColliderGeo, materials.colliderProxy);
+      nozzleCollider.name = 'Collider_Exhaust_Nozzle';
+      colliderGroup.add(nozzleCollider);
+
+      if (state.pivotMode === 'cradle') {
+        const cradleColliderGeo = new THREE.BoxGeometry(1.48, 0.52, 1.85);
+        cradleColliderGeo.translate(0, 0.26, 0.05);
+        const cradleCollider = new THREE.Mesh(cradleColliderGeo, materials.colliderProxy);
+        cradleCollider.name = 'Collider_Service_Cradle';
+        colliderGroup.add(cradleCollider);
+      }
+
+      // Sync floor and light Y position to Pivot Mode
+      testFloor.position.y = state.pivotMode === 'cradle' ? 0.0 : -1.15;
+      testGrid.position.y = state.pivotMode === 'cradle' ? 0.002 : -1.148;
+      plasmaPointLight.position.set(0, engineCenterY, -1.08);
+
+      applyThrottleVisuals();
+      applyWireframe();
+      updateTelemetry(unmergedStaticCount, mergedStaticCount);
+    }
+
+    // =========================================================================
+    // 9. LIVERY, THROTTLE, CAMERA PRESETS & TELEMETRY UPDATERS
+    // =========================================================================
+    function applyLivery(liveryKey) {
+      state.liveryKey = liveryKey;
+      const liv = LIVERIES[liveryKey];
+
+      pbrEngine.generateAll(liv);
+
+      materials.afterburnerPlume.color.setHex(liv.plasmaHex);
+      materials.afterburnerPlume.emissive.setHex(liv.plasmaEmissiveHex);
+      plasmaPointLight.color.setHex(liv.plasmaHex);
+      rimLight.color.setHex(liv.rimHex);
+
+      applyThrottleVisuals();
+      refreshInspectorThumbnails();
+
+      document.querySelectorAll('.livery-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.livery === liveryKey);
+      });
+    }
+
+    function applyThrottleVisuals() {
+      const t = state.throttle; // 0.0 to 1.0
+      const rpm = Math.round(2400 + t * 18200);
+      document.getElementById('lbl-rpm').textContent = `${rpm.toLocaleString()} RPM`;
+
+      // Constrict 16 hinged nozzle petals radially as throttle increases (-0.07 rad open -> +0.28 rad constricted)
+      const petalPitch = -0.07 + t * 0.35;
+      for (const petal of dynamicNodes.nozzlePetals) {
+        petal.rotation.x = petalPitch;
+      }
+
+      // Scale & brighten afterburner plasma core + single PointLight
+      if (dynamicNodes.afterburnerCore) {
+        const radScale = 1.05 - t * 0.32;
+        const lenScale = 0.45 + t * 1.15;
+        dynamicNodes.afterburnerCore.scale.set(radScale, radScale, lenScale);
+        dynamicNodes.afterburnerCore.visible = t > 0.03;
+      }
+
+      materials.emissiveAccent.emissiveIntensity = 1.1 + t * 2.4;
+      materials.afterburnerPlume.emissiveIntensity = 1.2 + t * 3.2;
+      materials.afterburnerPlume.opacity = 0.25 + t * 0.58;
+      plasmaPointLight.intensity = 0.8 + t * 5.2;
+    }
+
+    function applyWireframe() {
+      Object.entries(materials).forEach(([key, m]) => {
+        if (key !== 'colliderProxy') {
+          m.wireframe = state.wireframe;
+        }
+      });
+    }
+
+    function updateTelemetry(unmergedStaticCount, mergedStaticCount) {
+      let tris = 0;
+      let verts = 0;
+      let meshCount = 0;
+
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) {
+          if (obj.parent && obj.parent.name === 'Collision_Proxies') return;
+          meshCount++;
+          const g = obj.geometry;
+          const pos = g.attributes.position;
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+        }
+      });
+
+      const saved = Math.max(0, unmergedStaticCount - mergedStaticCount);
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-meshes').textContent = meshCount.toString();
+      document.getElementById('stat-saved').textContent = `-${saved}`;
+    }
+
+    function refreshInspectorThumbnails() {
+      const set = pbrEngine.sets[state.inspectorMat];
+      if (!set) return;
+
+      const renderThumb = (elId, srcCanvas) => {
+        const host = document.getElementById(elId);
+        if (!host) return;
+        host.innerHTML = '';
+        const c = document.createElement('canvas');
+        c.width = 128;
+        c.height = 128;
+        c.className = 'w-full h-full object-cover';
+        c.getContext('2d').drawImage(srcCanvas, 0, 0, 128, 128);
+        host.appendChild(c);
+      };
+
+      renderThumb('thumb-albedo', set.canvases.albedo);
+      renderThumb('thumb-normal', set.canvases.normal);
+      renderThumb('thumb-rough', set.canvases.roughness);
+      renderThumb('thumb-metal', set.canvases.metalness);
+      renderThumb('thumb-emissive', set.canvases.emissive);
+    }
+
+    // Smooth Camera Presets ("3/4 Hero", "Intake Fan", "Vectoring Nozzle", "Side Blueprint")
+    let camTransition = null;
+    function setCameraPreset(presetKey) {
+      document.querySelectorAll('.cam-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.cam === presetKey);
+      });
+
+      const cy = state.pivotMode === 'cradle' ? 0.88 : 0.0;
+      const presets = {
+        hero: {
+          pos: new THREE.Vector3(2.35, cy + 0.95, 2.45),
+          target: new THREE.Vector3(0, cy, 0.05)
+        },
+        intake: {
+          pos: new THREE.Vector3(0.55, cy + 0.28, 2.45),
+          target: new THREE.Vector3(0, cy + 0.05, 0.85)
+        },
+        nozzle: {
+          pos: new THREE.Vector3(-1.35, cy + 0.55, -2.35),
+          target: new THREE.Vector3(0, cy + 0.05, -0.85)
+        },
+        side: {
+          pos: new THREE.Vector3(3.35, cy + 0.08, 0.0),
+          target: new THREE.Vector3(0, cy, 0.0)
+        }
+      };
+
+      const p = presets[presetKey] || presets.hero;
+      camTransition = {
+        targetPos: p.pos,
+        targetLook: p.target,
+        alpha: 0
+      };
+    }
+
+    // =========================================================================
+    // 10. PRE-EXPORT POSE RESET HOOK & ONE-CLICK EXPORT SUITE (.GLB / .OBJ / .PNG)
+    // =========================================================================
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function resetDynamicPosesToCanonical() {
+      if (dynamicNodes.spinnerCone) dynamicNodes.spinnerCone.rotation.set(0, 0, 0);
+      if (dynamicNodes.primaryFanRotor) dynamicNodes.primaryFanRotor.rotation.set(0, 0, 0);
+      if (dynamicNodes.compressorStage02) dynamicNodes.compressorStage02.rotation.set(0, 0, 0);
+      if (dynamicNodes.exhaustNozzleGroup) dynamicNodes.exhaustNozzleGroup.rotation.set(0, 0, 0);
+      for (const petal of dynamicNodes.nozzlePetals) {
+        petal.rotation.x = 0;
+      }
+      if (dynamicNodes.afterburnerCore) {
+        dynamicNodes.afterburnerCore.scale.set(1, 1, 1);
+      }
+    }
+
+    function withCanonicalRestPose(exportFn) {
+      const wasRunning = state.animRunning;
+      state.animRunning = false;
+
+      const saved = {
+        spinnerZ: dynamicNodes.spinnerCone ? dynamicNodes.spinnerCone.rotation.z : 0,
+        fanZ: dynamicNodes.primaryFanRotor ? dynamicNodes.primaryFanRotor.rotation.z : 0,
+        compZ: dynamicNodes.compressorStage02 ? dynamicNodes.compressorStage02.rotation.z : 0,
+        nozzleRot: dynamicNodes.exhaustNozzleGroup ? dynamicNodes.exhaustNozzleGroup.rotation.clone() : null,
+        petalPitch: dynamicNodes.nozzlePetals.length > 0 ? dynamicNodes.nozzlePetals[0].rotation.x : 0,
+        plumeScale: dynamicNodes.afterburnerCore ? dynamicNodes.afterburnerCore.scale.clone() : null,
+        collidersVis: dynamicNodes.colliderGroup ? dynamicNodes.colliderGroup.visible : false
+      };
+
+      // Reset all dynamic parts to canonical 0° rest pose
+      resetDynamicPosesToCanonical();
+      if (dynamicNodes.colliderGroup) {
+        dynamicNodes.colliderGroup.visible = state.includeColliders;
+      }
+
+      assetGroup.position.set(0, 0, 0);
+      assetGroup.rotation.set(0, 0, 0);
+      assetGroup.scale.set(1, 1, 1);
+      assetGroup.updateMatrixWorld(true);
+
+      const restore = () => {
+        if (dynamicNodes.spinnerCone) dynamicNodes.spinnerCone.rotation.z = saved.spinnerZ;
+        if (dynamicNodes.primaryFanRotor) dynamicNodes.primaryFanRotor.rotation.z = saved.fanZ;
+        if (dynamicNodes.compressorStage02) dynamicNodes.compressorStage02.rotation.z = saved.compZ;
+        if (dynamicNodes.exhaustNozzleGroup && saved.nozzleRot) {
+          dynamicNodes.exhaustNozzleGroup.rotation.copy(saved.nozzleRot);
+        }
+        for (const petal of dynamicNodes.nozzlePetals) {
+          petal.rotation.x = saved.petalPitch;
+        }
+        if (dynamicNodes.afterburnerCore && saved.plumeScale) {
+          dynamicNodes.afterburnerCore.scale.copy(saved.plumeScale);
+        }
+        if (dynamicNodes.colliderGroup) {
+          dynamicNodes.colliderGroup.visible = saved.collidersVis;
+        }
+        state.animRunning = wasRunning;
+      };
+
+      try {
+        exportFn(restore);
+      } catch (err) {
+        restore();
+        throw err;
+      }
+    }
+
+    function exportGLB() {
+      const lodTag = state.lodLevel === 'hero' ? 'Hero' : 'GameReady';
+      const pivotTag = state.pivotMode === 'cradle' ? 'WithCradle' : 'Core';
+      const filename = `Aether9_Plasma_Turbofan_${pivotTag}_${lodTag}.glb`;
+
+      withCanonicalRestPose((restore) => {
+        const exporter = new GLTFExporter();
+        exporter.parse(
+          assetGroup,
+          (buffer) => {
+            restore();
+            const blob = new Blob([buffer], { type: 'model/gltf-binary' });
+            triggerDownload(blob, filename);
+            const kb = (blob.size / 1024).toFixed(1);
+            showToast(
+              `Exported ${filename}`,
+              `Binary GLTF 2.0 (${kb} KB) · Rest Pose (0°) · COLOR_0 AO + Sobel Normals`
+            );
+          },
+          (err) => {
+            restore();
+            console.error(err);
+            showToast('GLB Export Error', err.message || 'Serialization failed', true);
+          },
+          { binary: true, onlyVisible: true }
+        );
+      });
+    }
+
+    function exportOBJ() {
+      const lodTag = state.lodLevel === 'hero' ? 'Hero' : 'GameReady';
+      const filename = `Aether9_Plasma_Turbofan_${lodTag}.obj`;
+
+      withCanonicalRestPose((restore) => {
+        const exporter = new OBJExporter();
+        const objText = exporter.parse(assetGroup);
+        restore();
+        const blob = new Blob([objText], { type: 'text/plain;charset=utf-8' });
+        triggerDownload(blob, filename);
+        const kb = (blob.size / 1024).toFixed(1);
+        showToast(`Exported ${filename}`, `Wavefront OBJ (${kb} KB) · Canonical Rest Pose (0°)`);
+      });
+    }
+
+    function exportPBRMaps() {
+      const set = pbrEngine.sets[state.inspectorMat] || pbrEngine.sets.base;
+      const prefixMap = {
+        base: 'MAT_Surface_Base_Nacelle',
+        metal: 'MAT_Primary_Metal_Titanium',
+        trim: 'MAT_Secondary_Trim_Conduits',
+        emissive: 'MAT_Emissive_Accent_Plasma'
+      };
+      const prefix = prefixMap[state.inspectorMat] || 'MAT_Surface_Base';
+
+      const pack = [
+        { canvas: set.canvases.albedo, name: `${prefix}_Albedo.png` },
+        { canvas: set.canvases.normal, name: `${prefix}_Normal_Sobel.png` },
+        { canvas: set.canvases.roughness, name: `${prefix}_Roughness.png` },
+        { canvas: set.canvases.metalness, name: `${prefix}_Metalness.png` },
+        { canvas: set.canvases.emissive, name: `${prefix}_Emissive.png` }
+      ];
+
+      pack.forEach((item, i) => {
+        setTimeout(() => {
+          item.canvas.toBlob((blob) => {
+            if (blob) triggerDownload(blob, item.name);
+          }, 'image/png');
+        }, i * 160);
+      });
+
+      showToast(
+        `Downloading 5 PBR Maps (${prefix})`,
+        '1024×1024 Albedo, Normal_Sobel, Roughness, Metalness & Emissive'
+      );
+    }
+
+    // =========================================================================
+    // 11. UI EVENT BINDINGS
+    // =========================================================================
+    document.getElementById('lod-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.lod-btn');
+      if (!btn || btn.dataset.lod === state.lodLevel) return;
+      state.lodLevel = btn.dataset.lod;
+      document.querySelectorAll('.lod-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.lod === state.lodLevel);
+      });
+      rebuildEngineAsset();
+      showToast(
+        state.lodLevel === 'hero' ? 'LOD: Hero Showcase (~22k Tris)' : 'LOD: Game-Ready (~6.5k Tris)',
+        'Procedural subdivision & airfoil stations updated.'
+      );
+    });
+
+    document.getElementById('pivot-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.pivot-btn');
+      if (!btn || btn.dataset.pivot === state.pivotMode) return;
+      state.pivotMode = btn.dataset.pivot;
+      document.querySelectorAll('.pivot-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.pivot === state.pivotMode);
+      });
+      rebuildEngineAsset();
+      setCameraPreset('hero');
+      showToast(
+        state.pivotMode === 'cradle' ? 'Pivot: Service Cradle (y = 0)' : 'Pivot: Center-of-Mass (0, 0, 0)',
+        state.pivotMode === 'cradle'
+          ? 'Maintenance gantry stand grounded at y = 0.0m.'
+          : 'Engine centerline axis centered at (0, 0, 0).'
+      );
+    });
+
+    document.getElementById('livery-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.livery-btn');
+      if (!btn) return;
+      applyLivery(btn.dataset.livery);
+      showToast(`Livery: ${LIVERIES[btn.dataset.livery].name}`, '1024² PBR & 3×3 Sobel Normal Maps baked.');
+    });
+
+    document.getElementById('sld-throttle').addEventListener('input', (e) => {
+      const pct = parseInt(e.target.value, 10);
+      state.throttle = pct / 100.0;
+      document.getElementById('lbl-throttle').textContent = `${pct}%`;
+      applyThrottleVisuals();
+    });
+
+    document.getElementById('sld-blades').addEventListener('input', (e) => {
+      state.bladeCount = parseInt(e.target.value, 10);
+      document.getElementById('lbl-blades').textContent = `${state.bladeCount} Blades`;
+      rebuildEngineAsset();
+    });
+
+    document.getElementById('tgl-anim').addEventListener('click', (e) => {
+      state.animRunning = !state.animRunning;
+      e.currentTarget.classList.toggle('active', state.animRunning);
+      e.currentTarget.textContent = state.animRunning ? 'Anim: RUNNING' : 'Anim: PAUSED';
+    });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => {
+      state.animRunning = false;
+      const animBtn = document.getElementById('tgl-anim');
+      animBtn.classList.remove('active');
+      animBtn.textContent = 'Anim: PAUSED';
+      resetDynamicPosesToCanonical();
+      showToast('Canonical Rest Pose (0°) Applied', 'Rotors, gimbal & 16 nozzle petals zeroed.');
+    });
+
+    document.getElementById('tgl-colliders').addEventListener('click', (e) => {
+      state.showColliders = !state.showColliders;
+      if (dynamicNodes.colliderGroup) {
+        dynamicNodes.colliderGroup.visible = state.showColliders;
+      }
+      e.currentTarget.classList.toggle('active', state.showColliders);
+      e.currentTarget.textContent = state.showColliders ? 'Preview Colliders: ON' : 'Preview Colliders: OFF';
+    });
+
+    document.getElementById('tgl-wireframe').addEventListener('click', (e) => {
+      state.wireframe = !state.wireframe;
+      applyWireframe();
+      e.currentTarget.classList.toggle('active', state.wireframe);
+      e.currentTarget.textContent = state.wireframe ? 'Wireframe: ON' : 'Wireframe: OFF';
+    });
+
+    document.getElementById('chk-export-colliders').addEventListener('change', (e) => {
+      state.includeColliders = e.target.checked;
+    });
+
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+    });
+
+    let inspectorOpen = true;
+    document.getElementById('inspector-header').addEventListener('click', () => {
+      inspectorOpen = !inspectorOpen;
+      document.getElementById('inspector-body').style.display = inspectorOpen ? 'flex' : 'none';
+      document.getElementById('inspector-chevron').textContent = inspectorOpen ? '[ − ]' : '[ + ]';
+    });
+
+    document.getElementById('pbr-tab-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.pbr-tab');
+      if (!btn) return;
+      state.inspectorMat = btn.dataset.mat;
+      document.querySelectorAll('.pbr-tab').forEach((b) => {
+        b.classList.toggle('active', b.dataset.mat === state.inspectorMat);
+      });
+      refreshInspectorThumbnails();
+    });
+
+    let unityDrawerOpen = false;
+    document.getElementById('toggle-unity-drawer').addEventListener('click', () => {
+      unityDrawerOpen = !unityDrawerOpen;
+      document.getElementById('unity-drawer-body').classList.toggle('hidden', !unityDrawerOpen);
+      document.getElementById('unity-drawer-chevron').textContent = unityDrawerOpen ? '[ − ]' : '[ + ]';
+    });
+
+    document.getElementById('copy-csharp-btn').addEventListener('click', () => {
+      const codeText = document.getElementById('csharp-code-block').textContent;
+      const ta = document.createElement('textarea');
+      ta.value = codeText;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Copied Aether9TurbineController.cs', 'Ready to paste into Unity Assets/Scripts/.');
+      } catch (err) {
+        showToast('Copy Failed', 'Please select and copy the C# code manually.', true);
+      }
+      document.body.removeChild(ta);
+    });
+
+    document.getElementById('toggle-right').addEventListener('click', () => {
+      document.getElementById('right-hud').classList.toggle('collapsed-right');
+    });
+
+    document.getElementById('btn-export-glb').addEventListener('click', exportGLB);
+    document.getElementById('btn-export-obj').addEventListener('click', exportOBJ);
+    document.getElementById('btn-export-png').addEventListener('click', exportPBRMaps);
+
+    renderer.domElement.addEventListener('dblclick', () => setCameraPreset('hero'));
+
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloomPass.resolution.set(w, h);
+    });
+
+    // =========================================================================
+    // 12. ANIMATION LOOP & BOOTSTRAP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (state.animRunning) {
+        elapsed += dt;
+        const speedFactor = 0.25 + state.throttle * 1.45;
+        const angularVel = dt * 11.5 * speedFactor;
+
+        if (dynamicNodes.spinnerCone) {
+          dynamicNodes.spinnerCone.rotation.z += angularVel;
+        }
+        if (dynamicNodes.primaryFanRotor) {
+          dynamicNodes.primaryFanRotor.rotation.z += angularVel;
+        }
+        if (dynamicNodes.compressorStage02) {
+          dynamicNodes.compressorStage02.rotation.z -= angularVel * 1.35;
+        }
+
+        // Subtle aerodynamic thrust-vector gimbal oscillation on the 16-petal exhaust assembly
+        if (dynamicNodes.exhaustNozzleGroup) {
+          const gimbalAmp = 0.025 + state.throttle * 0.055;
+          dynamicNodes.exhaustNozzleGroup.rotation.x = Math.sin(elapsed * 1.65) * gimbalAmp;
+          dynamicNodes.exhaustNozzleGroup.rotation.y = Math.cos(elapsed * 1.25) * gimbalAmp;
+        }
+
+        // High-frequency plasma pulse on afterburner core & single PointLight
+        if (dynamicNodes.afterburnerCore && state.throttle > 0.03) {
+          const pulse = 1.0 + Math.sin(elapsed * 26.0) * 0.045;
+          const lenScale = (0.45 + state.throttle * 1.15) * pulse;
+          dynamicNodes.afterburnerCore.scale.z = lenScale;
+          plasmaPointLight.intensity = (0.8 + state.throttle * 5.2) * (0.94 + Math.sin(elapsed * 22.0) * 0.06);
+        }
+      }
+
+      if (camTransition) {
+        camTransition.alpha += dt * 4.5;
+        const t = Math.min(1, camTransition.alpha);
+        const ease = 1 - Math.pow(1 - t, 3);
+        camera.position.lerp(camTransition.targetPos, ease * 0.22);
+        controls.target.lerp(camTransition.targetLook, ease * 0.22);
+        if (t >= 1) camTransition = null;
+      }
+
+      controls.update();
+      composer.render();
+    }
+
+    window.addEventListener('load', () => {
+      if (window.innerWidth < 900) {
+        document.getElementById('right-hud').classList.add('collapsed-right');
+      }
+      applyLivery('cyan');
+      rebuildEngineAsset();
+      animate();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,3345 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOVEREIGN'S OATH // 3A ARPG ASSET FORGE</title>
+
+  <!-- Tailwind CSS for responsive 2K (2560x1440) dark-medieval HUD layout -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Typography: Cinzel (Gothic Display), Inter (Clean 2K HUD), JetBrains Mono (Telemetry & C#) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Three.js v0.169.0 ES Module Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.169.0",
+        "three/addons/": "https://esm.sh/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-void: #06070a;
+      --hud-obsidian: rgba(10, 12, 18, 0.88);
+      --hud-card: rgba(7, 9, 14, 0.78);
+      --gold-bevel: rgba(212, 175, 55, 0.36);
+      --gold-bright: #f2d680;
+      --gold-core: #d4af37;
+      --text-main: #eef1f7;
+      --text-dim: #8d96aa;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-void);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: clamp(13px, 0.62vw, 15px);
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: radial-gradient(circle at 50% 42%, #131722 0%, #080a10 62%, #040507 100%);
+    }
+
+    /* Subtle Dark-Medieval Atmospheric Vignette */
+    #viewport::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, transparent 56%, rgba(3, 4, 7, 0.75) 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+
+    /* Deep Obsidian Semi-Transparent Glass Panels with 1px Micro-Bevel Borders */
+    .obsidian-hud {
+      background: var(--hud-obsidian);
+      backdrop-filter: blur(16px) saturate(135%);
+      -webkit-backdrop-filter: blur(16px) saturate(135%);
+      border: 1px solid var(--gold-bevel);
+      box-shadow:
+        0 26px 64px rgba(0, 0, 0, 0.84),
+        inset 0 1px 0 rgba(242, 214, 128, 0.16),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    }
+
+    .obsidian-card {
+      background: var(--hud-card);
+      border: 1px solid rgba(212, 175, 55, 0.24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      border-radius: 8px;
+    }
+
+    .font-cinzel {
+      font-family: 'Cinzel', serif;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Custom Royal Gold Diamond-Thumb Sliders */
+    input[type="range"].relic-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.11);
+      border: 1px solid rgba(212, 175, 55, 0.28);
+      border-radius: 999px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].relic-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      transform: rotate(45deg);
+      background: linear-gradient(135deg, #f7df94 0%, #b58c24 100%);
+      border: 1px solid #fff5d6;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.78);
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    input[type="range"].relic-slider::-webkit-slider-thumb:hover {
+      transform: rotate(45deg) scale(1.18);
+      box-shadow: 0 0 15px rgba(247, 223, 148, 0.98);
+    }
+
+    input[type="range"].relic-slider::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      transform: rotate(45deg);
+      background: linear-gradient(135deg, #f7df94 0%, #b58c24 100%);
+      border: 1px solid #fff5d6;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.78);
+      cursor: pointer;
+    }
+
+    /* Custom Scrollbars */
+    .hud-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .hud-scroll::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .hud-scroll::-webkit-scrollbar-thumb {
+      background: rgba(212, 175, 55, 0.38);
+      border-radius: 999px;
+    }
+    .hud-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.68);
+    }
+
+    /* Interactive Micro-Bevel Buttons */
+    .relic-btn {
+      background: rgba(14, 17, 25, 0.90);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      color: #d6dbe8;
+      transition: all 0.18s ease;
+    }
+    .relic-btn:hover {
+      border-color: rgba(212, 175, 55, 0.68);
+      background: rgba(24, 29, 42, 0.96);
+      color: #ffffff;
+    }
+    .relic-btn.active {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.26) 0%, rgba(16, 20, 30, 0.95) 100%);
+      border-color: #d4af37;
+      color: #f7df94;
+      box-shadow: inset 0 0 12px rgba(212, 175, 55, 0.22);
+    }
+
+    /* Primary Gilded GLB Export CTA */
+    .btn-gold-cta {
+      background: linear-gradient(135deg, #e5c358 0%, #a67f1e 50%, #e5c358 100%);
+      background-size: 200% auto;
+      color: #07080c;
+      font-weight: 700;
+      border: 1px solid #faeaaf;
+      box-shadow: 0 6px 24px rgba(212, 175, 55, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+      transition: all 0.22s ease;
+    }
+    .btn-gold-cta:hover {
+      background-position: right center;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(212, 175, 55, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    }
+    .btn-gold-cta:active {
+      transform: translateY(0px);
+    }
+
+    /* Slide-out Collapse States */
+    .collapsed-left {
+      transform: translateX(calc(-100% - 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+    .collapsed-right {
+      transform: translateX(calc(100% + 28px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .selectable-code {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
+    @keyframes toastRise {
+      from { opacity: 0; transform: translateY(14px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .toast-card {
+      animation: toastRise 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 3D WebGL Viewport -->
+  <div id="viewport"></div>
+
+  <!-- TOP HEADER BAR -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex items-center justify-between gap-3 pointer-events-none">
+    <!-- Title Plaque -->
+    <div class="obsidian-hud px-4 py-2.5 flex items-center gap-3.5 pointer-events-auto max-w-full">
+      <div class="w-9 h-9 rounded-lg border border-[#d4af37]/60 bg-[#d4af37]/14 flex items-center justify-center shrink-0">
+        <!-- Royal Greatsword & Halo Emblem -->
+        <svg class="w-5 h-5 text-[#f2d680]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65">
+          <circle cx="12" cy="9" r="5.5" stroke-dasharray="2.5 2" />
+          <path d="M12 2L13.7 6.5L12 19.5L10.3 6.5L12 2Z" />
+          <path d="M6.5 7.5C8.5 9.2 10.2 9.4 12 9.4C13.8 9.4 15.5 9.2 17.5 7.5" />
+          <line x1="12" y1="2" x2="12" y2="0.5" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2.5">
+          <h1 class="font-cinzel text-xs sm:text-sm md:text-base font-bold tracking-[0.14em] text-[#f7edd0] truncate">
+            SOVEREIGN'S OATH <span class="text-[#d4af37] hidden sm:inline">// 3A ARPG ASSET FORGE</span>
+          </h1>
+          <span class="hidden lg:inline-block px-2 py-0.5 text-[10px] font-mono-tech uppercase tracking-wider rounded bg-[#d4af37]/15 text-[#f2d680] border border-[#d4af37]/40">
+            COLOR_0 AO + SOBEL PBR
+          </span>
+        </div>
+        <p class="text-[11px] text-[#8d96aa] truncate">
+          Arc-Length UVs · Baked Vertex AO · Triplanar Crater Stone · Dual-Tier Helix Phalanx · Convex Colliders
+        </p>
+      </div>
+    </div>
+
+    <!-- Camera Presets & HUD Toggles -->
+    <div class="flex items-center gap-2 pointer-events-auto shrink-0">
+      <div class="hidden xl:flex obsidian-hud p-1 gap-1">
+        <button data-cam="hero" class="cam-btn relic-btn active px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Hero 3/4</button>
+        <button data-cam="topdown" class="cam-btn relic-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">ARPG 50° Top-Down</button>
+        <button data-cam="blade" class="cam-btn relic-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Blade Macro</button>
+        <button data-cam="impact" class="cam-btn relic-btn px-2.5 py-1.5 rounded text-[11px] font-mono-tech cursor-pointer">Altar Impact</button>
+      </div>
+
+      <button id="btn-unity-modal" class="obsidian-hud px-3 py-2 text-xs font-mono-tech text-[#f2d680] hover:border-[#d4af37] flex items-center gap-1.5 cursor-pointer" title="Unity URP & glTFast Setup">
+        <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+        <span class="hidden sm:inline">UNITY URP</span>
+      </button>
+
+      <button id="toggle-left" class="obsidian-hud px-3 py-2 text-xs font-mono-tech text-[#d6dbe8] hover:border-[#d4af37] cursor-pointer">
+        FORGE
+      </button>
+      <button id="toggle-right" class="obsidian-hud px-3 py-2 text-xs font-mono-tech text-[#d6dbe8] hover:border-[#d4af37] cursor-pointer">
+        INSPECT
+      </button>
+    </div>
+  </header>
+
+  <!-- LEFT FLOATING HUD: Asset Mode, LOD Budget, Theme Presets & Sculpting Parameters -->
+  <aside id="left-hud" class="obsidian-hud hud-scroll fixed top-[74px] left-3 bottom-3 w-[364px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-3">
+
+    <!-- 01 // Asset Mode & LOD Mesh Budget -->
+    <div class="obsidian-card p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          01 // Asset Mode &amp; LOD Budget
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8d96aa]">1 UNIT = 1M</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5" id="asset-mode-group">
+        <button data-mode="altar" class="mode-btn relic-btn active rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#f7edd0]">Full Shrine Prop</div>
+          <div class="text-[10px] font-mono-tech text-[#8d96aa] mt-0.5">Base Pivot y=0</div>
+        </button>
+        <button data-mode="weapon" class="mode-btn relic-btn rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#f7edd0]">Weapon Only</div>
+          <div class="text-[10px] font-mono-tech text-[#8d96aa] mt-0.5">Grip Pivot (0,0,0)</div>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5" id="lod-group">
+        <button data-lod="hero" class="lod-btn relic-btn active rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#f2d680]">HERO (~22k Tris)</div>
+          <div class="text-[9px] font-mono-tech text-[#8d96aa] mt-0.5">112 Blade Stations</div>
+        </button>
+        <button data-lod="game" class="lod-btn relic-btn rounded-lg p-2 text-left cursor-pointer">
+          <div class="text-[11px] font-semibold text-[#f2d680]">GAME-READY (~6.5k)</div>
+          <div class="text-[9px] font-mono-tech text-[#8d96aa] mt-0.5">48 Blade Stations</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 02 // Royal Alloy & Rune Theme Presets -->
+    <div class="obsidian-card p-3">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          02 // Alloy &amp; Rune Theme
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8d96aa]">1024² PBR</span>
+      </div>
+      <div class="flex flex-col gap-1.5" id="theme-group">
+        <button data-theme="astral" class="theme-btn relic-btn active rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/45" style="background: radial-gradient(circle, #38bdf8 0%, #d4af37 68%, #1e2433 100%); box-shadow: 0 0 9px rgba(56,189,248,0.65);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#f7edd0]">Astral Sovereign (Royal Blue &amp; Gold)</div>
+            <div class="text-[9px] text-[#8d96aa]">Damascus Steel · 24k Gold · Astral Sapphire</div>
+          </div>
+        </button>
+
+        <button data-theme="ember" class="theme-btn relic-btn rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/45" style="background: radial-gradient(circle, #ef4444 0%, #7c4a26 68%, #141012 100%); box-shadow: 0 0 9px rgba(239,68,68,0.65);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#f7edd0]">Ember Tyrant (Crimson &amp; Dark Iron)</div>
+            <div class="text-[9px] text-[#8d96aa]">Forged Dark Iron · Tarnished Bronze · Crimson Cinder</div>
+          </div>
+        </button>
+
+        <button data-theme="abyssal" class="theme-btn relic-btn rounded-lg p-2 text-left flex items-center gap-2.5 cursor-pointer">
+          <span class="w-3.5 h-3.5 rounded-full shrink-0 border border-white/45" style="background: radial-gradient(circle, #c084fc 0%, #cbd5e1 68%, #181424 100%); box-shadow: 0 0 9px rgba(192,132,252,0.65);"></span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[11px] font-semibold text-[#f7edd0]">Abyssal Eclipse (Violet &amp; Pale Silver)</div>
+            <div class="text-[9px] text-[#8d96aa]">Pale Mithril Silver · Platinum Trim · Void Violet</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 03 // Weapon & Dual-Tier Helix Sculpting -->
+    <div class="obsidian-card p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          03 // Weapon &amp; Helix Phalanx
+        </span>
+        <span class="text-[10px] font-mono-tech text-[#8d96aa]">ARC-LENGTH UV</span>
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#d6dbe8]">Greatsword Blade Length</span>
+          <span id="lbl-blade-len" class="font-mono-tech text-[#f2d680]">1.58 m</span>
+        </div>
+        <input id="sld-blade-len" type="range" min="1.30" max="1.85" step="0.01" value="1.58" class="relic-slider" />
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#d6dbe8]">Crossguard Wingspan</span>
+          <span id="lbl-guard-span" class="font-mono-tech text-[#f2d680]">0.54 m</span>
+        </div>
+        <input id="sld-guard-span" type="range" min="0.40" max="0.72" step="0.01" value="0.54" class="relic-slider" />
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#d6dbe8]">Dual-Tier Guardian Swords</span>
+          <span id="lbl-guardians" class="font-mono-tech text-[#f2d680]">8 Swords</span>
+        </div>
+        <input id="sld-guardians" type="range" min="0" max="8" step="1" value="8" class="relic-slider" />
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#d6dbe8]">Rune &amp; Gem Luminance</span>
+          <span id="lbl-glow" class="font-mono-tech text-[#f2d680]">2.10</span>
+        </div>
+        <input id="sld-glow" type="range" min="0.40" max="3.60" step="0.10" value="2.10" class="relic-slider" />
+      </div>
+
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-[#d6dbe8]">Animation Speed</span>
+          <span id="lbl-anim-speed" class="font-mono-tech text-[#f2d680]">1.00x</span>
+        </div>
+        <input id="sld-anim-speed" type="range" min="0.00" max="2.50" step="0.05" value="1.00" class="relic-slider" />
+      </div>
+    </div>
+
+    <!-- 04 // Relic Features, Colliders & Viewport Toggles -->
+    <div class="obsidian-card p-3 flex flex-col gap-1.5">
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="tgl-halo" class="relic-btn active rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Prayer Halo: ON
+        </button>
+        <button id="tgl-colliders" class="relic-btn rounded-lg py-1.5 px-2 text-[11px] font-mono-tech cursor-pointer">
+          Collision Proxies: OFF
+        </button>
+      </div>
+      <div class="grid grid-cols-3 gap-1.5">
+        <button id="tgl-anim" class="relic-btn active rounded-lg py-1.5 px-1.5 text-[10px] font-mono-tech cursor-pointer">
+          Motion: LIVE
+        </button>
+        <button id="tgl-bloom" class="relic-btn active rounded-lg py-1.5 px-1.5 text-[10px] font-mono-tech cursor-pointer">
+          Bloom: ON
+        </button>
+        <button id="tgl-wireframe" class="relic-btn rounded-lg py-1.5 px-1.5 text-[10px] font-mono-tech cursor-pointer">
+          Wireframe
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT FLOATING HUD: Real-Time Asset Budget, PBR Inspector & Pre-Export Pose Reset -->
+  <aside id="right-hud" class="obsidian-hud hud-scroll fixed top-[74px] right-3 bottom-3 w-[364px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-3">
+
+    <!-- Real-Time Asset Budget HUD -->
+    <div class="obsidian-card p-3">
+      <div class="flex items-center justify-between border-b border-white/10 pb-1.5 mb-2">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          Real-Time Asset Budget
+        </span>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono-tech rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+          COLOR_0 AO + MERGED
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="bg-black/45 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8d96aa] uppercase">Triangles</div>
+          <div id="stat-tris" class="font-mono-tech text-sm font-semibold text-[#f7edd0] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/45 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8d96aa] uppercase">Vertices</div>
+          <div id="stat-verts" class="font-mono-tech text-sm font-semibold text-[#f7edd0] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/45 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8d96aa] uppercase">Exported Meshes</div>
+          <div id="stat-drawcalls" class="font-mono-tech text-sm font-semibold text-[#f2d680] mt-0.5">0</div>
+        </div>
+        <div class="bg-black/45 rounded p-2 border border-white/5">
+          <div class="text-[10px] text-[#8d96aa] uppercase">Draw Calls Saved</div>
+          <div id="stat-saved" class="font-mono-tech text-sm font-semibold text-emerald-300 mt-0.5">0</div>
+        </div>
+      </div>
+
+      <!-- Clean Unity Hierarchy Tree -->
+      <div id="hierarchy-box" class="mt-2 font-mono-tech text-[10px] text-[#9aa3ba] bg-black/50 p-2 rounded border border-white/5 leading-relaxed">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Collapsible PBR Texture & Sobel Normal Map Inspector -->
+    <div class="obsidian-card p-3">
+      <div class="flex items-center justify-between cursor-pointer" id="inspector-header">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          PBR Texture &amp; Sobel Normal Inspector
+        </span>
+        <span id="inspector-chevron" class="text-xs font-mono-tech text-[#f2d680]">[ − ]</span>
+      </div>
+
+      <div id="inspector-body" class="mt-2 flex flex-col gap-2">
+        <div class="grid grid-cols-4 gap-1" id="pbr-tab-group">
+          <button data-mat="blade" class="pbr-tab relic-btn active py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Blade</button>
+          <button data-mat="gold" class="pbr-tab relic-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Gold</button>
+          <button data-mat="stone" class="pbr-tab relic-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Stone</button>
+          <button data-mat="leather" class="pbr-tab relic-btn py-1 px-1 rounded text-[10px] font-mono-tech cursor-pointer">Leather</button>
+        </div>
+
+        <div class="grid grid-cols-5 gap-1.5 text-center">
+          <div>
+            <div id="thumb-albedo" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8d96aa] mt-1">Albedo</span>
+          </div>
+          <div>
+            <div id="thumb-normal" class="aspect-square rounded border border-[#8080ff]/50 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#a5b4fc] mt-1">Normal</span>
+          </div>
+          <div>
+            <div id="thumb-rough" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8d96aa] mt-1">Rough</span>
+          </div>
+          <div>
+            <div id="thumb-metal" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8d96aa] mt-1">Metal</span>
+          </div>
+          <div>
+            <div id="thumb-emissive" class="aspect-square rounded border border-white/15 overflow-hidden bg-black"></div>
+            <span class="block text-[9px] font-mono-tech text-[#8d96aa] mt-1">Emissive</span>
+          </div>
+        </div>
+
+        <div class="text-[9px] font-mono-tech text-[#757e94] flex justify-between">
+          <span>Albedo/Emissive: sRGB</span>
+          <span>Normal/ORM: Linear</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pre-Export Pose Reset & Export Suite -->
+    <div class="obsidian-card p-3 flex flex-col gap-2 mt-auto">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-mono-tech uppercase tracking-[0.14em] text-[#d4af37] font-semibold">
+          Pre-Export Pose Reset Hook
+        </span>
+        <span class="text-[9px] font-mono-tech text-emerald-300">REST POSE (0°)</span>
+      </div>
+
+      <label class="flex items-center justify-between bg-black/45 px-2.5 py-1.5 rounded border border-white/5 cursor-pointer text-[11px] text-[#cbd5e1]">
+        <span>Include Convex Colliders in Export</span>
+        <input id="chk-export-colliders" type="checkbox" class="accent-[#d4af37] w-3.5 h-3.5 cursor-pointer" />
+      </label>
+
+      <button id="btn-export-glb" class="btn-gold-cta w-full py-2.5 px-3 rounded-lg text-xs tracking-wide flex items-center justify-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+        <span>Download .GLB (Unity Ready)</span>
+      </button>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="btn-export-obj" class="relic-btn py-2 px-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Download .OBJ</span>
+        </button>
+
+        <button id="btn-export-png" class="relic-btn py-2 px-2 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-[#d4af37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span>Download .PNG Textures</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- UNITY URP INTEGRATION MODAL -->
+  <div id="unity-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="obsidian-hud w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-[#d4af37]/30 flex items-center justify-between">
+        <div>
+          <h2 class="font-cinzel text-sm sm:text-base font-bold tracking-wider text-[#f7edd0]">
+            UNITY URP &amp; GLTFAST 3A PRODUCTION GUIDE
+          </h2>
+          <p class="text-[11px] text-[#8d96aa]">Vertex Color AO (COLOR_0) · Semantic Materials · Convex MeshColliders</p>
+        </div>
+        <button id="close-unity-modal" class="relic-btn px-2.5 py-1 rounded text-xs font-mono-tech cursor-pointer">✕ ESC</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto hud-scroll space-y-4 text-xs text-[#d6dbe8]">
+        <div class="obsidian-card p-3.5 space-y-1.5">
+          <div class="font-mono-tech text-[11px] font-semibold text-[#f2d680] uppercase">1. Semantic Materials &amp; Vertex Color AO</div>
+          <ul class="list-disc pl-4 space-y-1 text-[#b5bdd0]">
+            <li><strong>Semantic Materials</strong>: <code class="text-[#f2d680]">MAT_Damascus_Blade</code>, <code class="text-[#f2d680]">MAT_Royal_Gold</code>, <code class="text-[#f2d680]">MAT_Dragon_Leather</code>, <code class="text-[#f2d680]">MAT_Altar_Stone</code>, and <code class="text-[#f2d680]">MAT_Arcane_Glow</code> export cleanly for instant Unity URP Material Remap.</li>
+            <li><strong>Vertex Color AO (<code class="text-emerald-300">COLOR_0</code>)</strong>: Baked into fuller grooves, lancet niches, and stone impact cracks—multiplies automatically in URP Lit shaders with zero extra AO texture memory.</li>
+            <li><strong>Convex Colliders</strong>: Enable <em>Include Convex Colliders in Export</em> to bundle <code class="text-[#f2d680]">Collider_Altar_Base</code> and <code class="text-[#f2d680]">Collider_Sword_Hitbox</code> for zero-overhead <code class="text-[#f2d680]">MeshCollider (Convex = true)</code> setup.</li>
+          </ul>
+        </div>
+
+        <div class="obsidian-card p-3.5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono-tech text-[11px] font-semibold text-[#f2d680] uppercase">2. SovereignsOathController.cs (Unity C#)</span>
+            <button id="copy-csharp-btn" class="relic-btn px-2.5 py-1 rounded text-[11px] font-mono-tech text-[#f2d680] cursor-pointer">
+              Copy C# Script
+            </button>
+          </div>
+          <pre id="csharp-code-block" class="selectable-code bg-black/65 p-3 rounded border border-white/10 font-mono-tech text-[11px] text-[#cbd5e1] overflow-x-auto leading-relaxed">using System.Collections.Generic;
+using UnityEngine;
+
+/// &lt;summary&gt;
+/// Animates the Dual-Tier Helix Guardian Oath-Swords, Celestial Prayer Halo,
+/// and Royal Gem Core exported from Sovereign's Oath 3A ARPG Forge.
+/// &lt;/summary&gt;
+public class SovereignsOathController : MonoBehaviour
+{
+    public Transform celestialHalo;
+    public Transform swordGemCore;
+    public float innerOrbitSpeed = 28f;
+    public float outerOrbitSpeed = -20f;
+    public float bobAmplitude = 0.032f;
+
+    private readonly List&lt;Transform&gt; _guardianBlades = new List&lt;Transform&gt;();
+    private readonly List&lt;Vector3&gt; _restPositions = new List&lt;Vector3&gt;();
+
+    private void Start()
+    {
+        if (!celestialHalo) celestialHalo = FindDeepChild(transform, "Celestial_Halo_Ring");
+        if (!swordGemCore) swordGemCore = FindDeepChild(transform, "Sword_Gem_Core");
+
+        for (int i = 1; i &lt;= 8; i++)
+        {
+            Transform gb = FindDeepChild(transform, $"Guardian_Blade_0{i}");
+            if (gb != null)
+            {
+                _guardianBlades.Add(gb);
+                _restPositions.Add(gb.localPosition);
+            }
+        }
+    }
+
+    private void Update()
+    {
+        float t = Time.time;
+        if (celestialHalo != null)
+            celestialHalo.Rotate(Vector3.forward, 12f * Time.deltaTime, Space.Self);
+
+        for (int i = 0; i &lt; _guardianBlades.Count; i++)
+        {
+            Transform blade = _guardianBlades[i];
+            float speed = (i % 2 == 0) ? innerOrbitSpeed : outerOrbitSpeed;
+            blade.RotateAround(transform.position, Vector3.up, speed * Time.deltaTime);
+            Vector3 p = blade.localPosition;
+            p.y = _restPositions[i].y + Mathf.Sin(t * 2.4f + i * 0.95f) * bobAmplitude;
+            blade.localPosition = p;
+        }
+    }
+
+    private static Transform FindDeepChild(Transform parent, string targetName)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.name == targetName) return child;
+            Transform found = FindDeepChild(child, targetName);
+            if (found != null) return found;
+        }
+        return null;
+    }
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Stack -->
+  <div id="toast-stack" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-md"></div>
+
+  <!-- MAIN THREE.JS APPLICATION -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // =========================================================================
+    // 1. TOAST NOTIFICATION HELPER (Zero alert() / confirm())
+    // =========================================================================
+    function showToast(title, subtitle = '', isError = false) {
+      const stack = document.getElementById('toast-stack');
+      const el = document.createElement('div');
+      el.className = `toast-card obsidian-hud px-4 py-2.5 w-full flex items-center gap-3 pointer-events-auto ${
+        isError ? 'border-red-500/60' : 'border-[#d4af37]/75'
+      }`;
+      el.innerHTML = `
+        <div class="${isError ? 'text-red-400' : 'text-[#f2d680]'} shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-semibold text-[#f7edd0] truncate">${title}</div>
+          ${subtitle ? `<div class="text-[10px] font-mono-tech text-[#9aa3ba] truncate">${subtitle}</div>` : ''}
+        </div>
+      `;
+      stack.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(8px)';
+        el.style.transition = 'all 0.25s ease';
+        setTimeout(() => el.remove(), 260);
+      }, 3600);
+    }
+
+    // =========================================================================
+    // 2. ROYAL ALLOY & RUNE THEME PRESETS
+    // =========================================================================
+    const THEMES = {
+      astral: {
+        name: 'Astral Sovereign (Royal Blue & Gold)',
+        steelBase: '#7b879e',
+        steelEdge: '#ebf2ff',
+        steelFold: '#384152',
+        goldBase: '#d4af37',
+        goldBright: '#fae39c',
+        goldPatina: '#4f3910',
+        ironColor: 0x222630,
+        stoneBase: '#272a33',
+        stoneDark: '#111319',
+        stoneLight: '#414756',
+        leatherBase: '#2a1c18',
+        leatherHighlight: '#4f362e',
+        stitchColor: '#d4af37',
+        runePrimary: '#38bdf8',
+        runeSecondary: '#fbbf24',
+        gemColor: 0x38bdf8,
+        gemEmissive: 0x0284c7,
+        spectralColor: 0x7dd3fc,
+        spectralEmissive: 0x0ea5e9,
+        rimHex: 0x60a5fa
+      },
+      ember: {
+        name: 'Ember Tyrant (Crimson & Dark Iron)',
+        steelBase: '#3d4049',
+        steelEdge: '#b8c0ce',
+        steelFold: '#181a1f',
+        goldBase: '#995c30',
+        goldBright: '#e0a468',
+        goldPatina: '#2e180a',
+        ironColor: 0x171518,
+        stoneBase: '#231c1e',
+        stoneDark: '#0e0a0b',
+        stoneLight: '#3a2e31',
+        leatherBase: '#1d1113',
+        leatherHighlight: '#3b2125',
+        stitchColor: '#ef4444',
+        runePrimary: '#ef4444',
+        runeSecondary: '#f97316',
+        gemColor: 0xf87171,
+        gemEmissive: 0xdc2626,
+        spectralColor: 0xfca5a5,
+        spectralEmissive: 0xef4444,
+        rimHex: 0xf87171
+      },
+      abyssal: {
+        name: 'Abyssal Eclipse (Violet & Pale Silver)',
+        steelBase: '#a3b1c6',
+        steelEdge: '#f8fafc',
+        steelFold: '#5b697d',
+        goldBase: '#cbd5e1',
+        goldBright: '#ffffff',
+        goldPatina: '#475569',
+        ironColor: 0x242636,
+        stoneBase: '#232130',
+        stoneDark: '#0f0e17',
+        stoneLight: '#3a374f',
+        leatherBase: '#1e192b',
+        leatherHighlight: '#362d4d',
+        stitchColor: '#c084fc',
+        runePrimary: '#c084fc',
+        runeSecondary: '#e879f9',
+        gemColor: 0xc084fc,
+        gemEmissive: 0x9333ea,
+        spectralColor: 0xd8b4fe,
+        spectralEmissive: 0xa855f7,
+        rimHex: 0xc084fc
+      }
+    };
+
+    // =========================================================================
+    // 3. 1024x1024 PROCEDURAL PBR ENGINE + 3x3 SOBEL NORMAL MAP BAKER
+    // =========================================================================
+    class SovereignPBREngine {
+      constructor(size = 1024) {
+        this.size = size;
+        this.sets = {
+          blade: this._createMapSet(),
+          gold: this._createMapSet(),
+          stone: this._createMapSet(),
+          leather: this._createMapSet()
+        };
+      }
+
+      _createCanvas() {
+        const c = document.createElement('canvas');
+        c.width = this.size;
+        c.height = this.size;
+        return c;
+      }
+
+      _createMapSet() {
+        const canvases = {
+          albedo: this._createCanvas(),
+          height: this._createCanvas(),
+          normal: this._createCanvas(),
+          roughness: this._createCanvas(),
+          metalness: this._createCanvas(),
+          emissive: this._createCanvas()
+        };
+
+        const textures = {};
+        for (const [channel, canvas] of Object.entries(canvases)) {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          tex.anisotropy = 8;
+
+          // STRICT COLORSPACE RULES:
+          // sRGB ONLY on Albedo (map) and Emissive (emissiveMap)
+          // Linear (NoColorSpace) on Normal, Roughness, and Metalness
+          if (channel === 'albedo' || channel === 'emissive') {
+            tex.colorSpace = THREE.SRGBColorSpace;
+          } else {
+            tex.colorSpace = THREE.NoColorSpace;
+          }
+          textures[channel] = tex;
+        }
+        return { canvases, textures };
+      }
+
+      _rng(seed) {
+        return () => {
+          let t = (seed += 0x6d2b79f5);
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      /**
+       * True 3x3 Sobel Filter Height-to-Normal Baker
+       */
+      bakeNormalFromHeight(heightCanvas, normalCanvas, strength = 2.9, wrap = true) {
+        const w = heightCanvas.width;
+        const h = heightCanvas.height;
+        const hCtx = heightCanvas.getContext('2d');
+        const nCtx = normalCanvas.getContext('2d');
+
+        const src = hCtx.getImageData(0, 0, w, h).data;
+        const outImg = nCtx.createImageData(w, h);
+        const dst = outImg.data;
+
+        const sample = (x, y) => {
+          if (wrap) {
+            x = (x + w) % w;
+            y = (y + h) % h;
+          } else {
+            x = Math.max(0, Math.min(w - 1, x));
+            y = Math.max(0, Math.min(h - 1, y));
+          }
+          return src[(y * w + x) * 4] / 255.0;
+        };
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const tl = sample(x - 1, y - 1);
+            const t  = sample(x,     y - 1);
+            const tr = sample(x + 1, y - 1);
+            const l  = sample(x - 1, y);
+            const r  = sample(x + 1, y);
+            const bl = sample(x - 1, y + 1);
+            const b  = sample(x,     y + 1);
+            const br = sample(x + 1, y + 1);
+
+            const dX = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
+            const dY = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
+
+            let nx = -dX * strength;
+            let ny = -dY * strength;
+            let nz = 1.0;
+
+            const invLen = 1.0 / Math.hypot(nx, ny, nz);
+            nx *= invLen;
+            ny *= invLen;
+            nz *= invLen;
+
+            const idx = (y * w + x) * 4;
+            dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+            dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+            dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+            dst[idx + 3] = 255;
+          }
+        }
+        nCtx.putImageData(outImg, 0, 0);
+      }
+
+      generateAll(theme) {
+        this._generateDamascusSteel(theme);
+        this._generateRoyalGold(theme);
+        this._generateCarvedGothicStone(theme);
+        this._generateStitchedLeather(theme);
+
+        for (const set of Object.values(this.sets)) {
+          for (const tex of Object.values(set.textures)) {
+            tex.needsUpdate = true;
+          }
+        }
+      }
+
+      // 1. DAMASCUS STEEL & RUNE FULLER
+      _generateDamascusSteel(theme) {
+        const S = this.size;
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.blade.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = theme.steelBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#808080';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#383838';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#f6f6f6';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Folded Damascus steel ripples
+        for (let wave = 0; wave < 110; wave++) {
+          const baseX = (wave / 110) * S;
+          ctxA.strokeStyle = wave % 2 === 0 ? theme.steelEdge : theme.steelFold;
+          ctxA.globalAlpha = 0.25;
+          ctxA.lineWidth = 3.0;
+
+          ctxH.strokeStyle = wave % 2 === 0 ? 'rgba(154,154,154,0.34)' : 'rgba(102,102,102,0.34)';
+          ctxH.lineWidth = 3.0;
+
+          ctxR.strokeStyle = wave % 2 === 0 ? 'rgba(42,42,42,0.32)' : 'rgba(84,84,84,0.32)';
+          ctxR.lineWidth = 3.0;
+
+          ctxA.beginPath();
+          ctxH.beginPath();
+          ctxR.beginPath();
+          for (let y = 0; y <= S; y += 16) {
+            const distort =
+              Math.sin(y * 0.02 + wave * 0.42) * 16 +
+              Math.cos(y * 0.048 - wave * 0.22) * 7;
+            const px = (baseX + distort + S) % S;
+            if (y === 0) {
+              ctxA.moveTo(px, y);
+              ctxH.moveTo(px, y);
+              ctxR.moveTo(px, y);
+            } else {
+              ctxA.lineTo(px, y);
+              ctxH.lineTo(px, y);
+              ctxR.lineTo(px, y);
+            }
+          }
+          ctxA.stroke();
+          ctxH.stroke();
+          ctxR.stroke();
+        }
+        ctxA.globalAlpha = 1.0;
+
+        // Razor-honed bevel edge highlights
+        const gradL = ctxA.createLinearGradient(0, 0, S * 0.16, 0);
+        gradL.addColorStop(0, theme.steelEdge);
+        gradL.addColorStop(1, 'rgba(255,255,255,0)');
+        ctxA.fillStyle = gradL;
+        ctxA.fillRect(0, 0, S * 0.16, S);
+
+        const gradR = ctxA.createLinearGradient(S, 0, S * 0.84, 0);
+        gradR.addColorStop(0, theme.steelEdge);
+        gradR.addColorStop(1, 'rgba(255,255,255,0)');
+        ctxA.fillStyle = gradR;
+        ctxA.fillRect(S * 0.84, 0, S * 0.16, S);
+
+        // Central Spine & Twin Recessed Fuller Channels
+        const cx = S * 0.5;
+        ctxH.fillStyle = '#404040';
+        ctxH.fillRect(cx - 56, 0, 44, S);
+        ctxH.fillRect(cx + 12, 0, 44, S);
+        ctxH.fillStyle = '#b6b6b6';
+        ctxH.fillRect(cx - 10, 0, 20, S);
+
+        // Gold Fuller Trim Rails
+        ctxA.strokeStyle = theme.goldBase;
+        ctxA.lineWidth = 3.5;
+        for (const offset of [-60, 60]) {
+          ctxA.beginPath();
+          ctxA.moveTo(cx + offset, 0);
+          ctxA.lineTo(cx + offset, S);
+          ctxA.stroke();
+        }
+
+        // Etched Glowing Runic Inscription along Twin Fullers
+        const runeRows = 16;
+        const stepY = S / runeRows;
+        ctxE.strokeStyle = theme.runePrimary;
+        ctxE.lineWidth = 3.8;
+        ctxE.lineCap = 'round';
+        ctxH.strokeStyle = '#181818';
+        ctxH.lineWidth = 4.5;
+
+        for (let i = 0; i < runeRows; i++) {
+          const ry = (i + 0.5) * stepY;
+          for (const lane of [-34, 34]) {
+            for (const target of [ctxE, ctxH]) {
+              target.save();
+              target.translate(cx + lane, ry);
+              target.beginPath();
+              target.moveTo(0, -16);
+              target.lineTo(0, 16);
+              if (i % 2 === 0) {
+                target.moveTo(0, -12);
+                target.lineTo(10, 0);
+                target.lineTo(0, 12);
+                target.moveTo(-9, -6);
+                target.lineTo(0, 2);
+              } else {
+                target.moveTo(-9, -10);
+                target.lineTo(9, 10);
+                target.moveTo(9, -10);
+                target.lineTo(-9, 10);
+              }
+              target.stroke();
+              target.restore();
+            }
+          }
+        }
+
+        this.bakeNormalFromHeight(height, normal, 3.0, true);
+      }
+
+      // 2. ROYAL GOLD FILIGREE
+      _generateRoyalGold(theme) {
+        const S = this.size;
+        const rand = this._rng(3319);
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.gold.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = theme.goldBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#808080';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#383838';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#f8f8f8';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Brushed satin gold grain
+        for (let i = 0; i < 3400; i++) {
+          const x = rand() * S;
+          const y = rand() * S;
+          const len = 28 + rand() * 130;
+          const hi = rand() > 0.45;
+          ctxA.strokeStyle = hi ? theme.goldBright : theme.goldPatina;
+          ctxA.globalAlpha = 0.08;
+          ctxA.lineWidth = 1.2;
+          ctxA.beginPath();
+          ctxA.moveTo(x, y);
+          ctxA.lineTo(x + len, y);
+          ctxA.stroke();
+
+          ctxH.strokeStyle = hi ? 'rgba(164,164,164,0.14)' : 'rgba(96,96,96,0.14)';
+          ctxH.beginPath();
+          ctxH.moveTo(x, y);
+          ctxH.lineTo(x + len, y);
+          ctxH.stroke();
+        }
+        ctxA.globalAlpha = 1.0;
+
+        // Raised Gothic Filigree Moldings
+        ctxA.strokeStyle = theme.goldBright;
+        ctxH.strokeStyle = '#ececec';
+        ctxA.lineWidth = 5.5;
+        ctxH.lineWidth = 6.5;
+
+        const cells = 8;
+        const cw = S / cells;
+        for (let i = 0; i < cells; i++) {
+          const cx = (i + 0.5) * cw;
+          const cy = S * 0.5;
+          for (const target of [ctxA, ctxH]) {
+            target.beginPath();
+            target.arc(cx, cy, cw * 0.34, 0, Math.PI * 2);
+            target.stroke();
+
+            target.beginPath();
+            target.moveTo(cx, cy - cw * 0.44);
+            target.lineTo(cx + cw * 0.44, cy);
+            target.lineTo(cx, cy + cw * 0.44);
+            target.lineTo(cx - cw * 0.44, cy);
+            target.closePath();
+            target.stroke();
+          }
+        }
+
+        this.bakeNormalFromHeight(height, normal, 3.1, true);
+      }
+
+      // 3. CARVED GOTHIC STONE + RITUAL SEAL
+      _generateCarvedGothicStone(theme) {
+        const S = this.size;
+        const cx = S * 0.5;
+        const cy = S * 0.5;
+        const rand = this._rng(8821);
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.stone.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = theme.stoneBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#848484';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#c8c8c8';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#0c0c0c';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        // Fine mineral granite/basalt grain
+        for (let i = 0; i < 14000; i++) {
+          const px = rand() * S;
+          const py = rand() * S;
+          const sz = 1 + rand() * 2.4;
+          const hi = rand() > 0.5;
+          ctxA.fillStyle = hi ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.16)';
+          ctxA.fillRect(px, py, sz, sz);
+          ctxH.fillStyle = hi ? 'rgba(182,182,182,0.22)' : 'rgba(68,68,68,0.24)';
+          ctxH.fillRect(px, py, sz, sz);
+        }
+
+        // Ashlar masonry mortar joints
+        ctxA.strokeStyle = theme.stoneDark;
+        ctxH.strokeStyle = '#242424';
+        ctxA.lineWidth = 3;
+        ctxH.lineWidth = 4;
+        const rows = 8;
+        const rh = S / rows;
+        for (let r = 0; r < rows; r++) {
+          const y = r * rh;
+          ctxA.beginPath();
+          ctxH.beginPath();
+          ctxA.moveTo(0, y);
+          ctxA.lineTo(S, y);
+          ctxH.moveTo(0, y);
+          ctxH.lineTo(S, y);
+          ctxA.stroke();
+          ctxH.stroke();
+
+          const offset = (r % 2) * (S / 8);
+          for (let c = 0; c < 4; c++) {
+            const x = (c * (S / 4) + offset) % S;
+            ctxA.beginPath();
+            ctxH.beginPath();
+            ctxA.moveTo(x, y);
+            ctxA.lineTo(x, y + rh);
+            ctxH.moveTo(x, y);
+            ctxH.lineTo(x, y + rh);
+            ctxA.stroke();
+            ctxH.stroke();
+          }
+        }
+
+        // Concentric Inlaid Brass & Rune Seal (for Altar Seal Disc)
+        const rings = [472, 452, 355, 336, 210];
+        for (let i = 0; i < rings.length; i++) {
+          const r = rings[i];
+          ctxA.strokeStyle = i % 2 === 0 ? theme.goldBase : theme.stoneLight;
+          ctxA.lineWidth = 5;
+          ctxA.beginPath();
+          ctxA.arc(cx, cy, r, 0, Math.PI * 2);
+          ctxA.stroke();
+
+          ctxE.strokeStyle = i % 2 === 0 ? theme.runePrimary : theme.runeSecondary;
+          ctxE.lineWidth = 3.5;
+          ctxE.beginPath();
+          ctxE.arc(cx, cy, r, 0, Math.PI * 2);
+          ctxE.stroke();
+        }
+
+        for (let g = 0; g < 24; g++) {
+          const ang = (g / 24) * Math.PI * 2;
+          const gx = cx + Math.cos(ang) * 404;
+          const gy = cy + Math.sin(ang) * 404;
+          ctxE.save();
+          ctxE.translate(gx, gy);
+          ctxE.rotate(ang + Math.PI / 2);
+          ctxE.strokeStyle = g % 2 === 0 ? theme.runePrimary : theme.runeSecondary;
+          ctxE.lineWidth = 3.0;
+          ctxE.beginPath();
+          ctxE.moveTo(0, -13);
+          ctxE.lineTo(0, 13);
+          ctxE.moveTo(-9, -7);
+          ctxE.lineTo(9, 7);
+          ctxE.stroke();
+          ctxE.restore();
+        }
+
+        this.bakeNormalFromHeight(height, normal, 3.2, true);
+      }
+
+      // 4. STITCHED DRAGON-HIDE LEATHER
+      _generateStitchedLeather(theme) {
+        const S = this.size;
+        const rand = this._rng(5507);
+        const { albedo, height, normal, roughness, metalness, emissive } = this.sets.leather.canvases;
+        const ctxA = albedo.getContext('2d');
+        const ctxH = height.getContext('2d');
+        const ctxR = roughness.getContext('2d');
+        const ctxM = metalness.getContext('2d');
+        const ctxE = emissive.getContext('2d');
+
+        ctxA.fillStyle = theme.leatherBase;
+        ctxA.fillRect(0, 0, S, S);
+        ctxH.fillStyle = '#707070';
+        ctxH.fillRect(0, 0, S, S);
+        ctxR.fillStyle = '#9c9c9c';
+        ctxR.fillRect(0, 0, S, S);
+        ctxM.fillStyle = '#080808';
+        ctxM.fillRect(0, 0, S, S);
+        ctxE.fillStyle = '#000000';
+        ctxE.fillRect(0, 0, S, S);
+
+        for (let i = 0; i < 6000; i++) {
+          const px = rand() * S;
+          const py = rand() * S;
+          const r = 3 + rand() * 5;
+          ctxA.fillStyle = rand() > 0.45 ? theme.leatherHighlight : '#0d0908';
+          ctxA.globalAlpha = 0.28;
+          ctxA.beginPath();
+          ctxA.arc(px, py, r, 0, Math.PI * 2);
+          ctxA.fill();
+
+          const gH = ctxH.createRadialGradient(px, py, 1, px, py, r);
+          gH.addColorStop(0, '#c6c6c6');
+          gH.addColorStop(0.75, '#808080');
+          gH.addColorStop(1, '#3a3a3a');
+          ctxH.fillStyle = gH;
+          ctxH.globalAlpha = 0.55;
+          ctxH.beginPath();
+          ctxH.arc(px, py, r, 0, Math.PI * 2);
+          ctxH.fill();
+        }
+        ctxA.globalAlpha = 1.0;
+        ctxH.globalAlpha = 1.0;
+
+        const ribSpacing = 128;
+        for (let y = -S; y < S * 2; y += ribSpacing) {
+          ctxH.strokeStyle = '#242424';
+          ctxH.lineWidth = 9;
+          ctxH.beginPath();
+          ctxH.moveTo(0, y);
+          ctxH.lineTo(S, y + S * 0.5);
+          ctxH.stroke();
+
+          ctxA.strokeStyle = theme.stitchColor;
+          ctxA.lineWidth = 3;
+          ctxH.strokeStyle = '#dfdfdf';
+          ctxH.lineWidth = 3.5;
+          for (let sx = 0; sx < S; sx += 24) {
+            const sy = y + sx * 0.5;
+            ctxA.beginPath();
+            ctxA.moveTo(sx - 6, sy + 6);
+            ctxA.lineTo(sx + 6, sy - 6);
+            ctxA.stroke();
+
+            ctxH.beginPath();
+            ctxH.moveTo(sx - 6, sy + 6);
+            ctxH.lineTo(sx + 6, sy - 6);
+            ctxH.stroke();
+          }
+        }
+
+        this.bakeNormalFromHeight(height, normal, 3.3, true);
+      }
+    }
+
+    // =========================================================================
+    // 4. SCENE, PMREM STUDIO LIGHTING & POST-PROCESSING
+    // =========================================================================
+    const viewport = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x06070a);
+    scene.fog = new THREE.FogExp2(0x06070a, 0.042);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 80);
+    camera.position.set(2.25, 1.95, 2.75);
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.16;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewport.appendChild(renderer.domElement);
+
+    // PMREMGenerator + RoomEnvironment for crisp Unity URP metallic reflections
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    const envRT = pmremGenerator.fromScene(roomEnv, 0.04);
+    scene.environment = envRT.texture;
+    scene.environmentIntensity = 0.88;
+    roomEnv.dispose();
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.055;
+    controls.target.set(0, 1.25, 0);
+    controls.minDistance = 0.50;
+    controls.maxDistance = 12.0;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.42;
+
+    // Three-Point Studio Lighting + SINGLE Consolidated Warm Candle PointLight (URP Optimized)
+    const keyLight = new THREE.DirectionalLight(0xfff1db, 2.5);
+    keyLight.position.set(4.2, 7.2, 4.5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 18;
+    const sBounds = 3.2;
+    keyLight.shadow.camera.left = -sBounds;
+    keyLight.shadow.camera.right = sBounds;
+    keyLight.shadow.camera.top = sBounds;
+    keyLight.shadow.camera.bottom = -sBounds;
+    keyLight.shadow.bias = -0.0004;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x60a5fa, 1.45);
+    rimLight.position.set(-4.6, 4.0, -4.4);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.HemisphereLight(0x94a3b8, 0x0c0e14, 0.46);
+    scene.add(fillLight);
+
+    // Single consolidated warm flickering PointLight representing the 4 altar candles
+    const candleLight = new THREE.PointLight(0xff9f38, 2.45, 5.8, 1.6);
+    candleLight.position.set(0, 0.86, 0);
+    scene.add(candleLight);
+
+    // Arcane relic aura light near the greatsword crossguard
+    const relicLight = new THREE.PointLight(0x38bdf8, 2.2, 5.5, 1.6);
+    relicLight.position.set(0, 1.95, 0.25);
+    scene.add(relicLight);
+
+    // Non-Exported Dungeon Floor & Grid Reference
+    const envNonExport = new THREE.Group();
+    envNonExport.name = 'Viewport_Environment_NonExport';
+    scene.add(envNonExport);
+
+    const dungeonFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(14, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x07080c, roughness: 0.86, metalness: 0.14 })
+    );
+    dungeonFloor.receiveShadow = true;
+    envNonExport.add(dungeonFloor);
+
+    const dungeonGrid = new THREE.GridHelper(12, 24, 0xd4af37, 0x1a1e2b);
+    dungeonGrid.position.y = 0.002;
+    dungeonGrid.material.transparent = true;
+    dungeonGrid.material.opacity = 0.2;
+    envNonExport.add(dungeonGrid);
+
+    // Post-Processing Pipeline (Bloom excluded automatically from GLB export)
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.36,
+      0.60,
+      0.85
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 5. SEMANTIC UNITY PBR MATERIALS WITH VERTEX COLOR AO (`COLOR_0`)
+    // =========================================================================
+    const pbrEngine = new SovereignPBREngine(1024);
+
+    const state = {
+      assetMode: 'altar',  // 'altar' | 'weapon'
+      lodLevel: 'hero',    // 'hero' (~22k tris) | 'game' (~6.5k tris)
+      themeKey: 'astral',  // 'astral' | 'ember' | 'abyssal'
+      bladeLength: 1.58,
+      guardSpan: 0.54,
+      guardianCount: 8,
+      runeGlow: 2.10,
+      animSpeed: 1.00,
+      showHalo: true,
+      showColliders: false,
+      includeColliders: false,
+      motionLive: true,
+      bloomEnabled: true,
+      wireframe: false,
+      inspectorMat: 'blade'
+    };
+
+    // Semantic Unity-ready Materials with vertexColors: true for native COLOR_0 AO
+    const materials = {
+      blade: new THREE.MeshStandardMaterial({
+        name: 'MAT_Damascus_Blade',
+        map: pbrEngine.sets.blade.textures.albedo,
+        normalMap: pbrEngine.sets.blade.textures.normal,
+        normalScale: new THREE.Vector2(1.15, 1.15),
+        roughnessMap: pbrEngine.sets.blade.textures.roughness,
+        metalnessMap: pbrEngine.sets.blade.textures.metalness,
+        emissiveMap: pbrEngine.sets.blade.textures.emissive,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: state.runeGlow,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0,
+        side: THREE.DoubleSide
+      }),
+      steelTrim: new THREE.MeshStandardMaterial({
+        name: 'MAT_Forged_Guard_Steel',
+        map: pbrEngine.sets.blade.textures.albedo,
+        normalMap: pbrEngine.sets.blade.textures.normal,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughnessMap: pbrEngine.sets.blade.textures.roughness,
+        metalnessMap: pbrEngine.sets.blade.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      gold: new THREE.MeshStandardMaterial({
+        name: 'MAT_Royal_Gold',
+        map: pbrEngine.sets.gold.textures.albedo,
+        normalMap: pbrEngine.sets.gold.textures.normal,
+        normalScale: new THREE.Vector2(1.1, 1.1),
+        roughnessMap: pbrEngine.sets.gold.textures.roughness,
+        metalnessMap: pbrEngine.sets.gold.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      iron: new THREE.MeshStandardMaterial({
+        name: 'MAT_Wrought_Altar_Iron',
+        color: 0x222630,
+        normalMap: pbrEngine.sets.gold.textures.normal,
+        normalScale: new THREE.Vector2(0.7, 0.7),
+        vertexColors: true,
+        roughness: 0.42,
+        metalness: 0.88
+      }),
+      stone: new THREE.MeshStandardMaterial({
+        name: 'MAT_Altar_Stone',
+        map: pbrEngine.sets.stone.textures.albedo,
+        normalMap: pbrEngine.sets.stone.textures.normal,
+        normalScale: new THREE.Vector2(1.25, 1.25),
+        roughnessMap: pbrEngine.sets.stone.textures.roughness,
+        metalnessMap: pbrEngine.sets.stone.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      stoneDarkRelief: new THREE.MeshStandardMaterial({
+        name: 'MAT_Gothic_Niche_Relief',
+        color: 0x13151b,
+        normalMap: pbrEngine.sets.stone.textures.normal,
+        normalScale: new THREE.Vector2(1.1, 1.1),
+        vertexColors: true,
+        roughness: 0.84,
+        metalness: 0.08
+      }),
+      stoneSeal: new THREE.MeshStandardMaterial({
+        name: 'MAT_Altar_Rune_Seal',
+        map: pbrEngine.sets.stone.textures.albedo,
+        normalMap: pbrEngine.sets.stone.textures.normal,
+        normalScale: new THREE.Vector2(1.2, 1.2),
+        roughnessMap: pbrEngine.sets.stone.textures.roughness,
+        emissiveMap: pbrEngine.sets.stone.textures.emissive,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: state.runeGlow,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 0.14
+      }),
+      leather: new THREE.MeshStandardMaterial({
+        name: 'MAT_Dragon_Leather',
+        map: pbrEngine.sets.leather.textures.albedo,
+        normalMap: pbrEngine.sets.leather.textures.normal,
+        normalScale: new THREE.Vector2(1.25, 1.25),
+        roughnessMap: pbrEngine.sets.leather.textures.roughness,
+        metalnessMap: pbrEngine.sets.leather.textures.metalness,
+        vertexColors: true,
+        roughness: 1.0,
+        metalness: 1.0
+      }),
+      arcaneGlow: new THREE.MeshStandardMaterial({
+        name: 'MAT_Arcane_Glow',
+        color: 0x38bdf8,
+        emissive: new THREE.Color(0x0284c7),
+        emissiveIntensity: state.runeGlow * 1.15,
+        roughness: 0.08,
+        metalness: 0.15,
+        flatShading: true
+      }),
+      spectralBlade: new THREE.MeshStandardMaterial({
+        name: 'MAT_Spectral_Oath_Blade',
+        color: 0x7dd3fc,
+        emissive: new THREE.Color(0x0ea5e9),
+        emissiveIntensity: state.runeGlow * 0.95,
+        roughness: 0.14,
+        metalness: 0.25,
+        transparent: true,
+        opacity: 0.84
+      }),
+      wax: new THREE.MeshStandardMaterial({
+        name: 'MAT_Consecrated_Candle_Wax',
+        color: 0xede2c8,
+        emissive: new THREE.Color(0xff9436),
+        emissiveIntensity: 0.26,
+        vertexColors: true,
+        roughness: 0.65,
+        metalness: 0.0
+      }),
+      candleFlame: new THREE.MeshStandardMaterial({
+        name: 'MAT_Candle_Flame_Card',
+        color: 0xfff3b0,
+        emissive: new THREE.Color(0xff8c1a),
+        emissiveIntensity: 3.4,
+        roughness: 0.2,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+      }),
+      candleHaloCone: new THREE.MeshStandardMaterial({
+        name: 'MAT_Candle_Glow_Cone',
+        color: 0xffb347,
+        emissive: new THREE.Color(0xff8c1a),
+        emissiveIntensity: 1.5,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        roughness: 0.4,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+      }),
+      colliderProxy: new THREE.MeshBasicMaterial({
+        name: 'MAT_Convex_Collider_Proxy',
+        color: 0x10b981,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.65
+      })
+    };
+
+    // Root Export Container
+    const assetGroup = new THREE.Group();
+    assetGroup.name = 'Sovereigns_Oath_Relic';
+    scene.add(assetGroup);
+
+    // Dynamic Unmerged Node References (Reset cleanly on GLB/OBJ export)
+    let dynamicNodes = {
+      gemCore: null,
+      celestialHalo: null,
+      guardianBlades: [],
+      candleFlames: null,
+      colliderGroup: null
+    };
+
+    // =========================================================================
+    // 6. VERTEX COLOR AO BAKER, TRIPLANAR BOX UVS & SMART MERGER
+    // =========================================================================
+
+    /**
+     * Bakes procedural Ambient Occlusion (COLOR_0) into a BufferGeometry
+     */
+    function bakeVertexAO(geo, opts = {}) {
+      const {
+        minAO = 0.52,
+        maxAO = 1.06,
+        axis = 'y',        // 'y' | 'radial' | 'centerDist'
+        invert = false,
+        normalLift = 0.08
+      } = opts;
+
+      geo.computeBoundingBox();
+      if (!geo.attributes.normal) geo.computeVertexNormals();
+
+      const bb = geo.boundingBox;
+      const pos = geo.attributes.position;
+      const norm = geo.attributes.normal;
+      const count = pos.count;
+      const colors = new Float32Array(count * 3);
+
+      const center = new THREE.Vector3();
+      bb.getCenter(center);
+      const maxExtent = Math.max(
+        0.001,
+        Math.hypot(bb.max.x - center.x, bb.max.y - center.y, bb.max.z - center.z)
+      );
+
+      for (let i = 0; i < count; i++) {
+        const vx = pos.getX(i);
+        const vy = pos.getY(i);
+        const vz = pos.getZ(i);
+        const ny = norm ? norm.getY(i) : 0;
+
+        let t = 0.5;
+        if (axis === 'y') {
+          const span = Math.max(0.0001, bb.max.y - bb.min.y);
+          t = (vy - bb.min.y) / span;
+        } else if (axis === 'radial') {
+          const r = Math.hypot(vx, vz);
+          const maxR = Math.max(0.0001, Math.hypot(bb.max.x, bb.max.z));
+          t = Math.min(1, r / maxR);
+        } else if (axis === 'centerDist') {
+          const d = Math.hypot(vx - center.x, vy - center.y, vz - center.z);
+          t = Math.min(1, d / maxExtent);
+        }
+
+        if (invert) t = 1.0 - t;
+        // Smooth ease curve for natural contact crevice falloff
+        const eased = Math.pow(Math.max(0, Math.min(1, t)), 0.72);
+        let ao = minAO + (maxAO - minAO) * eased + ny * normalLift;
+        ao = Math.max(0.28, Math.min(1.12, ao));
+
+        colors[i * 3] = ao;
+        colors[i * 3 + 1] = ao;
+        colors[i * 3 + 2] = ao * 1.01;
+      }
+
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      return geo;
+    }
+
+    /**
+     * Applies Triplanar Box UVs per triangle face normal so rock grain never distorts
+     */
+    function applyTriplanarBoxUVs(rawGeo, scale = 1.75) {
+      const geo = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo;
+      geo.computeVertexNormals();
+      const pos = geo.attributes.position;
+      const norm = geo.attributes.normal;
+      const count = pos.count;
+      const uvs = new Float32Array(count * 2);
+
+      for (let i = 0; i < count; i++) {
+        const px = pos.getX(i);
+        const py = pos.getY(i);
+        const pz = pos.getZ(i);
+        const ax = Math.abs(norm.getX(i));
+        const ay = Math.abs(norm.getY(i));
+        const az = Math.abs(norm.getZ(i));
+
+        let u, v;
+        if (ax >= ay && ax >= az) {
+          u = pz * scale;
+          v = py * scale;
+        } else if (ay >= ax && ay >= az) {
+          u = px * scale;
+          v = pz * scale;
+        } else {
+          u = px * scale;
+          v = py * scale;
+        }
+        uvs[i * 2] = u;
+        uvs[i * 2 + 1] = v;
+      }
+
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      return geo;
+    }
+
+    /**
+     * Attribute-Normalized Static Geometry Merger (Preserves position, normal, uv, color)
+     */
+    function normalizeAndMerge(geoList) {
+      const normalized = geoList.map((rawGeo) => {
+        const g = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo.clone();
+        if (!g.attributes.normal) {
+          g.computeVertexNormals();
+        }
+        const pos = g.attributes.position;
+        if (!g.attributes.uv) {
+          const uvs = new Float32Array(pos.count * 2);
+          for (let i = 0; i < pos.count; i++) {
+            uvs[i * 2] = pos.getX(i) * 2.0 + 0.5;
+            uvs[i * 2 + 1] = pos.getY(i) * 2.0 + 0.5;
+          }
+          g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        }
+        if (!g.attributes.color) {
+          const cols = new Float32Array(pos.count * 3);
+          cols.fill(1.0);
+          g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        } else if (g.attributes.color.itemSize !== 3) {
+          const srcCol = g.attributes.color;
+          const cols = new Float32Array(pos.count * 3);
+          for (let i = 0; i < pos.count; i++) {
+            cols[i * 3] = srcCol.getX(i);
+            cols[i * 3 + 1] = srcCol.getY(i);
+            cols[i * 3 + 2] = srcCol.getZ(i);
+          }
+          g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+        }
+
+        for (const attrName of Object.keys(g.attributes)) {
+          if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+            g.deleteAttribute(attrName);
+          }
+        }
+        return g;
+      });
+
+      const merged = mergeGeometries(normalized, false);
+      normalized.forEach((g) => g.dispose());
+      return merged;
+    }
+
+    // =========================================================================
+    // 7. SCULPTURAL GEOMETRY BUILDERS (ARC-LENGTH UVS + BAKED VERTEX AO)
+    // =========================================================================
+
+    /**
+     * Hollow-Ground Diamond Royal Greatsword Blade (`Blade_Mesh`)
+     * - 112 vertical stations in Hero LOD, 48 stations in Game-Ready LOD
+     * - Exact cumulative arc-length V coordinates so Damascus grain never stretches
+     * - Baked Vertex Color AO (dark fuller valleys + ricasso root, crisp bevel highlights)
+     */
+    function buildRoyalGreatswordBladeGeometry(bladeLength, baseY = 0.21, widthScale = 1.0, stations = 112) {
+      const positions = [];
+      const uvs = [];
+      const colors = [];
+      const indices = [];
+
+      const maxHalfW = 0.088 * widthScale;
+      let cumulativeArc = 0;
+      let prevY = baseY;
+      let prevHalfW = 0.056 * widthScale;
+
+      for (let i = 0; i <= stations; i++) {
+        const t = i / stations;
+        const y = baseY + t * bladeLength;
+
+        // Silhouette Half-Width Envelope
+        let halfW;
+        if (t < 0.11) {
+          const u = t / 0.11;
+          halfW = (0.056 - u * 0.008) * widthScale;
+        } else if (t < 0.16) {
+          // Twin forged-steel parry lugs at 16% blade height
+          const u = (t - 0.11) / 0.05;
+          halfW = (0.048 + Math.pow(Math.sin(u * Math.PI * 0.55), 0.85) * 0.040) * widthScale;
+        } else if (t < 0.19) {
+          const u = (t - 0.16) / 0.03;
+          halfW = (0.086 - u * 0.028) * widthScale;
+        } else if (t < 0.80) {
+          const u = (t - 0.19) / 0.61;
+          halfW = (0.058 * (1.0 - u * 0.34)) * widthScale;
+        } else {
+          // Elongated Gothic spear-point tip
+          const u = (t - 0.80) / 0.20;
+          halfW = (0.0383 * Math.pow(1.0 - u, 1.35)) * widthScale;
+        }
+        halfW = Math.max(0.0003, halfW);
+
+        // Cumulative Arc-Length V Calculation
+        if (i > 0) {
+          const dy = y - prevY;
+          const dx = (halfW - prevHalfW) * 0.5;
+          cumulativeArc += Math.hypot(dx, dy);
+        }
+        prevY = y;
+        prevHalfW = halfW;
+
+        const tipFade = t > 0.80 ? Math.pow(1.0 - (t - 0.80) / 0.20, 1.15) : 1.0;
+        const spineZ = Math.max(0.00025, (0.0155 - t * 0.0042) * tipFade * widthScale);
+
+        const fullerEnv = (t > 0.03 && t < 0.75)
+          ? Math.sin(Math.min(1, (t - 0.03) / 0.08) * (Math.PI / 2)) * (1.0 - Math.pow((t - 0.03) / 0.72, 3))
+          : 0;
+
+        const shoulderX = halfW * 0.56;
+        const shoulderZ = spineZ * 0.54;
+        const fullerX = halfW * 0.24;
+        const fullerZ = spineZ * (1.0 - fullerEnv * 0.44);
+        const ridgeX = halfW * 0.05;
+
+        // Guard-crevice AO darkening near the ricasso root
+        const rootAO = t < 0.07 ? 0.58 + (t / 0.07) * 0.42 : 1.0;
+
+        // [px, pz, vertexAO]
+        const profile = [
+          [ halfW,      0.0,       1.08 ], // 0: +X razor cutting edge highlight
+          [ shoulderX,  shoulderZ, 0.96 ], // 1: +X/+Z bevel shoulder
+          [ fullerX,    fullerZ,   1.0 - fullerEnv * 0.42 ], // 2: +X/+Z hollow fuller valley AO
+          [ ridgeX,     spineZ,    1.07 ], // 3: +X/+Z central spine ridge highlight
+          [-ridgeX,     spineZ,    1.07 ], // 4: -X/+Z central spine ridge highlight
+          [-fullerX,    fullerZ,   1.0 - fullerEnv * 0.42 ], // 5: -X/+Z hollow fuller valley AO
+          [-shoulderX,  shoulderZ, 0.96 ], // 6: -X/+Z bevel shoulder
+          [-halfW,      0.0,       1.08 ], // 7: -X razor cutting edge highlight
+          [-shoulderX, -shoulderZ, 0.94 ], // 8: -X/-Z bevel shoulder
+          [-fullerX,   -fullerZ,   0.98 - fullerEnv * 0.42 ], // 9: -X/-Z hollow fuller valley AO
+          [-ridgeX,    -spineZ,    1.05 ], // 10: -X/-Z central spine ridge
+          [ ridgeX,    -spineZ,    1.05 ], // 11: +X/-Z central spine ridge
+          [ fullerX,   -fullerZ,   0.98 - fullerEnv * 0.42 ], // 12: +X/-Z hollow fuller valley AO
+          [ shoulderX, -shoulderZ, 0.94 ]  // 13: +X/-Z bevel shoulder
+        ];
+        const vCount = profile.length;
+
+        for (let v = 0; v < vCount; v++) {
+          const [px, pz, profAO] = profile[v];
+          positions.push(px, y, pz);
+          const uCoord = 0.5 + px / (maxHalfW * 2.0);
+          const vCoord = cumulativeArc * 2.35;
+          uvs.push(uCoord, vCoord);
+
+          const finalAO = Math.max(0.35, Math.min(1.12, profAO * rootAO));
+          colors.push(finalAO, finalAO, finalAO * 1.01);
+        }
+
+        if (i < stations) {
+          const rowA = i * vCount;
+          const rowB = (i + 1) * vCount;
+          for (let v = 0; v < vCount; v++) {
+            const vNext = (v + 1) % vCount;
+            indices.push(rowA + v, rowA + vNext, rowB + vNext);
+            indices.push(rowA + v, rowB + vNext, rowB + v);
+          }
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /**
+     * Custom Lofted Tapered Tube along 3D CatmullRomCurve3
+     * - Uses cumulative Euclidean arc-length UVs so filigree & metal grain never stretch
+     * - Bakes underside arch crevice AO + outer crest bevel highlight into COLOR_0
+     */
+    function buildTaperedCurveGeometry(points, tubularSegments, radialSegments, radiusFn, flattenZ = 0.62, diamondRatio = 0.16, uvScale = 3.2) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const frames = curve.computeFrenetFrames(tubularSegments, false);
+      const positions = [];
+      const uvs = [];
+      const colors = [];
+      const indices = [];
+
+      let cumArc = 0;
+      let prevPt = curve.getPointAt(0);
+
+      for (let i = 0; i <= tubularSegments; i++) {
+        const t = i / tubularSegments;
+        const pt = curve.getPointAt(t);
+        if (i > 0) {
+          cumArc += pt.distanceTo(prevPt);
+        }
+        prevPt = pt;
+
+        const N = frames.normals[i];
+        const B = frames.binormals[i];
+        const r = Math.max(0.0006, radiusFn(t));
+        const rootOcclusion = t < 0.14 ? 0.58 + (t / 0.14) * 0.42 : 1.0;
+
+        for (let j = 0; j <= radialSegments; j++) {
+          const v = (j / radialSegments) * Math.PI * 2;
+          const facetMod = 1.0 + diamondRatio * Math.cos(4 * v);
+          const cosV = Math.cos(v) * r * facetMod;
+          const sinV = Math.sin(v) * r * flattenZ * facetMod;
+
+          positions.push(
+            pt.x + cosV * N.x + sinV * B.x,
+            pt.y + cosV * N.y + sinV * B.y,
+            pt.z + cosV * N.z + sinV * B.z
+          );
+          uvs.push(cumArc * uvScale, j / radialSegments);
+
+          const ridgeBoost = 1.0 + 0.08 * Math.cos(4 * v);
+          const ao = Math.max(0.38, Math.min(1.10, rootOcclusion * ridgeBoost));
+          colors.push(ao, ao, ao);
+        }
+      }
+
+      const stride = radialSegments + 1;
+      for (let i = 0; i < tubularSegments; i++) {
+        for (let j = 0; j < radialSegments; j++) {
+          const a = i * stride + j;
+          const b = (i + 1) * stride + j;
+          const c = (i + 1) * stride + (j + 1);
+          const d = i * stride + (j + 1);
+          indices.push(a, b, d, b, c, d);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /**
+     * Beveled Lathe Ring Helper with Baked Bevel & Crevice AO
+     */
+    function buildBeveledRingGeometry(radius, radialWidth, height, segments = 48, minAO = 0.65) {
+      const hw = radialWidth * 0.5;
+      const hh = height * 0.5;
+      const b = Math.min(hw, hh) * 0.24;
+      const pts = [
+        new THREE.Vector2(radius - hw + b, -hh),
+        new THREE.Vector2(radius + hw - b, -hh),
+        new THREE.Vector2(radius + hw, -hh + b),
+        new THREE.Vector2(radius + hw, hh - b),
+        new THREE.Vector2(radius + hw - b, hh),
+        new THREE.Vector2(radius - hw + b, hh),
+        new THREE.Vector2(radius - hw, hh - b),
+        new THREE.Vector2(radius - hw, -hh + b),
+        new THREE.Vector2(radius - hw + b, -hh)
+      ];
+      const geo = new THREE.LatheGeometry(pts, segments);
+      geo.computeVertexNormals();
+      return bakeVertexAO(geo, { minAO, maxAO: 1.06, axis: 'y' });
+    }
+
+    /**
+     * Miniature Spectral Guardian Oath-Sword Builder (LOD-Aware)
+     */
+    function buildMiniatureGuardianSwordGeometry(isHero) {
+      const parts = [];
+      const bladeSegs = isHero ? 24 : 10;
+
+      const miniBlade = buildRoyalGreatswordBladeGeometry(0.34, 0.06, 0.42, bladeSegs);
+      parts.push(miniBlade);
+
+      for (const side of [-1, 1]) {
+        const wing = buildTaperedCurveGeometry(
+          [
+            new THREE.Vector3(0, 0.058, 0),
+            new THREE.Vector3(side * 0.048, 0.054, 0),
+            new THREE.Vector3(side * 0.088, 0.078, 0)
+          ],
+          isHero ? 10 : 6,
+          isHero ? 6 : 4,
+          (t) => 0.0085 * (1.0 - t * 0.72),
+          0.6
+        );
+        parts.push(wing);
+      }
+
+      const guardBlock = new THREE.BoxGeometry(0.036, 0.022, 0.018);
+      guardBlock.translate(0, 0.058, 0);
+      parts.push(guardBlock);
+
+      const grip = new THREE.CylinderGeometry(0.0065, 0.0075, 0.085, isHero ? 8 : 6);
+      grip.translate(0, 0.01, 0);
+      parts.push(grip);
+
+      const pommel = new THREE.OctahedronGeometry(0.014, 0);
+      pommel.translate(0, -0.038, 0);
+      parts.push(pommel);
+
+      return normalizeAndMerge(parts);
+    }
+
+    // =========================================================================
+    // 8. MAIN ASSET BUILDER (HERO ~22K vs GAME-READY ~6.5K LOD + COLLIDERS)
+    // =========================================================================
+    function rebuildAsset() {
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) {
+          obj.geometry.dispose();
+        }
+      });
+      assetGroup.clear();
+
+      dynamicNodes = {
+        gemCore: null,
+        celestialHalo: null,
+        guardianBlades: [],
+        candleFlames: null,
+        colliderGroup: null
+      };
+
+      const isHero = state.lodLevel === 'hero';
+      let unmergedStaticCount = 0;
+      let mergedStaticCount = 0;
+
+      // Weapon Root Sub-Container
+      const weaponRoot = new THREE.Group();
+      weaponRoot.name = 'Sovereign_Greatsword';
+      assetGroup.add(weaponRoot);
+
+      // In Full Shrine Prop Mode, blade plunges point-down into the fractured anvil crown at y = 0.84m
+      const altarPlungeY = 0.84;
+      const tipDepthInStone = 0.24;
+      if (state.assetMode === 'altar') {
+        weaponRoot.position.set(0, altarPlungeY + state.bladeLength - tipDepthInStone, 0);
+        weaponRoot.rotation.set(0, 0, Math.PI);
+      } else {
+        // Weapon Only Mode: Grip centered cleanly at (0, 0, 0), blade along +Y
+        weaponRoot.position.set(0, 0, 0);
+        weaponRoot.rotation.set(0, 0, 0);
+      }
+
+      const swordSteelParts = [];
+      const swordGoldParts = [];
+      const swordLeatherParts = [];
+
+      // -----------------------------------------------------------------------
+      // A) HOLLOW-GROUND DIAMOND GREATSWORD BLADE (`Blade_Mesh`) & RUNE INLAY
+      // -----------------------------------------------------------------------
+      const bladeStations = isHero ? 112 : 48;
+      const bladeGeo = buildRoyalGreatswordBladeGeometry(state.bladeLength, 0.21, 1.0, bladeStations);
+      const bladeMesh = new THREE.Mesh(bladeGeo, materials.blade);
+      bladeMesh.name = 'Blade_Mesh';
+      bladeMesh.castShadow = true;
+      bladeMesh.receiveShadow = true;
+      weaponRoot.add(bladeMesh);
+      unmergedStaticCount++;
+      mergedStaticCount++;
+
+      // Recessed Glowing Runic Fuller Channel (`Blade_Rune_Inlay`)
+      const runeInlayParts = [];
+      const inlayLen = state.bladeLength * 0.66;
+      for (const side of [-1, 1]) {
+        const strip = new THREE.PlaneGeometry(0.014, inlayLen, 1, isHero ? 12 : 4);
+        strip.translate(0, 0.25 + inlayLen * 0.5, side * 0.0112);
+        if (side === -1) strip.rotateY(Math.PI);
+        runeInlayParts.push(strip);
+      }
+      const bladeRuneMesh = new THREE.Mesh(normalizeAndMerge(runeInlayParts), materials.arcaneGlow);
+      bladeRuneMesh.name = 'Blade_Rune_Inlay';
+      weaponRoot.add(bladeRuneMesh);
+      unmergedStaticCount += 2;
+      mergedStaticCount++;
+
+      // -----------------------------------------------------------------------
+      // B) ANATOMICAL WINGED GOTHIC CROSSGUARD + RAIN-GUARD LANGETS + GEM BEZEL
+      // -----------------------------------------------------------------------
+      const guardY = 0.195;
+      const halfSpan = state.guardSpan * 0.5;
+
+      const escutcheonShape = new THREE.Shape();
+      escutcheonShape.moveTo(0, -0.052);
+      escutcheonShape.lineTo(0.056, -0.028);
+      escutcheonShape.lineTo(0.064, 0.022);
+      escutcheonShape.lineTo(0.028, 0.068);
+      escutcheonShape.lineTo(0, 0.082);
+      escutcheonShape.lineTo(-0.028, 0.068);
+      escutcheonShape.lineTo(-0.064, 0.022);
+      escutcheonShape.lineTo(-0.056, -0.028);
+      escutcheonShape.closePath();
+
+      const escutcheonGoldGeo = new THREE.ExtrudeGeometry(escutcheonShape, {
+        depth: 0.032,
+        bevelEnabled: true,
+        bevelThickness: 0.008,
+        bevelSize: 0.007,
+        bevelSegments: isHero ? 2 : 1
+      });
+      escutcheonGoldGeo.translate(0, guardY, -0.016);
+      bakeVertexAO(escutcheonGoldGeo, { minAO: 0.68, maxAO: 1.06, axis: 'centerDist' });
+      swordGoldParts.push(escutcheonGoldGeo);
+
+      const innerPlateGeo = new THREE.ExtrudeGeometry(escutcheonShape, {
+        depth: 0.044,
+        bevelEnabled: true,
+        bevelThickness: 0.004,
+        bevelSize: 0.003,
+        bevelSegments: 1
+      });
+      innerPlateGeo.scale(0.76, 0.78, 1.0);
+      innerPlateGeo.translate(0, guardY, -0.022);
+      bakeVertexAO(innerPlateGeo, { minAO: 0.56, maxAO: 0.96, axis: 'centerDist' });
+      swordSteelParts.push(innerPlateGeo);
+
+      // Ornate 8-Claw Gold Gemstone Bezel on Front & Back Faces
+      const bezelSegs = isHero ? 28 : 14;
+      for (const faceZ of [-1, 1]) {
+        const bezelRing = buildBeveledRingGeometry(0.026, 0.006, 0.008, bezelSegs, 0.62);
+        bezelRing.rotateX(Math.PI / 2);
+        bezelRing.scale(0.84, 1.18, 1.0);
+        bezelRing.translate(0, guardY + 0.006, faceZ * 0.026);
+        swordGoldParts.push(bezelRing);
+
+        const prongCount = isHero ? 8 : 4;
+        for (let p = 0; p < prongCount; p++) {
+          const ang = (p / prongCount) * Math.PI * 2;
+          const prong = new THREE.ConeGeometry(0.0032, 0.011, 4);
+          prong.rotateX(faceZ > 0 ? Math.PI / 2 : -Math.PI / 2);
+          prong.translate(
+            Math.cos(ang) * 0.022 * 0.84,
+            guardY + 0.006 + Math.sin(ang) * 0.022 * 1.18,
+            faceZ * 0.030
+          );
+          bakeVertexAO(prong, { minAO: 0.65, maxAO: 1.08, axis: 'y' });
+          swordGoldParts.push(prong);
+        }
+      }
+
+      // Dynamic Faceted Royal Gemstone (`Sword_Gem_Core`)
+      const gemGeo = new THREE.OctahedronGeometry(0.024, isHero ? 1 : 0);
+      gemGeo.scale(0.82, 1.18, 1.38);
+      const gemMesh = new THREE.Mesh(gemGeo, materials.arcaneGlow);
+      gemMesh.name = 'Sword_Gem_Core';
+      gemMesh.position.set(0, guardY + 0.006, 0);
+      weaponRoot.add(gemMesh);
+      dynamicNodes.gemCore = gemMesh;
+
+      // Multi-Layered Swept S-Curve Winged Quillons + Fleur-de-lis Finials
+      const qTubeSegs = isHero ? 36 : 16;
+      const qRadSegs = isHero ? 10 : 6;
+      for (const side of [-1, 1]) {
+        const primaryPts = [
+          new THREE.Vector3(side * 0.048, guardY + 0.004, 0),
+          new THREE.Vector3(side * (halfSpan * 0.44), guardY - 0.018, 0),
+          new THREE.Vector3(side * (halfSpan * 0.80), guardY + 0.018, 0),
+          new THREE.Vector3(side * halfSpan, guardY + 0.095, 0)
+        ];
+        const primaryArch = buildTaperedCurveGeometry(
+          primaryPts,
+          qTubeSegs,
+          qRadSegs,
+          (t) => 0.024 * (1.0 - t * 0.72) + Math.sin(t * Math.PI) * 0.006,
+          0.62,
+          0.18
+        );
+        swordGoldParts.push(primaryArch);
+
+        const steelSpineArch = buildTaperedCurveGeometry(
+          primaryPts,
+          Math.max(12, Math.floor(qTubeSegs * 0.75)),
+          Math.max(5, qRadSegs - 2),
+          (t) => 0.016 * (1.0 - t * 0.75),
+          0.74,
+          0.14
+        );
+        swordSteelParts.push(steelSpineArch);
+
+        const innerFeatherPts = [
+          new THREE.Vector3(side * 0.052, guardY + 0.028, 0),
+          new THREE.Vector3(side * (halfSpan * 0.42), guardY + 0.036, 0),
+          new THREE.Vector3(side * (halfSpan * 0.68), guardY + 0.092, 0)
+        ];
+        const innerFeather = buildTaperedCurveGeometry(
+          innerFeatherPts,
+          Math.max(10, Math.floor(qTubeSegs * 0.6)),
+          Math.max(5, qRadSegs - 2),
+          (t) => 0.011 * (1.0 - t * 0.84),
+          0.65,
+          0.16
+        );
+        swordGoldParts.push(innerFeather);
+
+        const finial = new THREE.ConeGeometry(0.016, 0.042, 4);
+        finial.scale(0.85, 1.0, 0.55);
+        finial.rotateZ(side * -0.42);
+        finial.translate(side * (halfSpan + 0.008), guardY + 0.108, 0);
+        bakeVertexAO(finial, { minAO: 0.70, maxAO: 1.08, axis: 'y' });
+        swordGoldParts.push(finial);
+      }
+
+      // -----------------------------------------------------------------------
+      // C) ERGONOMIC TWO-HANDED OVAL GRIP & FLUTED GOTHIC CROWN POMMEL
+      // -----------------------------------------------------------------------
+      const gripPts = [];
+      const gripVertSteps = isHero ? 32 : 16;
+      const gripRadSegs = isHero ? 28 : 14;
+      for (let i = 0; i <= gripVertSteps; i++) {
+        const u = i / gripVertSteps;
+        const y = -0.22 + u * 0.36;
+        const swell = Math.sin(u * Math.PI) * 0.0045;
+        const rib = Math.sin(u * Math.PI * 8) * 0.0007;
+        const r = 0.0185 + swell + rib;
+        gripPts.push(new THREE.Vector2(r, y));
+      }
+      const gripGeo = new THREE.LatheGeometry(gripPts, gripRadSegs);
+      gripGeo.scale(1.08, 1.0, 0.72); // Ergonomic oval profile
+      // Bake recessed crevice AO at top & bottom grip collars
+      {
+        const pos = gripGeo.attributes.position;
+        const cols = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+          const y = pos.getY(i);
+          const u = (y + 0.22) / 0.36;
+          const endCrevice = Math.sin(Math.max(0.08, Math.min(0.92, u)) * Math.PI);
+          const ao = 0.56 + 0.46 * Math.pow(endCrevice, 0.45);
+          cols[i * 3] = ao;
+          cols[i * 3 + 1] = ao;
+          cols[i * 3 + 2] = ao;
+        }
+        gripGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+      }
+      swordLeatherParts.push(gripGeo);
+
+      for (const ry of [-0.125, -0.035, 0.055]) {
+        const ferrule = buildBeveledRingGeometry(0.0222, 0.0045, 0.012, gripRadSegs, 0.66);
+        ferrule.scale(1.08, 1.0, 0.72);
+        ferrule.translate(0, ry, 0);
+        swordGoldParts.push(ferrule);
+      }
+
+      const guardCollar = new THREE.CylinderGeometry(0.027, 0.021, 0.026, 8);
+      guardCollar.scale(1.12, 1.0, 0.76);
+      guardCollar.translate(0, 0.142, 0);
+      bakeVertexAO(guardCollar, { minAO: 0.62, maxAO: 1.02, axis: 'y' });
+      swordGoldParts.push(guardCollar);
+
+      const pommelCollar = new THREE.CylinderGeometry(0.022, 0.029, 0.028, 8);
+      pommelCollar.scale(1.12, 1.0, 0.76);
+      pommelCollar.translate(0, -0.232, 0);
+      bakeVertexAO(pommelCollar, { minAO: 0.62, maxAO: 1.02, axis: 'y', invert: true });
+      swordGoldParts.push(pommelCollar);
+
+      const pommelCore = new THREE.CylinderGeometry(0.040, 0.028, 0.058, 8);
+      pommelCore.scale(1.10, 1.0, 0.78);
+      pommelCore.translate(0, -0.274, 0);
+      bakeVertexAO(pommelCore, { minAO: 0.56, maxAO: 0.98, axis: 'y' });
+      swordSteelParts.push(pommelCore);
+
+      const crownRim = buildBeveledRingGeometry(0.039, 0.008, 0.014, 8, 0.68);
+      crownRim.rotateY(Math.PI / 8);
+      crownRim.scale(1.10, 1.0, 0.78);
+      crownRim.translate(0, -0.248, 0);
+      swordGoldParts.push(crownRim);
+
+      for (let f = 0; f < 8; f++) {
+        const ang = (f / 8) * Math.PI * 2;
+        const rib = new THREE.BoxGeometry(0.009, 0.064, 0.018);
+        rib.translate(0.034, -0.274, 0);
+        rib.rotateY(ang);
+        rib.scale(1.10, 1.0, 0.78);
+        bakeVertexAO(rib, { minAO: 0.68, maxAO: 1.08, axis: 'radial' });
+        swordGoldParts.push(rib);
+      }
+
+      const pommelSpike = new THREE.ConeGeometry(0.028, 0.048, 8);
+      pommelSpike.rotateX(Math.PI);
+      pommelSpike.scale(1.10, 1.0, 0.78);
+      pommelSpike.translate(0, -0.326, 0);
+      bakeVertexAO(pommelSpike, { minAO: 0.65, maxAO: 1.06, axis: 'y' });
+      swordGoldParts.push(pommelSpike);
+
+      // Merge Static Sword Material Groups
+      const swordSteelMesh = new THREE.Mesh(normalizeAndMerge(swordSteelParts), materials.steelTrim);
+      swordSteelMesh.name = 'Sword_Steel_Static';
+      swordSteelMesh.castShadow = true;
+      swordSteelMesh.receiveShadow = true;
+      weaponRoot.add(swordSteelMesh);
+      unmergedStaticCount += swordSteelParts.length;
+      mergedStaticCount++;
+
+      const swordGoldMesh = new THREE.Mesh(normalizeAndMerge(swordGoldParts), materials.gold);
+      swordGoldMesh.name = 'Sword_Gold_Static';
+      swordGoldMesh.castShadow = true;
+      swordGoldMesh.receiveShadow = true;
+      weaponRoot.add(swordGoldMesh);
+      unmergedStaticCount += swordGoldParts.length;
+      mergedStaticCount++;
+
+      const swordLeatherMesh = new THREE.Mesh(normalizeAndMerge(swordLeatherParts), materials.leather);
+      swordLeatherMesh.name = 'Sword_Leather_Static';
+      swordLeatherMesh.castShadow = true;
+      swordLeatherMesh.receiveShadow = true;
+      weaponRoot.add(swordLeatherMesh);
+      unmergedStaticCount += swordLeatherParts.length;
+      mergedStaticCount++;
+
+      // -----------------------------------------------------------------------
+      // D) CELESTIAL PRAYER HALO RING (`Celestial_Halo_Ring`)
+      // -----------------------------------------------------------------------
+      const haloHeight = state.assetMode === 'altar'
+        ? altarPlungeY + state.bladeLength - tipDepthInStone - 0.18
+        : 0.78;
+
+      if (state.showHalo) {
+        const haloGroup = new THREE.Group();
+        haloGroup.name = 'Celestial_Halo_Ring';
+        haloGroup.position.set(0, haloHeight, -0.15);
+        assetGroup.add(haloGroup);
+        dynamicNodes.celestialHalo = haloGroup;
+
+        const haloSegs = isHero ? 64 : 28;
+        const haloParts = [];
+        const outerRing = buildBeveledRingGeometry(0.42, 0.012, 0.012, haloSegs, 0.75);
+        outerRing.rotateX(Math.PI / 2);
+        haloParts.push(outerRing);
+
+        const innerRing = buildBeveledRingGeometry(0.35, 0.008, 0.008, haloSegs, 0.75);
+        innerRing.rotateX(Math.PI / 2);
+        haloParts.push(innerRing);
+
+        const rayCount = isHero ? 16 : 8;
+        for (let r = 0; r < rayCount; r++) {
+          const ang = (r / rayCount) * Math.PI * 2;
+          const isCardinal = r % 2 === 0;
+          const rayLen = isCardinal ? 0.11 : 0.065;
+          const rayW = isCardinal ? 0.012 : 0.005;
+          const ray = new THREE.ConeGeometry(rayW, rayLen, 4);
+          ray.translate(0, 0.385 + (isCardinal ? 0.025 : 0), 0);
+          ray.rotateZ(ang);
+          bakeVertexAO(ray, { minAO: 0.75, maxAO: 1.08, axis: 'centerDist' });
+          haloParts.push(ray);
+        }
+
+        const haloMesh = new THREE.Mesh(normalizeAndMerge(haloParts), materials.gold);
+        haloMesh.name = 'Celestial_Halo_Mesh';
+        haloGroup.add(haloMesh);
+      }
+
+      // -----------------------------------------------------------------------
+      // E) DUAL-TIER HELIX GUARDIAN PHALANX (`Guardian_Blade_01..08`)
+      // Staggered Inner High-Hovering Ring + Outer Low-Sweeping Ring for ARPG Top-Down Readability
+      // -----------------------------------------------------------------------
+      if (state.guardianCount > 0) {
+        const miniSwordGeo = buildMiniatureGuardianSwordGeometry(isHero);
+
+        for (let g = 0; g < state.guardianCount; g++) {
+          const isInnerTier = g % 2 === 0;
+          const tierCount = isInnerTier
+            ? Math.ceil(state.guardianCount / 2)
+            : Math.floor(state.guardianCount / 2);
+          const tierIdx = Math.floor(g / 2);
+          const angOffset = isInnerTier ? 0 : Math.PI / Math.max(1, tierCount);
+          const ang = (tierIdx / Math.max(1, tierCount)) * Math.PI * 2 + angOffset;
+
+          const orbitRadius = state.assetMode === 'altar'
+            ? (isInnerTier ? 0.64 : 0.98)
+            : (isInnerTier ? 0.54 : 0.80);
+
+          const orbitCenterY = state.assetMode === 'altar'
+            ? (isInnerTier ? 1.88 : 1.24)
+            : (isInnerTier ? 1.12 : 0.62);
+
+          // Inward tilt on inner high ring, dynamic outward sweep on outer low ring
+          const radialTilt = isInnerTier ? 0.24 : 0.10;
+
+          const guardianNode = new THREE.Group();
+          guardianNode.name = `Guardian_Blade_0${g + 1}`;
+
+          const restPos = new THREE.Vector3(
+            Math.cos(ang) * orbitRadius,
+            orbitCenterY,
+            Math.sin(ang) * orbitRadius
+          );
+          guardianNode.position.copy(restPos);
+          guardianNode.rotation.set(0, -ang + Math.PI / 2, Math.PI + radialTilt);
+
+          guardianNode.userData.restPos = restPos.clone();
+          guardianNode.userData.restRot = guardianNode.rotation.clone();
+          guardianNode.userData.baseAngle = ang;
+          guardianNode.userData.orbitRadius = orbitRadius;
+          guardianNode.userData.isInnerTier = isInnerTier;
+
+          const miniMesh = new THREE.Mesh(miniSwordGeo, materials.spectralBlade);
+          guardianNode.add(miniMesh);
+
+          assetGroup.add(guardianNode);
+          dynamicNodes.guardianBlades.push(guardianNode);
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // F) 5-TIER ARCHITECTURAL GOTHIC SWORD ALTAR PEDESTAL (`Gothic_Altar_Pedestal`)
+      // -----------------------------------------------------------------------
+      if (state.assetMode === 'altar') {
+        const pedStoneParts = [];
+        const pedReliefParts = [];
+        const pedGoldParts = [];
+        const pedIronParts = [];
+        const candleWaxParts = [];
+        const flameCardParts = [];
+        const flameHaloParts = [];
+
+        // === TIER 1: ASHLAR FLAGSTONE PLINTH (y = 0.00 to 0.14m) ===
+        const baseOctagon = new THREE.CylinderGeometry(1.12, 1.18, 0.14, 8);
+        baseOctagon.rotateY(Math.PI / 8);
+        baseOctagon.translate(0, 0.07, 0);
+        applyTriplanarBoxUVs(baseOctagon, 1.2);
+        bakeVertexAO(baseOctagon, { minAO: 0.45, maxAO: 0.96, axis: 'y' });
+        pedStoneParts.push(baseOctagon);
+
+        for (let k = 0; k < 16; k++) {
+          const ang = (k / 16) * Math.PI * 2;
+          const curb = new THREE.BoxGeometry(0.16, 0.11, 0.34);
+          curb.translate(1.14, 0.055, 0);
+          curb.rotateY(ang);
+          applyTriplanarBoxUVs(curb, 1.4);
+          bakeVertexAO(curb, { minAO: 0.42, maxAO: 0.98, axis: 'y' });
+          pedStoneParts.push(curb);
+        }
+
+        for (let c = 0; c < 8; c++) {
+          const ang = Math.PI / 8 + (c * Math.PI) / 4;
+          const bracket = new THREE.BoxGeometry(0.14, 0.145, 0.14);
+          bracket.translate(1.13, 0.0725, 0);
+          bracket.rotateY(ang);
+          bakeVertexAO(bracket, { minAO: 0.48, maxAO: 1.02, axis: 'y' });
+          pedIronParts.push(bracket);
+        }
+
+        const baseBrassRing = buildBeveledRingGeometry(1.01, 0.036, 0.008, isHero ? 64 : 28, 0.68);
+        baseBrassRing.translate(0, 0.142, 0);
+        pedGoldParts.push(baseBrassRing);
+
+        // === TIER 2: CLASSICAL ARCHITECTURAL MOLDINGS (y = 0.14 to 0.26m) ===
+        const moldingPts = [
+          new THREE.Vector2(0.94, 0.14),
+          new THREE.Vector2(0.94, 0.165),
+          new THREE.Vector2(0.91, 0.185),
+          new THREE.Vector2(0.86, 0.215),
+          new THREE.Vector2(0.89, 0.242),
+          new THREE.Vector2(0.84, 0.260)
+        ];
+        const moldingGeo = new THREE.LatheGeometry(moldingPts, 8);
+        moldingGeo.rotateY(Math.PI / 8);
+        bakeVertexAO(moldingGeo, { minAO: 0.52, maxAO: 0.96, axis: 'y' });
+        pedStoneParts.push(moldingGeo);
+
+        // === TIER 3: 8-SIDED GOTHIC LANCET ARCADE DRUM (y = 0.26 to 0.68m) ===
+        const drumHeight = 0.42;
+        const drumCenterY = 0.26 + drumHeight * 0.5;
+        const drumCore = new THREE.CylinderGeometry(0.76, 0.78, drumHeight, 8);
+        drumCore.rotateY(Math.PI / 8);
+        drumCore.translate(0, drumCenterY, 0);
+        bakeVertexAO(drumCore, { minAO: 0.54, maxAO: 0.96, axis: 'y' });
+        pedStoneParts.push(drumCore);
+
+        const pilasterSegs = isHero ? 8 : 6;
+        for (let p = 0; p < 8; p++) {
+          const ang = Math.PI / 8 + (p * Math.PI) / 4;
+          const rPos = 0.785;
+
+          const pBase = new THREE.BoxGeometry(0.11, 0.055, 0.11);
+          pBase.translate(rPos, 0.2875, 0);
+          pBase.rotateY(ang);
+          bakeVertexAO(pBase, { minAO: 0.48, maxAO: 0.95, axis: 'y' });
+          pedStoneParts.push(pBase);
+
+          const pShaft = new THREE.CylinderGeometry(0.038, 0.042, 0.31, pilasterSegs);
+          pShaft.translate(rPos, 0.47, 0);
+          pShaft.rotateY(ang);
+          bakeVertexAO(pShaft, { minAO: 0.62, maxAO: 1.02, axis: 'y' });
+          pedStoneParts.push(pShaft);
+
+          const pCap = new THREE.BoxGeometry(0.115, 0.055, 0.115);
+          pCap.translate(rPos, 0.6525, 0);
+          pCap.rotateY(ang);
+          bakeVertexAO(pCap, { minAO: 0.55, maxAO: 0.98, axis: 'y', invert: true });
+          pedStoneParts.push(pCap);
+        }
+
+        const lancetShape = new THREE.Shape();
+        lancetShape.moveTo(-0.15, -0.17);
+        lancetShape.lineTo(0.15, -0.17);
+        lancetShape.lineTo(0.15, 0.04);
+        lancetShape.quadraticCurveTo(0.15, 0.14, 0, 0.19);
+        lancetShape.quadraticCurveTo(-0.15, 0.14, -0.15, 0.04);
+        lancetShape.closePath();
+
+        const apothem = 0.77 * Math.cos(Math.PI / 8);
+        for (let f = 0; f < 8; f++) {
+          const faceAng = (f * Math.PI) / 4;
+
+          const nichePanel = new THREE.ExtrudeGeometry(lancetShape, {
+            depth: 0.024,
+            bevelEnabled: true,
+            bevelThickness: 0.006,
+            bevelSize: 0.006,
+            bevelSegments: 1,
+            curveSegments: isHero ? 12 : 6
+          });
+          nichePanel.translate(0, drumCenterY - 0.01, apothem - 0.008);
+          nichePanel.rotateY(faceAng);
+          // Deep recessed AO inside Gothic lancet arches
+          bakeVertexAO(nichePanel, { minAO: 0.36, maxAO: 0.85, axis: 'y' });
+          pedReliefParts.push(nichePanel);
+
+          const vBar = new THREE.BoxGeometry(0.012, 0.24, 0.012);
+          vBar.translate(0, drumCenterY - 0.02, apothem + 0.018);
+          vBar.rotateY(faceAng);
+          bakeVertexAO(vBar, { minAO: 0.68, maxAO: 1.04, axis: 'y' });
+          pedGoldParts.push(vBar);
+
+          const hBar = new THREE.BoxGeometry(0.13, 0.012, 0.012);
+          hBar.translate(0, drumCenterY + 0.03, apothem + 0.018);
+          hBar.rotateY(faceAng);
+          pedGoldParts.push(hBar);
+
+          const lancetRing = buildBeveledRingGeometry(0.046, 0.008, 0.010, isHero ? 24 : 12, 0.68);
+          lancetRing.rotateX(Math.PI / 2);
+          lancetRing.translate(0, drumCenterY + 0.04, apothem + 0.018);
+          lancetRing.rotateY(faceAng);
+          pedGoldParts.push(lancetRing);
+        }
+
+        // === TIER 4: 4 FORGED-IRON & GOLD SCROLL BUTTRESSES + CANDLES ===
+        const bTubeSegs = isHero ? 18 : 10;
+        const bRadSegs = isHero ? 6 : 4;
+        for (let b = 0; b < 4; b++) {
+          const ang = (b * Math.PI) / 2;
+
+          const buttressPts = [
+            new THREE.Vector3(1.06, 0.14, 0),
+            new THREE.Vector3(0.98, 0.34, 0),
+            new THREE.Vector3(0.86, 0.56, 0),
+            new THREE.Vector3(0.76, 0.72, 0)
+          ];
+          const ironButtress = buildTaperedCurveGeometry(
+            buttressPts,
+            bTubeSegs,
+            bRadSegs,
+            (t) => 0.062 * (1.0 - t * 0.32),
+            0.78,
+            0.12
+          );
+          ironButtress.rotateY(ang);
+          pedIronParts.push(ironButtress);
+
+          const goldRibPts = buttressPts.map((pt) => new THREE.Vector3(pt.x + 0.022, pt.y + 0.01, 0));
+          const goldButtressRib = buildTaperedCurveGeometry(
+            goldRibPts,
+            bTubeSegs,
+            bRadSegs,
+            (t) => 0.018 * (1.0 - t * 0.35),
+            0.85,
+            0.15
+          );
+          goldButtressRib.rotateY(ang);
+          pedGoldParts.push(goldButtressRib);
+
+          const shoe = new THREE.BoxGeometry(0.22, 0.12, 0.18);
+          shoe.translate(1.03, 0.20, 0);
+          shoe.rotateY(ang);
+          applyTriplanarBoxUVs(shoe, 1.5);
+          bakeVertexAO(shoe, { minAO: 0.44, maxAO: 0.94, axis: 'y' });
+          pedStoneParts.push(shoe);
+
+          // 4 Wrought-Iron Saucer Candlesticks + Emissive Flame Cards & Soft Glow Cones
+          const candleAng = Math.PI / 4 + (b * Math.PI) / 2;
+          const cRad = 0.96;
+          const cBaseY = 0.142;
+
+          const saucer = buildBeveledRingGeometry(0.052, 0.048, 0.012, isHero ? 20 : 12, 0.58);
+          saucer.translate(cRad, cBaseY + 0.006, 0);
+          saucer.rotateY(candleAng);
+          pedIronParts.push(saucer);
+
+          const cStem = new THREE.CylinderGeometry(0.012, 0.022, 0.045, isHero ? 12 : 8);
+          cStem.translate(cRad, cBaseY + 0.032, 0);
+          cStem.rotateY(candleAng);
+          bakeVertexAO(cStem, { minAO: 0.55, maxAO: 0.96, axis: 'y' });
+          pedIronParts.push(cStem);
+
+          const cHeight = b % 2 === 0 ? 0.19 : 0.15;
+          const waxPillar = new THREE.CylinderGeometry(0.024, 0.027, cHeight, isHero ? 14 : 8);
+          waxPillar.translate(cRad, cBaseY + 0.055 + cHeight * 0.5, 0);
+          waxPillar.rotateY(candleAng);
+          bakeVertexAO(waxPillar, { minAO: 0.62, maxAO: 1.04, axis: 'y' });
+          candleWaxParts.push(waxPillar);
+
+          const fx = Math.cos(candleAng) * cRad;
+          const fz = -Math.sin(candleAng) * cRad;
+          const flameY = cBaseY + 0.055 + cHeight + 0.022;
+
+          // Crossed emissive flame cards
+          for (const cardRot of [0, Math.PI / 2]) {
+            const card = new THREE.PlaneGeometry(0.022, 0.040);
+            card.rotateY(cardRot);
+            card.translate(fx, flameY, fz);
+            flameCardParts.push(card);
+          }
+
+          // Soft atmospheric candle glow cone
+          const glowCone = new THREE.ConeGeometry(0.042, 0.085, isHero ? 12 : 8, 1, true);
+          glowCone.translate(fx, flameY + 0.015, fz);
+          flameHaloParts.push(glowCone);
+        }
+
+        // === TIER 5: FRACTURED SWORD-ANVIL CROWN + IMPACT CRATER & RUBBLE ===
+        const cornice = new THREE.CylinderGeometry(0.86, 0.77, 0.11, 8);
+        cornice.rotateY(Math.PI / 8);
+        cornice.translate(0, 0.735, 0);
+        applyTriplanarBoxUVs(cornice, 1.35);
+        bakeVertexAO(cornice, { minAO: 0.48, maxAO: 0.96, axis: 'y' });
+        pedStoneParts.push(cornice);
+
+        const corniceGold = buildBeveledRingGeometry(0.84, 0.022, 0.018, 8, 0.68);
+        corniceGold.rotateY(Math.PI / 8);
+        corniceGold.translate(0, 0.785, 0);
+        pedGoldParts.push(corniceGold);
+
+        // 6 Radial Fractured Stone Anvil Slabs with TRIPLANAR BOX UVs
+        for (let s = 0; s < 6; s++) {
+          const ang = (s / 6) * Math.PI * 2 + 0.18;
+          const slab = new THREE.CylinderGeometry(0.22, 0.28, 0.085, 5);
+          slab.scale(1.15, 1.0, 0.78);
+          slab.rotateZ(-0.11);
+          slab.translate(0.28, 0.815 + (s % 2) * 0.012, 0);
+          slab.rotateY(ang);
+          applyTriplanarBoxUVs(slab, 1.85);
+          bakeVertexAO(slab, { minAO: 0.42, maxAO: 0.98, axis: 'y' });
+          pedStoneParts.push(slab);
+        }
+
+        // 14 Scattered Angular Stone Rubble Chunks with Dark Contact AO & Triplanar UVs
+        for (let r = 0; r < 14; r++) {
+          const ang = (r / 14) * Math.PI * 2 + (r % 3) * 0.24;
+          const rad = 0.21 + (r % 5) * 0.095;
+          const sz = 0.024 + (r % 4) * 0.012;
+          const rubble = new THREE.DodecahedronGeometry(sz, 0);
+          rubble.scale(1.25, 0.68, 0.95);
+          rubble.rotateX(r * 0.7);
+          rubble.rotateY(ang);
+          rubble.translate(Math.cos(ang) * rad, 0.842, Math.sin(ang) * rad);
+          applyTriplanarBoxUVs(rubble, 2.4);
+          bakeVertexAO(rubble, { minAO: 0.34, maxAO: 0.95, axis: 'y' });
+          pedStoneParts.push(rubble);
+        }
+
+        // Raised Gilded Bronze Sword-Scabbard Collar embracing the plunged blade
+        const anvilCollar = buildBeveledRingGeometry(0.135, 0.042, 0.045, 8, 0.62);
+        anvilCollar.rotateY(Math.PI / 8);
+        anvilCollar.translate(0, 0.845, 0);
+        pedGoldParts.push(anvilCollar);
+
+        // Top Inlaid Ritual Seal Disc
+        const sealParts = [];
+        const sealDisc = new THREE.CircleGeometry(0.76, isHero ? 48 : 24);
+        sealDisc.rotateX(-Math.PI / 2);
+        sealDisc.translate(0, 0.792, 0);
+        bakeVertexAO(sealDisc, { minAO: 0.45, maxAO: 1.0, axis: 'radial' });
+        sealParts.push(sealDisc);
+
+        // Jagged Radial Glowing Arcane Impact Fissures (`Altar_Impact_Fissures`)
+        const fissureParts = [];
+        const fissureArms = 7;
+        for (let f = 0; f < fissureArms; f++) {
+          const baseAng = (f / fissureArms) * Math.PI * 2 + 0.32;
+          const armLen = 0.34 + (f % 3) * 0.09;
+          const segs = 4;
+          for (let sg = 0; sg < segs; sg++) {
+            const t0 = sg / segs;
+            const t1 = (sg + 1) / segs;
+            const r0 = 0.14 + t0 * armLen;
+            const r1 = 0.14 + t1 * armLen;
+            const j0 = (sg % 2 === 0 ? 1 : -1) * 0.022 * t0;
+            const j1 = ((sg + 1) % 2 === 0 ? 1 : -1) * 0.022 * t1;
+
+            const x0 = Math.cos(baseAng) * r0 - Math.sin(baseAng) * j0;
+            const z0 = Math.sin(baseAng) * r0 + Math.cos(baseAng) * j0;
+            const x1 = Math.cos(baseAng) * r1 - Math.sin(baseAng) * j1;
+            const z1 = Math.sin(baseAng) * r1 + Math.cos(baseAng) * j1;
+
+            const segLen = Math.hypot(x1 - x0, z1 - z0);
+            const segAng = Math.atan2(x1 - x0, z1 - z0);
+            const crackW = 0.016 * (1.0 - t0 * 0.65);
+
+            const crack = new THREE.PlaneGeometry(crackW, segLen * 1.08);
+            crack.rotateX(-Math.PI / 2);
+            crack.rotateY(segAng);
+            crack.translate((x0 + x1) * 0.5, 0.844, (z0 + z1) * 0.5);
+            fissureParts.push(crack);
+          }
+        }
+
+        // Merge & Mount Static Pedestal Meshes
+        const pedStoneMesh = new THREE.Mesh(normalizeAndMerge(pedStoneParts), materials.stone);
+        pedStoneMesh.name = 'Pedestal_Stone_Static';
+        pedStoneMesh.castShadow = true;
+        pedStoneMesh.receiveShadow = true;
+        assetGroup.add(pedStoneMesh);
+        unmergedStaticCount += pedStoneParts.length;
+        mergedStaticCount++;
+
+        const pedReliefMesh = new THREE.Mesh(normalizeAndMerge(pedReliefParts), materials.stoneDarkRelief);
+        pedReliefMesh.name = 'Pedestal_Arcade_Reliefs';
+        pedReliefMesh.receiveShadow = true;
+        assetGroup.add(pedReliefMesh);
+        unmergedStaticCount += pedReliefParts.length;
+        mergedStaticCount++;
+
+        const pedGoldMesh = new THREE.Mesh(normalizeAndMerge(pedGoldParts), materials.gold);
+        pedGoldMesh.name = 'Pedestal_Gold_Static';
+        pedGoldMesh.castShadow = true;
+        pedGoldMesh.receiveShadow = true;
+        assetGroup.add(pedGoldMesh);
+        unmergedStaticCount += pedGoldParts.length;
+        mergedStaticCount++;
+
+        const pedIronMesh = new THREE.Mesh(normalizeAndMerge(pedIronParts), materials.iron);
+        pedIronMesh.name = 'Pedestal_Iron_Static';
+        pedIronMesh.castShadow = true;
+        pedIronMesh.receiveShadow = true;
+        assetGroup.add(pedIronMesh);
+        unmergedStaticCount += pedIronParts.length;
+        mergedStaticCount++;
+
+        const pedSealMesh = new THREE.Mesh(normalizeAndMerge(sealParts), materials.stoneSeal);
+        pedSealMesh.name = 'Pedestal_Seal_Static';
+        pedSealMesh.receiveShadow = true;
+        assetGroup.add(pedSealMesh);
+        unmergedStaticCount += sealParts.length;
+        mergedStaticCount++;
+
+        const fissureMesh = new THREE.Mesh(normalizeAndMerge(fissureParts), materials.arcaneGlow);
+        fissureMesh.name = 'Altar_Impact_Fissures';
+        assetGroup.add(fissureMesh);
+        unmergedStaticCount += fissureParts.length;
+        mergedStaticCount++;
+
+        const candleWaxMesh = new THREE.Mesh(normalizeAndMerge(candleWaxParts), materials.wax);
+        candleWaxMesh.name = 'Altar_Candles_Static';
+        candleWaxMesh.castShadow = true;
+        assetGroup.add(candleWaxMesh);
+        unmergedStaticCount += candleWaxParts.length;
+        mergedStaticCount++;
+
+        // Candle Flame Cards + Soft Glow Cones as named dynamic node `Candle_Flames`
+        const candleFlamesGroup = new THREE.Group();
+        candleFlamesGroup.name = 'Candle_Flames';
+        const cardsMesh = new THREE.Mesh(normalizeAndMerge(flameCardParts), materials.candleFlame);
+        cardsMesh.name = 'Candle_Flame_Cards';
+        const conesMesh = new THREE.Mesh(normalizeAndMerge(flameHaloParts), materials.candleHaloCone);
+        conesMesh.name = 'Candle_Glow_Cones';
+        candleFlamesGroup.add(cardsMesh, conesMesh);
+        assetGroup.add(candleFlamesGroup);
+        dynamicNodes.candleFlames = candleFlamesGroup;
+      }
+
+      // -----------------------------------------------------------------------
+      // G) CONVEX COLLISION PROXIES (`Collider_Altar_Base`, `Collider_Sword_Hitbox`)
+      // -----------------------------------------------------------------------
+      const colliderGroup = new THREE.Group();
+      colliderGroup.name = 'Collision_Proxies';
+      colliderGroup.visible = state.showColliders;
+      assetGroup.add(colliderGroup);
+      dynamicNodes.colliderGroup = colliderGroup;
+
+      if (state.assetMode === 'altar') {
+        const altarColliderGeo = new THREE.CylinderGeometry(0.88, 1.18, 0.86, 8);
+        altarColliderGeo.rotateY(Math.PI / 8);
+        altarColliderGeo.translate(0, 0.43, 0);
+        const altarCollider = new THREE.Mesh(altarColliderGeo, materials.colliderProxy);
+        altarCollider.name = 'Collider_Altar_Base';
+        colliderGroup.add(altarCollider);
+
+        const swordTotalH = state.bladeLength + 0.56;
+        const swordColliderGeo = new THREE.BoxGeometry(state.guardSpan + 0.06, swordTotalH, 0.14);
+        swordColliderGeo.translate(0, 0.60 + swordTotalH * 0.5, 0);
+        const swordCollider = new THREE.Mesh(swordColliderGeo, materials.colliderProxy);
+        swordCollider.name = 'Collider_Sword_Hitbox';
+        colliderGroup.add(swordCollider);
+      } else {
+        const minY = -0.35;
+        const maxY = 0.21 + state.bladeLength;
+        const h = maxY - minY;
+        const swordColliderGeo = new THREE.BoxGeometry(state.guardSpan + 0.06, h, 0.14);
+        swordColliderGeo.translate(0, minY + h * 0.5, 0);
+        const swordCollider = new THREE.Mesh(swordColliderGeo, materials.colliderProxy);
+        swordCollider.name = 'Collider_Sword_Hitbox';
+        colliderGroup.add(swordCollider);
+      }
+
+      // Sync Light Positions
+      candleLight.visible = state.assetMode === 'altar';
+      relicLight.position.y = state.assetMode === 'altar'
+        ? altarPlungeY + state.bladeLength - tipDepthInStone - 0.195
+        : 0.195;
+
+      applyWireframe();
+      updateTelemetry(unmergedStaticCount, mergedStaticCount);
+    }
+
+    // =========================================================================
+    // 9. THEME, LUMINANCE, CAMERA PRESETS & TELEMETRY UPDATERS
+    // =========================================================================
+    function applyTheme(themeKey) {
+      state.themeKey = themeKey;
+      const t = THEMES[themeKey];
+
+      pbrEngine.generateAll(t);
+
+      materials.iron.color.setHex(t.ironColor);
+      materials.arcaneGlow.color.setHex(t.gemColor);
+      materials.arcaneGlow.emissive.setHex(t.gemEmissive);
+      materials.spectralBlade.color.setHex(t.spectralColor);
+      materials.spectralBlade.emissive.setHex(t.spectralEmissive);
+      rimLight.color.setHex(t.rimHex);
+      relicLight.color.setHex(t.gemColor);
+
+      applyRuneGlow();
+      refreshInspectorThumbnails();
+
+      document.querySelectorAll('.theme-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.theme === themeKey);
+      });
+    }
+
+    function applyRuneGlow() {
+      const g = state.runeGlow;
+      materials.blade.emissiveIntensity = g;
+      materials.stoneSeal.emissiveIntensity = g;
+      materials.arcaneGlow.emissiveIntensity = g * 1.15;
+      materials.spectralBlade.emissiveIntensity = g * 0.95;
+      relicLight.intensity = 1.0 + g * 0.85;
+    }
+
+    function applyWireframe() {
+      Object.entries(materials).forEach(([key, m]) => {
+        if (key !== 'colliderProxy') {
+          m.wireframe = state.wireframe;
+        }
+      });
+    }
+
+    function updateTelemetry(unmergedStaticCount, mergedStaticCount) {
+      let tris = 0;
+      let verts = 0;
+      let totalMeshes = 0;
+
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.geometry) {
+          // Exclude collider proxies from art mesh budget unless included
+          if (obj.parent && obj.parent.name === 'Collision_Proxies') return;
+          totalMeshes++;
+          const g = obj.geometry;
+          const pos = g.attributes.position;
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+        }
+      });
+
+      const saved = Math.max(0, unmergedStaticCount - mergedStaticCount);
+
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-drawcalls').textContent = totalMeshes.toString();
+      document.getElementById('stat-saved').textContent = `${saved} calls`;
+
+      const hBox = document.getElementById('hierarchy-box');
+      if (state.assetMode === 'altar') {
+        hBox.innerHTML = `
+          <div class="text-[#f2d680] font-semibold">▼ Sovereigns_Oath_Relic (Pivot y=0)</div>
+          <div class="pl-3">├─ Pedestal_Stone/Gold/Iron_Static (COLOR_0)</div>
+          <div class="pl-3">├─ Blade_Mesh (${state.lodLevel === 'hero' ? '112' : '48'} stn) · Sword_Static</div>
+          <div class="pl-3">├─ Collision_Proxies (${state.includeColliders ? 'Exported' : 'Optional'})</div>
+          <div class="pl-3 text-[#7dd3fc]">└─ Dynamic: Guardian_Blade(×${state.guardianCount}), Gem_Core${state.showHalo ? ', Halo' : ''}</div>
+        `;
+      } else {
+        hBox.innerHTML = `
+          <div class="text-[#f2d680] font-semibold">▼ Sovereigns_Oath_Relic (Grip Pivot 0,0,0)</div>
+          <div class="pl-3">├─ Blade_Mesh (+Y, ${state.lodLevel === 'hero' ? '112' : '48'} stn) · Rune_Inlay</div>
+          <div class="pl-3">├─ Sword_Steel/Gold/Leather_Static (COLOR_0)</div>
+          <div class="pl-3 text-[#7dd3fc]">└─ Dynamic: Gem_Core, Guardian_Blade(×${state.guardianCount})</div>
+        `;
+      }
+    }
+
+    function refreshInspectorThumbnails() {
+      const set = pbrEngine.sets[state.inspectorMat];
+      if (!set) return;
+
+      const renderThumb = (elId, srcCanvas) => {
+        const host = document.getElementById(elId);
+        if (!host) return;
+        host.innerHTML = '';
+        const c = document.createElement('canvas');
+        c.width = 128;
+        c.height = 128;
+        c.className = 'w-full h-full object-cover';
+        c.getContext('2d').drawImage(srcCanvas, 0, 0, 128, 128);
+        host.appendChild(c);
+      };
+
+      renderThumb('thumb-albedo', set.canvases.albedo);
+      renderThumb('thumb-normal', set.canvases.normal);
+      renderThumb('thumb-rough', set.canvases.roughness);
+      renderThumb('thumb-metal', set.canvases.metalness);
+      renderThumb('thumb-emissive', set.canvases.emissive);
+    }
+
+    // Smooth Camera Presets ("Hero 3/4", "ARPG 50° Top-Down", "Blade Macro", "Altar Impact")
+    let camTransition = null;
+    function setCameraPreset(presetKey) {
+      document.querySelectorAll('.cam-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.cam === presetKey);
+      });
+
+      const isAltar = state.assetMode === 'altar';
+      const hiltY = isAltar ? 0.84 + state.bladeLength - 0.24 - 0.195 : 0.195;
+
+      const presets = {
+        hero: isAltar
+          ? { pos: new THREE.Vector3(2.25, 1.95, 2.75), target: new THREE.Vector3(0, 1.25, 0) }
+          : { pos: new THREE.Vector3(1.55, 0.95, 1.85), target: new THREE.Vector3(0, 0.72, 0) },
+        topdown: isAltar
+          ? { pos: new THREE.Vector3(1.85, 3.65, 2.15), target: new THREE.Vector3(0, 1.05, 0) }
+          : { pos: new THREE.Vector3(1.25, 2.35, 1.45), target: new THREE.Vector3(0, 0.68, 0) },
+        blade: {
+          pos: new THREE.Vector3(0.36, hiltY - 0.18, 0.64),
+          target: new THREE.Vector3(0, hiltY - 0.12, 0)
+        },
+        impact: isAltar
+          ? { pos: new THREE.Vector3(0.86, 1.24, 1.02), target: new THREE.Vector3(0, 0.84, 0) }
+          : { pos: new THREE.Vector3(0.42, -0.22, 0.52), target: new THREE.Vector3(0, -0.22, 0) }
+      };
+
+      const p = presets[presetKey] || presets.hero;
+      camTransition = {
+        targetPos: p.pos,
+        targetLook: p.target,
+        alpha: 0
+      };
+    }
+
+    // =========================================================================
+    // 10. PRE-EXPORT POSE RESET HOOK & EXPORT SUITE (.GLB / .OBJ / .PNG)
+    // =========================================================================
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function withCanonicalRestPose(exportFn) {
+      const wasLive = state.motionLive;
+      state.motionLive = false;
+
+      const saved = {
+        haloRot: dynamicNodes.celestialHalo ? dynamicNodes.celestialHalo.rotation.clone() : null,
+        gemScale: dynamicNodes.gemCore ? dynamicNodes.gemCore.scale.clone() : null,
+        collidersVis: dynamicNodes.colliderGroup ? dynamicNodes.colliderGroup.visible : false,
+        guardians: dynamicNodes.guardianBlades.map((g) => ({
+          pos: g.position.clone(),
+          rot: g.rotation.clone()
+        }))
+      };
+
+      // Reset all dynamic nodes to exact canonical rest pose (0°)
+      if (dynamicNodes.celestialHalo) dynamicNodes.celestialHalo.rotation.set(0, 0, 0);
+      if (dynamicNodes.gemCore) dynamicNodes.gemCore.scale.set(1, 1, 1);
+      if (dynamicNodes.colliderGroup) {
+        dynamicNodes.colliderGroup.visible = state.includeColliders;
+      }
+      dynamicNodes.guardianBlades.forEach((g) => {
+        if (g.userData.restPos) g.position.copy(g.userData.restPos);
+        if (g.userData.restRot) g.rotation.copy(g.userData.restRot);
+      });
+
+      assetGroup.position.set(0, 0, 0);
+      assetGroup.rotation.set(0, 0, 0);
+      assetGroup.scale.set(1, 1, 1);
+      assetGroup.updateMatrixWorld(true);
+
+      const restore = () => {
+        if (dynamicNodes.celestialHalo && saved.haloRot) dynamicNodes.celestialHalo.rotation.copy(saved.haloRot);
+        if (dynamicNodes.gemCore && saved.gemScale) dynamicNodes.gemCore.scale.copy(saved.gemScale);
+        if (dynamicNodes.colliderGroup) dynamicNodes.colliderGroup.visible = saved.collidersVis;
+        dynamicNodes.guardianBlades.forEach((g, i) => {
+          if (saved.guardians[i]) {
+            g.position.copy(saved.guardians[i].pos);
+            g.rotation.copy(saved.guardians[i].rot);
+          }
+        });
+        state.motionLive = wasLive;
+      };
+
+      try {
+        exportFn(restore);
+      } catch (err) {
+        restore();
+        throw err;
+      }
+    }
+
+    function exportGLB() {
+      const modeTag = state.assetMode === 'altar' ? 'Shrine_Prop' : 'Greatsword';
+      const lodTag = state.lodLevel === 'hero' ? 'Hero' : 'GameReady';
+      const filename = `Sovereigns_Oath_${modeTag}_${lodTag}.glb`;
+
+      withCanonicalRestPose((restore) => {
+        const exporter = new GLTFExporter();
+        exporter.parse(
+          assetGroup,
+          (buffer) => {
+            restore();
+            const blob = new Blob([buffer], { type: 'model/gltf-binary' });
+            triggerDownload(blob, filename);
+            const kb = (blob.size / 1024).toFixed(1);
+            showToast(
+              `Exported ${filename}`,
+              `Binary GLTF 2.0 (${kb} KB) · COLOR_0 Vertex AO · Sobel Normals`
+            );
+          },
+          (err) => {
+            restore();
+            console.error(err);
+            showToast('GLB Export Error', err.message || 'Serialization failed', true);
+          },
+          { binary: true, onlyVisible: true }
+        );
+      });
+    }
+
+    function exportOBJ() {
+      const modeTag = state.assetMode === 'altar' ? 'Shrine_Prop' : 'Greatsword';
+      const lodTag = state.lodLevel === 'hero' ? 'Hero' : 'GameReady';
+      const filename = `Sovereigns_Oath_${modeTag}_${lodTag}.obj`;
+
+      withCanonicalRestPose((restore) => {
+        const exporter = new OBJExporter();
+        const objText = exporter.parse(assetGroup);
+        restore();
+        const blob = new Blob([objText], { type: 'text/plain;charset=utf-8' });
+        triggerDownload(blob, filename);
+        const kb = (blob.size / 1024).toFixed(1);
+        showToast(`Exported ${filename}`, `Wavefront OBJ (${kb} KB) · Canonical Rest Pose (0°)`);
+      });
+    }
+
+    function exportPBRPack() {
+      const set = pbrEngine.sets[state.inspectorMat] || pbrEngine.sets.blade;
+      const prefixMap = {
+        blade: 'MAT_Damascus_Blade',
+        gold: 'MAT_Royal_Gold',
+        stone: 'MAT_Altar_Stone',
+        leather: 'MAT_Dragon_Leather'
+      };
+      const prefix = prefixMap[state.inspectorMat] || 'MAT_Damascus_Blade';
+
+      const pack = [
+        { canvas: set.canvases.albedo, name: `${prefix}_Albedo.png` },
+        { canvas: set.canvases.normal, name: `${prefix}_Normal_Sobel.png` },
+        { canvas: set.canvases.roughness, name: `${prefix}_Roughness.png` },
+        { canvas: set.canvases.metalness, name: `${prefix}_Metalness.png` },
+        { canvas: set.canvases.emissive, name: `${prefix}_Emissive.png` }
+      ];
+
+      pack.forEach((item, i) => {
+        setTimeout(() => {
+          item.canvas.toBlob((blob) => {
+            if (blob) triggerDownload(blob, item.name);
+          }, 'image/png');
+        }, i * 160);
+      });
+
+      showToast(
+        `Downloading 5 PBR Maps (${prefix})`,
+        '1024×1024 Albedo, Normal_Sobel, Roughness, Metalness & Emissive'
+      );
+    }
+
+    // =========================================================================
+    // 11. UI EVENT BINDINGS & MODAL CONTROLS
+    // =========================================================================
+    document.getElementById('asset-mode-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.mode-btn');
+      if (!btn || btn.dataset.mode === state.assetMode) return;
+      state.assetMode = btn.dataset.mode;
+      document.querySelectorAll('.mode-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.mode === state.assetMode);
+      });
+      rebuildAsset();
+      setCameraPreset('hero');
+      showToast(
+        state.assetMode === 'altar' ? 'Mode: Full Shrine Prop' : 'Mode: Weapon Only',
+        state.assetMode === 'altar'
+          ? 'Root Pivot bottom-centered at y = 0.0m'
+          : 'Root Pivot at Grip Center (0, 0, 0), Blade along +Y'
+      );
+    });
+
+    document.getElementById('lod-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.lod-btn');
+      if (!btn || btn.dataset.lod === state.lodLevel) return;
+      state.lodLevel = btn.dataset.lod;
+      document.querySelectorAll('.lod-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.lod === state.lodLevel);
+      });
+      rebuildAsset();
+      showToast(
+        state.lodLevel === 'hero' ? 'LOD: HERO (~22k Tris)' : 'LOD: GAME-READY (~6.5k Tris)',
+        'Geometry stations & spline segmentation rebuilt cleanly.'
+      );
+    });
+
+    document.getElementById('theme-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.theme-btn');
+      if (!btn) return;
+      applyTheme(btn.dataset.theme);
+      showToast(`Theme: ${THEMES[btn.dataset.theme].name}`, '1024² PBR & 3×3 Sobel Normal Maps baked.');
+    });
+
+    document.getElementById('sld-blade-len').addEventListener('input', (e) => {
+      state.bladeLength = parseFloat(e.target.value);
+      document.getElementById('lbl-blade-len').textContent = `${state.bladeLength.toFixed(2)} m`;
+      rebuildAsset();
+    });
+
+    document.getElementById('sld-guard-span').addEventListener('input', (e) => {
+      state.guardSpan = parseFloat(e.target.value);
+      document.getElementById('lbl-guard-span').textContent = `${state.guardSpan.toFixed(2)} m`;
+      rebuildAsset();
+    });
+
+    document.getElementById('sld-guardians').addEventListener('input', (e) => {
+      state.guardianCount = parseInt(e.target.value, 10);
+      document.getElementById('lbl-guardians').textContent = `${state.guardianCount} Swords`;
+      rebuildAsset();
+    });
+
+    document.getElementById('sld-glow').addEventListener('input', (e) => {
+      state.runeGlow = parseFloat(e.target.value);
+      document.getElementById('lbl-glow').textContent = state.runeGlow.toFixed(2);
+      applyRuneGlow();
+    });
+
+    document.getElementById('sld-anim-speed').addEventListener('input', (e) => {
+      state.animSpeed = parseFloat(e.target.value);
+      document.getElementById('lbl-anim-speed').textContent = `${state.animSpeed.toFixed(2)}x`;
+      controls.autoRotate = state.animSpeed > 0.01 && state.motionLive;
+      controls.autoRotateSpeed = 0.42 * state.animSpeed;
+    });
+
+    document.getElementById('tgl-halo').addEventListener('click', (e) => {
+      state.showHalo = !state.showHalo;
+      e.currentTarget.classList.toggle('active', state.showHalo);
+      e.currentTarget.textContent = state.showHalo ? 'Prayer Halo: ON' : 'Prayer Halo: OFF';
+      rebuildAsset();
+    });
+
+    document.getElementById('tgl-colliders').addEventListener('click', (e) => {
+      state.showColliders = !state.showColliders;
+      if (dynamicNodes.colliderGroup) {
+        dynamicNodes.colliderGroup.visible = state.showColliders;
+      }
+      e.currentTarget.classList.toggle('active', state.showColliders);
+      e.currentTarget.textContent = state.showColliders ? 'Collision Proxies: ON' : 'Collision Proxies: OFF';
+    });
+
+    document.getElementById('chk-export-colliders').addEventListener('change', (e) => {
+      state.includeColliders = e.target.checked;
+      updateTelemetry(0, 0);
+    });
+
+    document.getElementById('tgl-anim').addEventListener('click', (e) => {
+      state.motionLive = !state.motionLive;
+      controls.autoRotate = state.motionLive && state.animSpeed > 0.01;
+      e.currentTarget.classList.toggle('active', state.motionLive);
+      e.currentTarget.textContent = state.motionLive ? 'Motion: LIVE' : 'Motion: PAUSED';
+    });
+
+    document.getElementById('tgl-bloom').addEventListener('click', (e) => {
+      state.bloomEnabled = !state.bloomEnabled;
+      bloomPass.enabled = state.bloomEnabled;
+      e.currentTarget.classList.toggle('active', state.bloomEnabled);
+      e.currentTarget.textContent = state.bloomEnabled ? 'Bloom: ON' : 'Bloom: OFF';
+    });
+
+    document.getElementById('tgl-wireframe').addEventListener('click', (e) => {
+      state.wireframe = !state.wireframe;
+      applyWireframe();
+      e.currentTarget.classList.toggle('active', state.wireframe);
+    });
+
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+    });
+
+    let inspectorOpen = true;
+    document.getElementById('inspector-header').addEventListener('click', () => {
+      inspectorOpen = !inspectorOpen;
+      document.getElementById('inspector-body').style.display = inspectorOpen ? 'flex' : 'none';
+      document.getElementById('inspector-chevron').textContent = inspectorOpen ? '[ − ]' : '[ + ]';
+    });
+
+    document.getElementById('pbr-tab-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.pbr-tab');
+      if (!btn) return;
+      state.inspectorMat = btn.dataset.mat;
+      document.querySelectorAll('.pbr-tab').forEach((b) => {
+        b.classList.toggle('active', b.dataset.mat === state.inspectorMat);
+      });
+      refreshInspectorThumbnails();
+    });
+
+    document.getElementById('toggle-left').addEventListener('click', () => {
+      document.getElementById('left-hud').classList.toggle('collapsed-left');
+    });
+    document.getElementById('toggle-right').addEventListener('click', () => {
+      document.getElementById('right-hud').classList.toggle('collapsed-right');
+    });
+
+    document.getElementById('btn-export-glb').addEventListener('click', exportGLB);
+    document.getElementById('btn-export-obj').addEventListener('click', exportOBJ);
+    document.getElementById('btn-export-png').addEventListener('click', exportPBRPack);
+
+    const unityModal = document.getElementById('unity-modal');
+    document.getElementById('btn-unity-modal').addEventListener('click', () => {
+      unityModal.classList.remove('hidden');
+      unityModal.classList.add('flex');
+    });
+    document.getElementById('close-unity-modal').addEventListener('click', () => {
+      unityModal.classList.add('hidden');
+      unityModal.classList.remove('flex');
+    });
+    unityModal.addEventListener('click', (e) => {
+      if (e.target === unityModal) {
+        unityModal.classList.add('hidden');
+        unityModal.classList.remove('flex');
+      }
+    });
+
+    document.getElementById('copy-csharp-btn').addEventListener('click', () => {
+      const codeText = document.getElementById('csharp-code-block').textContent;
+      const ta = document.createElement('textarea');
+      ta.value = codeText;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Copied SovereignsOathController.cs', 'Ready to paste into your Unity URP project.');
+      } catch (err) {
+        showToast('Copy Failed', 'Please select and copy the script manually.', true);
+      }
+      document.body.removeChild(ta);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !unityModal.classList.contains('hidden')) {
+        unityModal.classList.add('hidden');
+        unityModal.classList.remove('flex');
+      }
+    });
+
+    renderer.domElement.addEventListener('dblclick', () => setCameraPreset('hero'));
+
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloomPass.resolution.set(w, h);
+    });
+
+    // =========================================================================
+    // 12. ANIMATION LOOP & BOOTSTRAP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (state.motionLive && state.animSpeed > 0.001) {
+        elapsed += dt * state.animSpeed;
+
+        if (dynamicNodes.celestialHalo) {
+          dynamicNodes.celestialHalo.rotation.z = elapsed * 0.22;
+        }
+
+        if (dynamicNodes.gemCore) {
+          const pulse = 1.0 + Math.sin(elapsed * 3.0) * 0.04;
+          dynamicNodes.gemCore.scale.set(pulse, pulse, pulse);
+        }
+
+        // Counter-rotating Dual-Tier Helix Phalanx of Miniature Spectral Guardian Swords
+        dynamicNodes.guardianBlades.forEach((guardian, idx) => {
+          const dir = guardian.userData.isInnerTier ? 1.0 : -0.75;
+          const ang = guardian.userData.baseAngle + elapsed * 0.36 * dir;
+          const r = guardian.userData.orbitRadius;
+          guardian.position.x = Math.cos(ang) * r;
+          guardian.position.z = Math.sin(ang) * r;
+          guardian.position.y = guardian.userData.restPos.y + Math.sin(elapsed * 2.4 + idx * 0.95) * 0.032;
+          guardian.rotation.y = -ang + Math.PI / 2;
+        });
+
+        // Subtle warm flicker on the single consolidated candle PointLight
+        if (candleLight.visible) {
+          candleLight.intensity = 2.35 + Math.sin(elapsed * 11.3) * 0.18 + Math.cos(elapsed * 17.7) * 0.12;
+        }
+      }
+
+      if (camTransition) {
+        camTransition.alpha += dt * 4.2;
+        const t = Math.min(1, camTransition.alpha);
+        const ease = 1 - Math.pow(1 - t, 3);
+        camera.position.lerp(camTransition.targetPos, ease * 0.22);
+        controls.target.lerp(camTransition.targetLook, ease * 0.22);
+        if (t >= 1) camTransition = null;
+      }
+
+      controls.update();
+      composer.render();
+    }
+
+    window.addEventListener('load', () => {
+      if (window.innerWidth < 920) {
+        document.getElementById('left-hud').classList.add('collapsed-left');
+        document.getElementById('right-hud').classList.add('collapsed-right');
+      }
+      applyTheme('astral');
+      rebuildAsset();
+      animate();
+    });
+  </script>
+</body>
+</html>
