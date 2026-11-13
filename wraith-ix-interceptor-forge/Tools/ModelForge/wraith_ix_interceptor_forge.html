@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WRAITH-IX Tactical Stealth Interceptor — Three.js to Unity URP Forge</title>
+  <style>
+    :root {
+      --bg-deep: #070b12;
+      --panel-bg: rgba(10, 16, 26, 0.88);
+      --panel-border: rgba(88, 178, 255, 0.24);
+      --accent: #38bdf8;
+      --accent-hot: #f97316;
+      --text-main: #e2e8f0;
+      --text-dim: #8da2b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: radial-gradient(circle at 42% 44%, #101c2f 0%, #06090f 100%);
+      color: var(--text-main);
+      font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
+      font-size: 11px;
+      user-select: none;
+    }
+    #viewport { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Top Left Identity + Live Stats HUD */
+    #hud-header {
+      position: fixed; top: 12px; left: 12px; z-index: 20;
+      padding: 10px 14px; min-width: 295px;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 7px;
+    }
+    .brand-title {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.07em;
+      color: #f8fafc; display: flex; align-items: center; gap: 7px;
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 10px var(--accent);
+    }
+    .badge-lod {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 7px; border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16); color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.42);
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px; padding: 4px 6px; text-align: center;
+    }
+    .stat-val { font-size: 12px; font-weight: 700; color: #f8fafc; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 8.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Bottom Left Camera Presets (cleared from right panel!) */
+    #camera-bar {
+      position: fixed; bottom: 12px; left: 12px; right: 298px; z-index: 20;
+      padding: 7px 8px; display: flex; flex-wrap: wrap; gap: 5px;
+      width: fit-content; max-width: calc(100vw - 310px);
+    }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 5px 9px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.16s ease;
+    }
+    .cam-btn:hover { background: rgba(56, 189, 248, 0.18); border-color: var(--accent); color: #fff; }
+    .cam-btn.active { background: var(--accent); border-color: var(--accent); color: #04101a; }
+
+    /* Right Control Panel (Compact 276px so full panel fits even at 800px height) */
+    #controls-panel {
+      position: fixed; top: 12px; right: 12px; bottom: 12px; width: 276px; z-index: 20;
+      padding: 10px 12px; display: flex; flex-direction: column; gap: 7px;
+      overflow-y: auto;
+    }
+    #controls-panel::-webkit-scrollbar { width: 4px; }
+    #controls-panel::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 4px; }
+
+    .sec-title {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--accent);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.18);
+      padding-bottom: 3px; margin-bottom: 5px;
+    }
+    .seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .seg-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 5px;
+      padding: 5px 4px; font-size: 10.5px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; text-align: center;
+    }
+    .pill-btn:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.12); }
+    .pill-btn.active {
+      background: rgba(56, 189, 248, 0.22); border-color: var(--accent); color: #fff;
+      box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.2);
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 3px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-dim); }
+    .slider-head span.val { color: #f8fafc; font-weight: 600; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); height: 3px; cursor: pointer; }
+
+    .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .chk-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 5px; padding: 5px 6px;
+      font-size: 10.5px; font-weight: 600; cursor: pointer;
+    }
+    .chk-btn.active {
+      background: rgba(249, 115, 22, 0.22); border-color: var(--accent-hot); color: #ffedd5;
+    }
+
+    /* Texture Thumbnails */
+    .tex-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .tex-card {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px; padding: 3px; cursor: pointer;
+    }
+    .tex-card:hover { border-color: var(--accent); }
+    .tex-card canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; }
+    .tex-card span { font-size: 8.5px; color: var(--text-dim); }
+
+    /* Export Buttons */
+    .export-stack { display: flex; flex-direction: column; gap: 5px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      border: none; color: #fff; font-weight: 700; font-size: 11.5px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main); font-weight: 600; font-size: 10.5px;
+      padding: 5px 8px; border-radius: 5px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
+
+    #export-status { font-size: 9.5px; color: #7dd3fc; min-height: 14px; text-align: center; }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <!-- Top Left Identity & Live Telemetry HUD -->
+  <div id="hud-header" class="glass-panel">
+    <div class="brand-row">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>WRAITH-IX TACTICAL STEALTH INTERCEPTOR</span>
+      </div>
+      <span id="lod-badge" class="badge-lod">HERO LOD</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div id="stat-tris" class="stat-val">--</div><div class="stat-lbl">Triangles</div></div>
+      <div class="stat-box"><div id="stat-verts" class="stat-val">--</div><div class="stat-lbl">Vertices</div></div>
+      <div class="stat-box"><div id="stat-meshes" class="stat-val">--</div><div class="stat-lbl">Meshes</div></div>
+      <div class="stat-box"><div id="stat-mats" class="stat-val">--</div><div class="stat-lbl">Materials</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom Left Camera Angle Presets -->
+  <div id="camera-bar" class="glass-panel">
+    <button class="cam-btn active" data-cam="overview">3/4 總覽</button>
+    <button class="cam-btn" data-cam="cockpit">座艙與HUD特寫</button>
+    <button class="cam-btn" data-cam="intake">進氣道與壓縮機</button>
+    <button class="cam-btn" data-cam="ventral">機腹EOTS與掛架</button>
+    <button class="cam-btn" data-cam="nozzle">矢量噴嘴特寫</button>
+    <button class="cam-btn" data-cam="top">俯視氣動輪廓</button>
+  </div>
+
+  <!-- Right Interactive Forge Panel -->
+  <aside id="controls-panel" class="glass-panel">
+    <div>
+      <div class="sec-title">LOD 與戰術塗裝 (Livery & Detail)</div>
+      <div class="seg-row" style="margin-bottom:5px;">
+        <button id="btn-lod-hero" class="pill-btn active">Hero 展示級</button>
+        <button id="btn-lod-game" class="pill-btn">Game-Ready</button>
+      </div>
+      <div class="seg-row-3">
+        <button class="pill-btn active" data-livery="ghost">幽靈隱形灰</button>
+        <button class="pill-btn" data-livery="test">艦載測試橘</button>
+        <button class="pill-btn" data-livery="night">暗夜黑曜青</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">矢量推進與座艙機構 (Propulsion & Canopy)</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>加力燃燒室推力 (Afterburner)</span><span id="val-thrust" class="val">70%</span></div>
+        <input id="sl-thrust" type="range" min="0" max="100" value="70" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>噴嘴俯仰矢量 (Vector Pitch)</span><span id="val-vec-pitch" class="val">0°</span></div>
+        <input id="sl-vec-pitch" type="range" min="-18" max="18" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>噴嘴偏航矢量 (Vector Yaw)</span><span id="val-vec-yaw" class="val">0°</span></div>
+        <input id="sl-vec-yaw" type="range" min="-15" max="15" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>座艙蓋開啟角度 (Canopy)</span><span id="val-canopy" class="val">0%</span></div>
+        <input id="sl-canopy" type="range" min="0" max="100" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>機背減速板展開 (Airbrake)</span><span id="val-airbrake" class="val">0%</span></div>
+        <input id="sl-airbrake" type="range" min="0" max="100" value="0" />
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">氣動舵面聯動測試 (Control Surfaces)</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>俯仰 Pitch (鴨翼/平尾/前緣)</span><span id="val-pitch" class="val">0°</span></div>
+        <input id="sl-pitch" type="range" min="-20" max="20" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>滾轉 Roll (差動副翼/平尾)</span><span id="val-roll" class="val">0°</span></div>
+        <input id="sl-roll" type="range" min="-20" max="20" value="0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>偏航 Yaw (外傾雙垂尾方向舵)</span><span id="val-yaw" class="val">0°</span></div>
+        <input id="sl-yaw" type="range" min="-18" max="18" value="0" />
+      </div>
+      <div style="display:flex; gap:5px; margin-top:3px;">
+        <button id="btn-reset-pose" class="btn-secondary" style="flex:1;">歸零 Reset Pose</button>
+        <button id="btn-demo-idle" class="btn-secondary" style="flex:1;">微動展示: 關</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">拓撲檢測 (Debug Overlays)</div>
+      <div class="toggle-row">
+        <button id="btn-wireframe" class="chk-btn">線框 Wireframe</button>
+        <button id="btn-colliders" class="chk-btn">碰撞體 Collider_*</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">1024×1024 PBR 貼圖烘焙 (點擊下載 PNG)</div>
+      <div class="tex-grid">
+        <div class="tex-card" id="card-albedo" title="Download Albedo_Map.png"><canvas id="prev-albedo" width="128" height="128"></canvas><span>Albedo</span></div>
+        <div class="tex-card" id="card-normal" title="Download Normal_Map.png"><canvas id="prev-normal" width="128" height="128"></canvas><span>Sobel Norm</span></div>
+        <div class="tex-card" id="card-rough" title="Download Roughness_Map.png"><canvas id="prev-rough" width="128" height="128"></canvas><span>Roughness</span></div>
+        <div class="tex-card" id="card-metal" title="Download Metalness_Map.png"><canvas id="prev-metal" width="128" height="128"></canvas><span>Metalness</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">無損導出 Unity URP / Blender</div>
+      <div class="export-stack">
+        <button id="btn-export-glb" class="btn-primary">⬇ 導出 .GLB (Rest-Pose + PBR)</button>
+        <div class="seg-row">
+          <button id="btn-export-obj" class="btn-secondary">⬇ 導出 .OBJ</button>
+          <button id="btn-export-pngs" class="btn-secondary">⬇ 全部 PBR .PNG</button>
+        </div>
+        <div id="export-status">Ready — 1 unit = 1 meter (+Z Forward)</div>
+      </div>
+    </div>
+  </aside>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    // =========================================================================
+    // 1. RENDERER, SCENE, LIGHTING & POST-PROCESSING
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.06;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070b12);
+    scene.fog = new THREE.FogExp2(0x070b12, 0.0095);
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.04).texture;
+    scene.environmentIntensity = 0.72;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.05, 180);
+    // Offset target +X/-Z so aircraft centers squarely in the unobstructed left viewport!
+    camera.position.set(17.8, 6.2, 18.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.target.set(1.85, 0.15, 0.20);
+    controls.minDistance = 1.6;
+    controls.maxDistance = 48;
+    controls.maxPolarAngle = Math.PI * 0.96;
+
+    // Three-point hangar lighting + single dynamic afterburner PointLight
+    const hemiLight = new THREE.HemisphereLight(0xcbe0fa, 0x162030, 0.65);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff5e8, 2.25);
+    keyLight.position.set(14, 18, 12);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 2;
+    keyLight.shadow.camera.far = 48;
+    keyLight.shadow.camera.left = -12;
+    keyLight.shadow.camera.right = 12;
+    keyLight.shadow.camera.top = 12;
+    keyLight.shadow.camera.bottom = -12;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x4fc3f7, 1.38);
+    rimLight.position.set(-14, 6, -15);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0xa8c0e4, 1.05);
+    fillLight.position.set(6, -6, 12);
+    scene.add(fillLight);
+
+    // Strictly <= 1 dynamic PointLight (for afterburner & intake fan gleam bounce? Actually mounted behind nozzles)
+    const burnerPointLight = new THREE.PointLight(0x38bdf8, 1.9, 9.0, 1.8);
+    burnerPointLight.position.set(0, -0.05, -8.8);
+    scene.add(burnerPointLight);
+
+    // Hangar Floor Display Stage (NEVER exported inside assetGroup)
+    const stageGroup = new THREE.Group();
+    stageGroup.name = 'Studio_Display_Stage_NO_EXPORT';
+    const floorGeom = new THREE.CircleGeometry(18, 64);
+    floorGeom.rotateX(-Math.PI / 2);
+    const floorMesh = new THREE.Mesh(
+      floorGeom,
+      new THREE.MeshStandardMaterial({ color: 0x0b1019, roughness: 0.74, metalness: 0.22 })
+    );
+    floorMesh.position.y = -1.68;
+    floorMesh.receiveShadow = true;
+    stageGroup.add(floorMesh);
+
+    const grid = new THREE.GridHelper(32, 32, 0x264b73, 0x112033);
+    grid.position.y = -1.675;
+    stageGroup.add(grid);
+
+    const ringGeom = new THREE.RingGeometry(9.2, 9.27, 96);
+    ringGeom.rotateX(-Math.PI / 2);
+    const ringMesh = new THREE.Mesh(
+      ringGeom,
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.24, side: THREE.DoubleSide })
+    );
+    ringMesh.position.y = -1.67;
+    stageGroup.add(ringMesh);
+    scene.add(stageGroup);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.22, 0.42, 1.25);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 2. 1024x1024 PROCEDURAL PBR TEXTURES & 3x3 SOBEL NORMAL BAKING
+    // =========================================================================
+    const TEX_SIZE = 1024;
+
+    function seededNoise(x, y) {
+      const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+
+    function bakeNormalFromHeightCanvas(heightCanvas, strength = 2.2) {
+      const w = heightCanvas.width, h = heightCanvas.height;
+      const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      const outImg = outCtx.createImageData(w, h);
+      const dst = outImg.data;
+
+      const sampleH = (px, py) => {
+        const cx = ((px % w) + w) % w;
+        const cy = ((py % h) + h) % h;
+        return src[(cy * w + cx) * 4] / 255.0;
+      };
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tl = sampleH(x - 1, y - 1), tc = sampleH(x, y - 1), tr = sampleH(x + 1, y - 1);
+          const ml = sampleH(x - 1, y),                             mr = sampleH(x + 1, y);
+          const bl = sampleH(x - 1, y + 1), bc = sampleH(x, y + 1), br = sampleH(x + 1, y + 1);
+
+          const dx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+          const dy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+          let nx = -dx * strength, ny = -dy * strength, nz = 1.0;
+          const invLen = 1.0 / Math.hypot(nx, ny, nz);
+          nx *= invLen; ny *= invLen; nz *= invLen;
+
+          const idx = (y * w + x) * 4;
+          dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+          dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          dst[idx + 3] = 255;
+        }
+      }
+      outCtx.putImageData(outImg, 0, 0);
+      return outCanvas;
+    }
+
+    function createCanvasTex(canvas, isSRGB) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function drawSawtoothSeam(ctx, x0, y0, x1, y1, teeth, amp) {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      const dx = x1 - x0, dy = y1 - y0;
+      const len = Math.hypot(dx, dy);
+      const nx = -dy / len, ny = dx / len;
+      for (let i = 1; i <= teeth * 2; i++) {
+        const t = i / (teeth * 2);
+        const side = (i % 2 === 1) ? amp : 0;
+        ctx.lineTo(x0 + dx * t + nx * side, y0 + dy * t + ny * side);
+      }
+      ctx.stroke();
+    }
+
+    function buildStealthTextureBundle() {
+      // Refined aerospace stealth palettes with crisp Have-Glass V panel variation & subtle seams
+      const liveries = {
+        ghost: { base: '#4a5360', sec: '#3d4551', ram: '#647082', stripe: '#38bdf8', accent: '#5a6678' },
+        test:  { base: '#dce3ec', sec: '#c2ccd8', ram: '#566272', stripe: '#ea580c', accent: '#f97316' },
+        night: { base: '#1a2029', sec: '#13171f', ram: '#2a3342', stripe: '#22d3ee', accent: '#0ea5e9' }
+      };
+
+      const albedoCanvases = {};
+      for (const [key, pal] of Object.entries(liveries)) {
+        const c = document.createElement('canvas');
+        c.width = TEX_SIZE; c.height = TEX_SIZE;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = pal.base;
+        ctx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+
+        // Staggered composite stealth skin panel blocks (broad longitudinal & subtle lateral tones)
+        const blocks = [
+          [0, 0, 256, 360, pal.sec],
+          [256, 128, 256, 390, pal.base],
+          [512, 40, 256, 320, pal.sec],
+          [768, 220, 256, 400, pal.sec],
+          [128, 520, 384, 340, pal.sec],
+          [560, 620, 340, 300, pal.base]
+        ];
+        for (const [bx, by, bw, bh, col] of blocks) {
+          ctx.fillStyle = col;
+          ctx.globalAlpha = 0.42;
+          ctx.fillRect(bx, by, bw, bh);
+        }
+        ctx.globalAlpha = 1;
+
+        // Subtle composite weave micro-grain
+        for (let i = 0; i < 4200; i++) {
+          const rx = seededNoise(i, 1.3) * TEX_SIZE;
+          const ry = seededNoise(i, 9.7) * TEX_SIZE;
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255,255,255,0.018)' : 'rgba(0,0,0,0.025)';
+          ctx.fillRect(rx, ry, 2, 2);
+        }
+
+        // Delicate recessed panel seams (1.2px clean architectural lines, NOT heavy dark rings!)
+        ctx.strokeStyle = 'rgba(12, 16, 24, 0.38)';
+        ctx.lineWidth = 1.5;
+        for (const py of [128, 384, 640, 896]) {
+          ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(TEX_SIZE, py); ctx.stroke();
+        }
+        for (const px of [128, 384, 640, 896]) {
+          ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, TEX_SIZE); ctx.stroke();
+        }
+
+        // Authentic chevron RAM radar-absorbent edge tape strips (diagonal stealth angles!)
+        ctx.strokeStyle = pal.ram;
+        ctx.lineWidth = 3;
+        drawSawtoothSeam(ctx, 40, 250, 480, 250, 18, 9);
+        drawSawtoothSeam(ctx, 540, 740, 980, 740, 18, 9);
+
+        // Clean flush access hatches with micro warning tabs
+        ctx.strokeStyle = pal.ram;
+        ctx.lineWidth = 1.8;
+        for (const [hx, hy, hw, hh] of [[160, 175, 110, 70], [660, 180, 118, 72], [295, 560, 128, 86], [710, 560, 112, 76]]) {
+          ctx.strokeRect(hx, hy, hw, hh);
+          ctx.fillStyle = pal.stripe;
+          ctx.globalAlpha = 0.72;
+          ctx.fillRect(hx + 6, hy + 6, 16, 3);
+          ctx.globalAlpha = 1;
+        }
+
+        // Crisp subtle accent stripe & test markings
+        ctx.fillStyle = pal.accent;
+        ctx.globalAlpha = key === 'test' ? 0.90 : 0.25;
+        ctx.fillRect(0, 466, TEX_SIZE, 10);
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = key === 'test' ? '#1e293b' : 'rgba(218, 228, 240, 0.36)';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText('WRAITH-IX // NO STEP', 166, 168);
+        ctx.fillText('AVIONICS BAY 02', 666, 173);
+
+        albedoCanvases[key] = c;
+      }
+
+      // Height, Normal, Roughness, Metalness maps aligned to delicate panel grid
+      const hCanvas = document.createElement('canvas');
+      hCanvas.width = TEX_SIZE; hCanvas.height = TEX_SIZE;
+      const hCtx = hCanvas.getContext('2d');
+      hCtx.fillStyle = '#828282';
+      hCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      hCtx.strokeStyle = '#505050';
+      hCtx.lineWidth = 2;
+      for (const py of [128, 384, 640, 896]) { hCtx.beginPath(); hCtx.moveTo(0, py); hCtx.lineTo(TEX_SIZE, py); hCtx.stroke(); }
+      for (const px of [128, 384, 640, 896]) { hCtx.beginPath(); hCtx.moveTo(px, 0); hCtx.lineTo(px, TEX_SIZE); hCtx.stroke(); }
+      hCtx.strokeStyle = '#929292';
+      hCtx.lineWidth = 2.5;
+      drawSawtoothSeam(hCtx, 40, 250, 480, 250, 18, 9);
+      drawSawtoothSeam(hCtx, 540, 740, 980, 740, 18, 9);
+
+      hCtx.fillStyle = '#a8a8a8';
+      for (const [hx, hy, hw, hh] of [[160, 175, 110, 70], [660, 180, 118, 72], [295, 560, 128, 86], [710, 560, 112, 76]]) {
+        hCtx.strokeStyle = '#484848'; hCtx.lineWidth = 2; hCtx.strokeRect(hx, hy, hw, hh);
+        for (let rx = hx + 10; rx < hx + hw; rx += 18) {
+          hCtx.fillRect(rx, hy + 4, 2, 2); hCtx.fillRect(rx, hy + hh - 6, 2, 2);
+        }
+      }
+      const normalCanvas = bakeNormalFromHeightCanvas(hCanvas, 1.85);
+
+      const roughCanvas = document.createElement('canvas');
+      roughCanvas.width = TEX_SIZE; roughCanvas.height = TEX_SIZE;
+      const rCtx = roughCanvas.getContext('2d');
+      rCtx.fillStyle = '#848484'; // ~0.52 satin stealth RAM sheen
+      rCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      rCtx.fillStyle = '#9c9c9c';
+      rCtx.fillRect(36, 236, 448, 28);
+      rCtx.fillRect(536, 726, 448, 28);
+      rCtx.fillStyle = '#626262';
+      rCtx.fillRect(160, 175, 110, 70);
+      rCtx.fillRect(660, 180, 118, 72);
+
+      const metalCanvas = document.createElement('canvas');
+      metalCanvas.width = TEX_SIZE; metalCanvas.height = TEX_SIZE;
+      const mCtx = metalCanvas.getContext('2d');
+      mCtx.fillStyle = '#525252';
+      mCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      mCtx.fillStyle = '#9e9e9e';
+      mCtx.fillRect(160, 175, 110, 70);
+      mCtx.fillRect(660, 180, 118, 72);
+      mCtx.fillRect(295, 560, 128, 86);
+
+      // Transparent Holographic HUD Reticle Canvas (clean see-through vector reticle + MFD screen!)
+      const hudCanvas = document.createElement('canvas');
+      hudCanvas.width = TEX_SIZE; hudCanvas.height = TEX_SIZE;
+      const uCtx = hudCanvas.getContext('2d');
+      uCtx.clearRect(0, 0, TEX_SIZE, TEX_SIZE);
+      // Subtle translucent cyan combiner glass wash
+      uCtx.fillStyle = 'rgba(8, 55, 76, 0.22)';
+      uCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      uCtx.strokeStyle = '#38f8ff';
+      uCtx.lineWidth = 7;
+      uCtx.beginPath(); uCtx.arc(512, 512, 240, 0, Math.PI * 2); uCtx.stroke();
+      uCtx.beginPath(); uCtx.arc(512, 512, 95, 0, Math.PI * 2); uCtx.stroke();
+      uCtx.beginPath(); uCtx.moveTo(150, 512); uCtx.lineTo(395, 512); uCtx.stroke();
+      uCtx.beginPath(); uCtx.moveTo(629, 512); uCtx.lineTo(874, 512); uCtx.stroke();
+      for (let py = 230; py <= 794; py += 70) {
+        if (Math.abs(py - 512) < 35) continue;
+        uCtx.beginPath(); uCtx.moveTo(395, py); uCtx.lineTo(465, py); uCtx.stroke();
+        uCtx.beginPath(); uCtx.moveTo(559, py); uCtx.lineTo(629, py); uCtx.stroke();
+      }
+      uCtx.fillStyle = '#7df9ff';
+      uCtx.font = 'bold 40px monospace';
+      uCtx.fillText('M 2.18   ALT 420', 80, 110);
+      uCtx.fillText('HDG 318  TRK LOCK', 535, 930);
+
+      // Ceramic nozzle heat-tile normal & albedo canvas (1024x1024)
+      const nozAlb = document.createElement('canvas');
+      nozAlb.width = TEX_SIZE; nozAlb.height = TEX_SIZE;
+      const naCtx = nozAlb.getContext('2d');
+      naCtx.fillStyle = '#252b36';
+      naCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      const nozH = document.createElement('canvas');
+      nozH.width = TEX_SIZE; nozH.height = TEX_SIZE;
+      const nhCtx = nozH.getContext('2d');
+      nhCtx.fillStyle = '#808080';
+      nhCtx.fillRect(0, 0, TEX_SIZE, TEX_SIZE);
+      for (let y = 0; y < TEX_SIZE; y += 128) {
+        naCtx.strokeStyle = '#12151b'; naCtx.lineWidth = 4;
+        naCtx.beginPath(); naCtx.moveTo(0, y); naCtx.lineTo(TEX_SIZE, y); naCtx.stroke();
+        nhCtx.strokeStyle = '#282828'; nhCtx.lineWidth = 5;
+        nhCtx.beginPath(); nhCtx.moveTo(0, y); nhCtx.lineTo(TEX_SIZE, y); nhCtx.stroke();
+      }
+      for (let x = 0; x < TEX_SIZE; x += 64) {
+        naCtx.fillStyle = 'rgba(205, 148, 92, 0.16)';
+        naCtx.fillRect(x + 8, 580, 36, 420);
+        nhCtx.strokeStyle = '#404040'; nhCtx.lineWidth = 3;
+        nhCtx.beginPath(); nhCtx.moveTo(x, 0); nhCtx.lineTo(x, TEX_SIZE); nhCtx.stroke();
+      }
+      const nozNorm = bakeNormalFromHeightCanvas(nozH, 2.8);
+
+      return {
+        albedoCanvases,
+        normalCanvas,
+        roughCanvas,
+        metalCanvas,
+        hudCanvas,
+        albedoTex: {
+          ghost: createCanvasTex(albedoCanvases.ghost, true),
+          test:  createCanvasTex(albedoCanvases.test, true),
+          night: createCanvasTex(albedoCanvases.night, true)
+        },
+        normalTex: createCanvasTex(normalCanvas, false),
+        roughTex:  createCanvasTex(roughCanvas, false),
+        metalTex:  createCanvasTex(metalCanvas, false),
+        hudTex:    createCanvasTex(hudCanvas, true),
+        nozAlbTex: createCanvasTex(nozAlb, true),
+        nozNormTex: createCanvasTex(nozNorm, false)
+      };
+    }
+
+    const TEX = buildStealthTextureBundle();
+
+    function refreshTextureThumbnails(liveryKey) {
+      for (const [id, src] of [
+        ['prev-albedo', TEX.albedoCanvases[liveryKey]],
+        ['prev-normal', TEX.normalCanvas],
+        ['prev-rough',  TEX.roughCanvas],
+        ['prev-metal',  TEX.metalCanvas]
+      ]) {
+        const dst = document.getElementById(id);
+        dst.getContext('2d').drawImage(src, 0, 0, dst.width, dst.height);
+      }
+    }
+    refreshTextureThumbnails('ghost');
+
+    // Semantic PBR Materials
+    const MATS = {
+      armor: new THREE.MeshStandardMaterial({
+        name: 'MAT_Primary_Armor',
+        map: TEX.albedoTex.ghost,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughnessMap: TEX.roughTex,
+        roughness: 0.92,
+        metalnessMap: TEX.metalTex,
+        metalness: 0.68,
+        vertexColors: true
+      }),
+      titanium: new THREE.MeshStandardMaterial({
+        name: 'MAT_Titanium_Frame',
+        color: 0xc8d2de,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.28, 0.28),
+        roughness: 0.24,
+        metalness: 0.88,
+        vertexColors: true
+      }),
+      nozzle: new THREE.MeshStandardMaterial({
+        name: 'MAT_Nozzle_Ceramic',
+        map: TEX.nozAlbTex,
+        normalMap: TEX.nozNormTex,
+        normalScale: new THREE.Vector2(0.95, 0.95),
+        roughness: 0.42,
+        metalness: 0.78,
+        vertexColors: true
+      }),
+      composite: new THREE.MeshStandardMaterial({
+        name: 'MAT_Dark_Composite',
+        color: 0x1a1f28,
+        roughness: 0.72,
+        metalness: 0.22,
+        vertexColors: true
+      }),
+      ordnance: new THREE.MeshStandardMaterial({
+        name: 'MAT_Ordnance_Hull',
+        color: 0xbcc6d4,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.25, 0.25),
+        roughness: 0.36,
+        metalness: 0.40,
+        vertexColors: true
+      }),
+      // Gold-Indium stealth radar-reflecting canopy visor tint + high clearcoat!
+      canopyGlass: new THREE.MeshPhysicalMaterial({
+        name: 'MAT_Canopy_Glass',
+        color: 0x8a6d38,
+        emissive: 0x1e2b36,
+        emissiveIntensity: 0.16,
+        roughness: 0.05,
+        metalness: 0.28,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.04,
+        ior: 1.52,
+        transparent: true,
+        opacity: 0.44,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      eotsPrism: new THREE.MeshPhysicalMaterial({
+        name: 'MAT_EOTS_Sapphire',
+        color: 0x164e63,
+        emissive: 0x064e6b,
+        emissiveIntensity: 0.60,
+        roughness: 0.05,
+        metalness: 0.20,
+        clearcoat: 1.0,
+        transparent: true,
+        opacity: 0.58,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      hudHolo: new THREE.MeshStandardMaterial({
+        name: 'MAT_Cockpit_HUD_Glow',
+        color: 0xffffff,
+        map: TEX.hudTex,
+        emissive: 0x22d3ee,
+        emissiveMap: TEX.hudTex,
+        emissiveIntensity: 2.0,
+        roughness: 0.15,
+        metalness: 0.05,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      formationGlow: new THREE.MeshStandardMaterial({
+        name: 'MAT_Formation_Glow',
+        color: 0x9ef7ff,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 1.75,
+        roughness: 0.25,
+        metalness: 0.1,
+        vertexColors: true
+      }),
+      navPort: new THREE.MeshStandardMaterial({
+        name: 'MAT_Nav_Port_Red',
+        color: 0xff5a5f,
+        emissive: 0xff2a38,
+        emissiveIntensity: 2.3,
+        roughness: 0.2,
+        metalness: 0.1
+      }),
+      navStbd: new THREE.MeshStandardMaterial({
+        name: 'MAT_Nav_Stbd_Green',
+        color: 0x4ade80,
+        emissive: 0x10ff70,
+        emissiveIntensity: 2.3,
+        roughness: 0.2,
+        metalness: 0.1
+      }),
+      afterburner: new THREE.MeshStandardMaterial({
+        name: 'MAT_Afterburner_Glow',
+        color: 0x7dd3fc,
+        emissive: 0x22d3ee,
+        emissiveIntensity: 2.8,
+        roughness: 0.15,
+        metalness: 0.05,
+        side: THREE.DoubleSide
+      }),
+      // Smooth vertex-alpha plasma plume (NO hard triangular paper edge!)
+      plasmaPlume: new THREE.MeshBasicMaterial({
+        name: 'MAT_Plasma_Plume',
+        color: 0x4fdcff,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.42,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      }),
+      collider: new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x22c55e,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.55
+      })
+    };
+
+    const solidMatList = [
+      MATS.armor, MATS.titanium, MATS.nozzle, MATS.composite,
+      MATS.ordnance, MATS.formationGlow, MATS.navPort, MATS.navStbd, MATS.afterburner
+    ];
+
+    // =========================================================================
+    // 3. GEOMETRY UTILITY HELPERS (VERTEX AO + ATTRIBUTE NORMALIZATION)
+    // =========================================================================
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(edge0, edge1, x) {
+      const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function normalizeForMerge(rawGeom, baseHex = 0xffffff, aoCallback = null) {
+      let geom = rawGeom;
+      if (!geom.index) {
+        const posAttr = geom.getAttribute('position');
+        const idx = new Uint32Array(posAttr.count);
+        for (let i = 0; i < posAttr.count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      }
+      if (!geom.getAttribute('normal')) geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      if (!geom.getAttribute('uv')) {
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = pos.getX(i) * 0.14 + 0.5;
+          uvs[i * 2 + 1] = pos.getZ(i) * 0.14 + 0.5;
+        }
+        geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      const norm = geom.getAttribute('normal');
+      const col = new Float32Array(pos.count * 3);
+      const baseC = new THREE.Color(baseHex);
+      const vPos = new THREE.Vector3();
+      const vNorm = new THREE.Vector3();
+      for (let i = 0; i < pos.count; i++) {
+        vPos.fromBufferAttribute(pos, i);
+        vNorm.fromBufferAttribute(norm, i);
+        const ao = aoCallback ? aoCallback(vPos, vNorm) : 1.0;
+        col[i * 3]     = baseC.r * ao;
+        col[i * 3 + 1] = baseC.g * ao;
+        col[i * 3 + 2] = baseC.b * ao;
+      }
+      geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+      for (const attrName of Object.keys(geom.attributes)) {
+        if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+          geom.deleteAttribute(attrName);
+        }
+      }
+      return geom;
+    }
+
+    function safeMerge(list) {
+      if (!list || list.length === 0) return null;
+      if (list.length === 1) return list[0];
+      const merged = BufferGeometryUtils.mergeGeometries(list, false);
+      for (const g of list) g.dispose();
+      return merged;
+    }
+
+    function addBucketMesh(buckets, matKey, geom, baseHex = 0xffffff, aoFn = null) {
+      if (!buckets[matKey]) buckets[matKey] = [];
+      buckets[matKey].push(normalizeForMerge(geom, baseHex, aoFn));
+    }
+
+    function buildTransformedBox(w, h, d, cx, cy, cz, rx = 0, ry = 0, rz = 0, segs = 1) {
+      const g = new THREE.BoxGeometry(w, h, d, segs, segs, segs);
+      const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ'));
+      m.setPosition(cx, cy, cz);
+      g.applyMatrix4(m);
+      return g;
+    }
+
+    function buildStrut(pA, pB, rA, rB, radSegs = 10) {
+      const dir = new THREE.Vector3().subVectors(pB, pA);
+      const len = Math.max(0.001, dir.length());
+      const g = new THREE.CylinderGeometry(rB, rA, len, radSegs, 1);
+      const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      g.applyMatrix4(new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1)));
+      return g;
+    }
+
+    // Continuous Rectangular/Oval Ribbon Loft along 3D curve pts[] (replaces beaded cylinder segments!)
+    function buildLoftedRibbon(pts, halfW = 0.024, halfH = 0.018) {
+      const n = pts.length - 1;
+      const verts = [], uvs = [], idx = [];
+      const up = new THREE.Vector3(0, 1, 0);
+      const tang = new THREE.Vector3(), binorm = new THREE.Vector3(), norm = new THREE.Vector3();
+      const prof = [
+        [-halfW,  halfH],
+        [ halfW,  halfH],
+        [ halfW, -halfH],
+        [-halfW, -halfH]
+      ];
+      for (let i = 0; i <= n; i++) {
+        if (i === 0) tang.subVectors(pts[1], pts[0]);
+        else if (i === n) tang.subVectors(pts[n], pts[n - 1]);
+        else tang.subVectors(pts[i + 1], pts[i - 1]);
+        tang.normalize();
+        // Outward normal approximately radial from centerline (0, pts[i].y * 0.5, pts[i].z)
+        norm.set(pts[i].x, Math.max(0.15, pts[i].y), 0).normalize();
+        binorm.crossVectors(tang, norm).normalize();
+        norm.crossVectors(binorm, tang).normalize();
+
+        for (let k = 0; k <= 4; k++) {
+          const [bx, nh] = prof[k % 4];
+          const px = pts[i].x + binorm.x * bx + norm.x * nh;
+          const py = pts[i].y + binorm.y * bx + norm.y * nh;
+          const pz = pts[i].z + binorm.z * bx + norm.z * nh;
+          verts.push(px, py, pz);
+          uvs.push(k / 4, i / n);
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < 4; k++) {
+          const a = i * 5 + k, b = (i + 1) * 5 + k, c = (i + 1) * 5 + k + 1, d = i * 5 + k + 1;
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    }
+
+    function evalStealthAirfoil(u, thicknessRatio = 0.075, camber = 0.012) {
+      const uu = clamp(u, 0, 1);
+      const halfT = thicknessRatio * 0.5 * (2.6 * Math.pow(uu, 0.52) * Math.pow(1.0 - uu * 0.94, 0.92));
+      const meanY = camber * 4.0 * uu * (1.0 - uu);
+      return { yUp: meanY + halfT, yLow: meanY - halfT };
+    }
+
+    function buildAirfoilLoft(stations, chordSegs = 14) {
+      const nz = stations.length - 1;
+      const ringPts = chordSegs * 2;
+      const verts = [], uvs = [], indices = [];
+
+      let cumSpan = 0;
+      const spanDist = [0];
+      for (let s = 1; s < stations.length; s++) {
+        cumSpan += Math.hypot(
+          stations[s].x - stations[s - 1].x,
+          stations[s].y - stations[s - 1].y,
+          stations[s].zLE - stations[s - 1].zLE
+        );
+        spanDist.push(cumSpan);
+      }
+
+      const ringStride = ringPts + 1;
+      for (let s = 0; s <= nz; s++) {
+        const st = stations[s];
+        const vSpan = spanDist[s] * 0.14;
+        for (let k = 0; k <= ringPts; k++) {
+          let uChord, isUpper;
+          if (k <= chordSegs) { uChord = 1.0 - k / chordSegs; isUpper = true; }
+          else { uChord = (k - chordSegs) / chordSegs; isUpper = false; }
+          const prof = evalStealthAirfoil(uChord, st.thickness, st.camber);
+          const localY = (isUpper ? prof.yUp : prof.yLow) * st.chord;
+          verts.push(st.x, st.y + localY, st.zLE - uChord * st.chord);
+          uvs.push(k / ringPts, vSpan);
+        }
+      }
+
+      const spanSign = (stations[nz].x - stations[0].x) >= -0.0001 ? 1 : -1;
+      for (let s = 0; s < nz; s++) {
+        for (let k = 0; k < ringPts; k++) {
+          const a = s * ringStride + k, b = (s + 1) * ringStride + k;
+          const c = (s + 1) * ringStride + k + 1, d = s * ringStride + k + 1;
+          if (spanSign > 0) indices.push(a, d, b, b, d, c);
+          else indices.push(a, b, d, b, c, d);
+        }
+      }
+
+      const capStation = (sIdx, flipNormal) => {
+        const st = stations[sIdx];
+        const centerIdx = verts.length / 3;
+        verts.push(st.x, st.y, st.zLE - st.chord * 0.5);
+        uvs.push(0.5, spanDist[sIdx] * 0.14);
+        const base = sIdx * ringStride;
+        for (let k = 0; k < ringPts; k++) {
+          const i1 = base + k, i2 = base + k + 1;
+          if (flipNormal) indices.push(centerIdx, i2, i1);
+          else indices.push(centerIdx, i1, i2);
+        }
+      };
+      capStation(0, spanSign > 0);
+      capStation(nz, spanSign <= 0);
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return geom;
+    }
+
+    // Main Cropped-Delta Wing Planform (Edge-aligned stealth planform: 38° LE sweep, -11° forward TE sweep!)
+    function queryMainWingSection(absX) {
+      const t = clamp((absX - 0.96) / (5.45 - 0.96), 0, 1);
+      const zLE = lerp(1.55, -2.55, t);
+      const zTE = lerp(-4.52, -3.92, t);
+      const chord = zLE - zTE;
+      const yMid = lerp(0.06, -0.05, t);
+      const thickness = lerp(0.072, 0.054, t);
+      const camber = lerp(0.014, 0.008, t);
+      return { zLE, zTE, chord, yMid, thickness, camber };
+    }
+
+    function queryWingUndersideY(absX, z) {
+      const sec = queryMainWingSection(absX);
+      const u = clamp((sec.zLE - z) / sec.chord, 0.01, 0.99);
+      const prof = evalStealthAirfoil(u, sec.thickness, sec.camber);
+      return sec.yMid + prof.yLow * sec.chord;
+    }
+
+    // =========================================================================
+    // 4. CONTINUOUS MULTI-STATION CHINED FUSELAGE (SMOOTH KEEL + SEAMLESS COAMING)
+    // =========================================================================
+    function evalFuselageProfile(z) {
+      const tNose = clamp((8.75 - z) / (8.75 - 5.10), 0, 1);
+      const noseProfile = Math.pow(Math.sin(tNose * Math.PI * 0.5), 0.78);
+
+      let halfW = 0.018 + 0.92 * noseProfile;
+      // Forward strake + LERX flare smoothly into wing root without sudden bump in front of canard
+      const lerxFlare = smoothstep(3.6, 1.35, z) * (1.0 - smoothstep(-2.6, -5.8, z));
+      halfW += lerxFlare * 0.68;
+      const aftNarrow = smoothstep(-3.6, -7.55, z);
+      halfW = lerp(halfW, 1.38, aftNarrow);
+
+      const intakeZone = smoothstep(3.05, 2.20, z) * (1.0 - smoothstep(-0.75, -1.75, z));
+
+      // Sleek raised nose spine sloping gently into windshield front (no hollow dip ahead of cockpit!)
+      let yTop = 0.03 + 0.34 * noseProfile;
+      // Gently rise toward windshield base around z = 5.0..4.5 and blend into spine behind z = 2.4
+      const windshieldRise = smoothstep(5.6, 4.95, z) * (1.0 - smoothstep(2.6, 1.8, z));
+      yTop += windshieldRise * 0.09;
+      const spineBump = smoothstep(3.2, 1.8, z) * (1.0 - smoothstep(-4.0, -7.3, z));
+      yTop += spineBump * 0.24;
+      yTop = lerp(yTop, 0.44, aftNarrow);
+
+      let yBot = -0.02 - 0.38 * noseProfile;
+      yBot -= smoothstep(3.0, 0.2, z) * (1.0 - smoothstep(-4.2, -7.4, z)) * 0.10;
+      yBot = lerp(yBot, -0.42, aftNarrow);
+
+      const droop = Math.pow(clamp((z - 5.25) / 3.50, 0, 1), 1.65) * 0.19;
+
+      return { halfW, yTop, yBot, droop, intakeZone, tNose, aftNarrow };
+    }
+
+    function evalFuselagePoint(z, theta) {
+      const p = evalFuselageProfile(z);
+      const c = Math.cos(theta);
+      const s = Math.sin(theta);
+
+      const chineSign = s >= 0 ? 1 : -1;
+      const chineBias = Math.pow(Math.abs(s), 0.78) * chineSign;
+
+      let x = c * p.halfW;
+      // SMOOTH cubic blend on lower fuselage cheek in intake zone (ZERO sharp vertical ledge!)
+      if (p.intakeZone > 0.001) {
+        const belowMask = smoothstep(0.18, -0.58, s);
+        const cheekMaxW = lerp(p.halfW, 0.48, p.intakeZone * belowMask);
+        if (Math.abs(x) > cheekMaxW) x = Math.sign(x) * lerp(Math.abs(x), cheekMaxW, belowMask);
+      }
+
+      let y = (s >= 0) ? (chineBias * p.yTop) : (chineBias * Math.abs(p.yBot));
+
+      // Sharp stealth diamond chine edge across wing-body LERX
+      const edgeFlat = smoothstep(0.62, 1.0, Math.abs(c));
+      if (z < 5.8 && z > -5.5) {
+        y = lerp(y, 0.05, edgeFlat * 0.68);
+      }
+
+      // Twin Engine Nacelle Twin-Lobe Sculpting aft of z = +0.4
+      const nacFactor = smoothstep(0.55, -1.8, z);
+      if (nacFactor > 0.001) {
+        const ax = Math.abs(x);
+        const lobe = Math.exp(-Math.pow((ax - 0.78) / 0.46, 2));
+        const valley = Math.exp(-Math.pow(ax / 0.34, 2));
+        if (s > 0.05) {
+          y += nacFactor * (lobe * 0.17 - valley * 0.12 * smoothstep(-0.6, -5.0, z));
+        } else if (s < -0.05) {
+          y -= nacFactor * (lobe * 0.15 - valley * 0.22);
+        }
+        const exitBlend = smoothstep(-5.5, -7.55, z);
+        if (exitBlend > 0.01) {
+          const sideSign = c >= 0 ? 1 : -1;
+          const dxN = x - sideSign * 0.78;
+          const nAng = Math.atan2(y, dxN);
+          const targetX = sideSign * 0.78 + Math.cos(nAng) * 0.48;
+          const targetY = Math.sin(nAng) * 0.48 - 0.02;
+          const ringWeight = smoothstep(0.18, 0.55, Math.abs(c)) * exitBlend;
+          x = lerp(x, targetX, ringWeight * 0.68);
+          y = lerp(y, targetY, ringWeight * 0.68);
+        }
+      }
+
+      // Cockpit Tub Cavity: tightly circumscribed INSIDE canopy boundary (`z in [+2.48 .. +4.95], |x| <= 0.41m`)
+      // Note: Raised coaming rim OUTSIDE |x| > 0.36 stays high so canopy rail sits seamlessly flush!
+      const tubZ = smoothstep(5.05, 4.78, z) * (1.0 - smoothstep(2.74, 2.42, z));
+      if (tubZ > 0.001 && s > 0.05) {
+        const tubX = 1.0 - smoothstep(0.28, 0.41, Math.abs(x));
+        if (tubX > 0.001) {
+          y = lerp(y, Math.min(y, -0.17), tubZ * tubX);
+        }
+      }
+
+      // Dorsal Airbrake Recess Bay (`z in [+1.38 .. -0.32]`)
+      const bayZ = smoothstep(1.48, 1.32, z) * (1.0 - smoothstep(-0.26, -0.38, z));
+      if (bayZ > 0.001 && s > 0.25) {
+        const bayX = 1.0 - smoothstep(0.26, 0.35, Math.abs(x));
+        y -= bayZ * bayX * 0.14;
+      }
+
+      y -= p.droop;
+      return new THREE.Vector3(x, y, z);
+    }
+
+    function buildStealthFuselage(nz, nt) {
+      const zMin = -7.55, zMax = 8.75;
+      const ringPts = [];
+      const stride = nt + 1;
+      for (let iz = 0; iz <= nz; iz++) {
+        const z = lerp(zMax, zMin, iz / nz);
+        const row = [];
+        for (let it = 0; it <= nt; it++) {
+          row.push(evalFuselagePoint(z, (it / nt) * Math.PI * 2));
+        }
+        ringPts.push(row);
+      }
+
+      // True cumulative Euclidean arc-length V UVs scaled gently (0.115) for crisp aircraft panel proportions!
+      const vCoords = [];
+      for (let it = 0; it <= nt; it++) vCoords.push(new Float32Array(nz + 1));
+      for (let it = 0; it <= nt; it++) {
+        let acc = 0;
+        vCoords[it][0] = 0;
+        for (let iz = 1; iz <= nz; iz++) {
+          acc += ringPts[iz][it].distanceTo(ringPts[iz - 1][it]);
+          vCoords[it][iz] = acc * 0.115;
+        }
+      }
+
+      const positions = [], uvs = [], indices = [];
+      for (let iz = 0; iz <= nz; iz++) {
+        for (let it = 0; it <= nt; it++) {
+          const pt = ringPts[iz][it];
+          positions.push(pt.x, pt.y, pt.z);
+          uvs.push(it / nt * 1.4, vCoords[it][iz]);
+        }
+      }
+      for (let iz = 0; iz < nz; iz++) {
+        for (let it = 0; it < nt; it++) {
+          const a = iz * stride + it, b = (iz + 1) * stride + it;
+          const c = (iz + 1) * stride + it + 1, d = iz * stride + it + 1;
+          indices.push(a, b, d, b, c, d);
+        }
+      }
+
+      const capRing = (iz, centerZ, centerY, flip) => {
+        const cIdx = positions.length / 3;
+        positions.push(0, centerY, centerZ);
+        uvs.push(0.5, iz === 0 ? 0 : 2.0);
+        const base = iz * stride;
+        for (let it = 0; it < nt; it++) {
+          if (flip) indices.push(cIdx, base + it + 1, base + it);
+          else indices.push(cIdx, base + it, base + it + 1);
+        }
+      };
+      capRing(0, 8.78, -0.19, false);
+      capRing(nz, -7.55, -0.02, true);
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return geom;
+    }
+
+    // =========================================================================
+    // 5. DSI INTAKES (SEAMLESS COWL + OPEN TUNNEL + GLEAMING 18-BLADE FAN)
+    // =========================================================================
+    function buildDSIIntakesAndFans(buckets, isHero) {
+      const stations = isHero ? 14 : 7;
+      const segs = isHero ? 20 : 12;
+      const numBlades = isHero ? 18 : 10;
+
+      for (const side of [1, -1]) {
+        const cVerts = [], cUvs = [], cIndices = [];
+        const dVerts = [], dUvs = [], dIndices = [];
+
+        const evalCowl = (iz) => {
+          const u = iz / stations; // 0 = mouth (+2.38), 1 = blended into nacelle (-1.35)
+          const zTop = lerp(2.40, -1.35, u);
+          const zBot = lerp(2.12, -1.35, u);
+          const cx = side * lerp(0.82, 0.78, u);
+          const cy = lerp(-0.15, -0.08, u);
+          const rx = lerp(0.36, 0.44, u);
+          const ry = lerp(0.22, 0.34, u);
+          return { cx, cy, zTop, zBot, rx, ry, u };
+        };
+
+        const stride = segs + 1;
+        for (let iz = 0; iz <= stations; iz++) {
+          const k = evalCowl(iz);
+          for (let it = 0; it <= segs; it++) {
+            const th = (it / segs) * Math.PI * 2;
+            const cs = Math.cos(th), sn = Math.sin(th);
+            // Smooth stealth rounded rhombus cross-section (tucked up tightly toward LERX on top!)
+            const sq = 1.0 + 0.08 * Math.cos(th * 4);
+            const x = k.cx + cs * k.rx * sq;
+            const y = k.cy + sn * k.ry * sq;
+            const z = lerp(k.zBot, k.zTop, clamp(sn * 0.5 + 0.5, 0, 1)) - Math.abs(cs) * 0.11 * (1 - k.u);
+            cVerts.push(x, y, z);
+            cUvs.push(it / segs * 0.8, k.u * 0.9);
+          }
+        }
+        for (let iz = 0; iz < stations; iz++) {
+          for (let it = 0; it < segs; it++) {
+            const a = iz * stride + it, b = (iz + 1) * stride + it;
+            const c = (iz + 1) * stride + it + 1, d = iz * stride + it + 1;
+            cIndices.push(a, b, d, b, c, d);
+          }
+        }
+        const cowlG = new THREE.BufferGeometry();
+        cowlG.setAttribute('position', new THREE.Float32BufferAttribute(cVerts, 3));
+        cowlG.setAttribute('uv', new THREE.Float32BufferAttribute(cUvs, 2));
+        cowlG.setIndex(cIndices);
+        cowlG.computeVertexNormals();
+        addBucketMesh(buckets, 'armor', cowlG, 0xffffff, (p) => 0.78 + 0.22 * smoothstep(2.45, 0.2, p.z));
+
+        // Open Dark Composite Intake Tunnel tapering cleanly from stealth lip to true circular fan face!
+        const dStations = isHero ? 10 : 5;
+        for (let iz = 0; iz <= dStations; iz++) {
+          const u = iz / dStations; // 0 = mouth (+2.38), 1 = fan bulkhead (+0.65)
+          const k = {
+            cx: side * lerp(0.82, 0.78, u),
+            cy: lerp(-0.15, -0.11, u),
+            zTop: lerp(2.38, 0.65, u),
+            zBot: lerp(2.10, 0.65, u),
+            rx: lerp(0.32, 0.285, u),
+            ry: lerp(0.185, 0.285, u),
+            sqAmt: lerp(0.08, 0.0, u),
+            u
+          };
+          for (let it = 0; it <= segs; it++) {
+            const th = (it / segs) * Math.PI * 2;
+            const cs = Math.cos(th), sn = Math.sin(th);
+            const sq = 1.0 + k.sqAmt * Math.cos(th * 4);
+            const x = k.cx + cs * k.rx * sq;
+            const y = k.cy + sn * k.ry * sq;
+            const z = lerp(k.zBot, k.zTop, clamp(sn * 0.5 + 0.5, 0, 1)) - Math.abs(cs) * 0.11 * (1 - u);
+            dVerts.push(x, y, z);
+            dUvs.push(it / segs, u);
+          }
+        }
+        for (let iz = 0; iz < dStations; iz++) {
+          for (let it = 0; it < segs; it++) {
+            const a = iz * stride + it, b = (iz + 1) * stride + it;
+            const c = (iz + 1) * stride + it + 1, d = iz * stride + it + 1;
+            dIndices.push(a, d, b, b, d, c); // Inward normals!
+          }
+        }
+        const ductG = new THREE.BufferGeometry();
+        ductG.setAttribute('position', new THREE.Float32BufferAttribute(dVerts, 3));
+        ductG.setAttribute('uv', new THREE.Float32BufferAttribute(dUvs, 2));
+        ductG.setIndex(dIndices);
+        ductG.computeVertexNormals();
+        addBucketMesh(buckets, 'composite', ductG, 0xffffff, (p) => lerp(0.40, 0.88, clamp((p.z - 0.65) / 1.7, 0, 1)));
+
+        // Sharp Titanium Intake Lip Trim Ring facing +Z forward (fixed CCW outward winding!)
+        const lipVerts = [], lipUvs = [], lipIdx = [];
+        for (let it = 0; it <= segs; it++) {
+          const th = (it / segs) * Math.PI * 2;
+          const cs = Math.cos(th), sn = Math.sin(th);
+          const sq = 1.0 + 0.08 * Math.cos(th * 4);
+          const z = lerp(2.11, 2.39, clamp(sn * 0.5 + 0.5, 0, 1)) - Math.abs(cs) * 0.11;
+          lipVerts.push(side * 0.82 + cs * 0.362 * sq, -0.15 + sn * 0.222 * sq, z);
+          lipUvs.push(it / segs, 0);
+          lipVerts.push(side * 0.82 + cs * 0.320 * sq, -0.15 + sn * 0.185 * sq, z - 0.02);
+          lipUvs.push(it / segs, 1);
+        }
+        for (let it = 0; it < segs; it++) {
+          const a = it * 2, b = it * 2 + 1, c = (it + 1) * 2 + 1, d = (it + 1) * 2;
+          lipIdx.push(a, d, b, b, d, c);
+        }
+        const lipG = new THREE.BufferGeometry();
+        lipG.setAttribute('position', new THREE.Float32BufferAttribute(lipVerts, 3));
+        lipG.setAttribute('uv', new THREE.Float32BufferAttribute(lipUvs, 2));
+        lipG.setIndex(lipIdx);
+        lipG.computeVertexNormals();
+        addBucketMesh(buckets, 'titanium', lipG, 0xdce4ee);
+
+        // DSI Diverterless Supersonic Compression Bump on inboard throat wall
+        const bumpG = new THREE.SphereGeometry(0.155, isHero ? 16 : 8, isHero ? 12 : 6);
+        bumpG.scale(0.54, 1.02, 2.9);
+        bumpG.translate(side * 0.51, -0.14, 2.02);
+        addBucketMesh(buckets, 'armor', bumpG, 0xe8edf4);
+
+        // Compressor Fan + Circular Shroud matched 1:1 with ductG rear circle
+        const fanZ = 0.85, fanX = side * 0.78, fanY = -0.11;
+        const backDisc = new THREE.CircleGeometry(0.295, isHero ? 24 : 12);
+        backDisc.translate(fanX, fanY, fanZ - 0.05);
+        addBucketMesh(buckets, 'composite', backDisc, 0x3b4454);
+
+        const shroudRing = new THREE.TorusGeometry(0.285, 0.015, 6, isHero ? 24 : 12);
+        shroudRing.translate(fanX, fanY, fanZ + 0.04);
+        addBucketMesh(buckets, 'titanium', shroudRing, 0xdbe4ef);
+
+        const spinner = new THREE.ConeGeometry(0.086, 0.24, isHero ? 16 : 8);
+        spinner.rotateX(Math.PI * 0.5);
+        spinner.translate(fanX, fanY, fanZ + 0.11);
+        addBucketMesh(buckets, 'titanium', spinner, 0xf8fafc);
+
+        const tipCap = new THREE.ConeGeometry(0.036, 0.10, isHero ? 12 : 8);
+        tipCap.rotateX(Math.PI * 0.5);
+        tipCap.translate(fanX, fanY, fanZ + 0.19);
+        addBucketMesh(buckets, 'formationGlow', tipCap, 0xffffff);
+
+        for (let b = 0; b < numBlades; b++) {
+          const ang = (b / numBlades) * Math.PI * 2;
+          const blade = new THREE.BoxGeometry(0.014, 0.21, 0.078);
+          blade.rotateY(0.55 * side);
+          blade.translate(0, 0.155, 0);
+          blade.rotateZ(ang);
+          blade.translate(fanX, fanY, fanZ);
+          addBucketMesh(buckets, 'titanium', blade, 0xf1f5f9, (p) => 0.78 + 0.22 * clamp(Math.hypot(p.x - fanX, p.y - fanY) / 0.275, 0, 1));
+        }
+      }
+    }
+
+    // =========================================================================
+    // 6. COCKPIT INTERIOR, WATERTIGHT COAMING & GOLD-TINT CANOPY
+    // =========================================================================
+    function buildCockpitAndNoseSystems(buckets, canopyGroup, isHero) {
+      // --- A. Pitot Tube & Nose Chined Sensors ---
+      const pitotBase = new THREE.ConeGeometry(0.020, 0.36, isHero ? 12 : 6);
+      pitotBase.rotateX(Math.PI * 0.5);
+      pitotBase.translate(0, -0.19, 8.94);
+      addBucketMesh(buckets, 'titanium', pitotBase, 0xe8edf5);
+
+      const pitotNeedle = new THREE.CylinderGeometry(0.004, 0.011, 0.44, isHero ? 10 : 6);
+      pitotNeedle.rotateX(Math.PI * 0.5);
+      pitotNeedle.translate(0, -0.19, 9.28);
+      addBucketMesh(buckets, 'titanium', pitotNeedle, 0xffffff);
+
+      for (const s of [1, -1]) {
+        const vane = buildAirfoilLoft([
+          { x: s * 0.19, y: -0.12, zLE: 7.40, chord: 0.08, thickness: 0.14, camber: 0 },
+          { x: s * 0.25, y: -0.12, zLE: 7.36, chord: 0.04, thickness: 0.12, camber: 0 }
+        ], 4);
+        addBucketMesh(buckets, 'titanium', vane, 0xdce4ee);
+      }
+
+      // --- B. Ventral Faceted Sapphire EOTS (flush-mounted directly onto exact chin belly!) ---
+      const eotsZ = 5.95;
+      const chinY = evalFuselagePoint(eotsZ, -Math.PI * 0.5).y;
+      const eotsBezel = new THREE.CylinderGeometry(0.15, 0.185, 0.075, 6);
+      eotsBezel.rotateY(Math.PI / 6);
+      eotsBezel.scale(1.0, 0.72, 1.38);
+      eotsBezel.translate(0, chinY - 0.005, eotsZ);
+      addBucketMesh(buckets, 'composite', eotsBezel, 0x3b4252);
+
+      const gimbalBall = new THREE.SphereGeometry(0.068, isHero ? 16 : 8, isHero ? 12 : 6);
+      gimbalBall.translate(0, chinY - 0.068, eotsZ + 0.012);
+      addBucketMesh(buckets, 'titanium', gimbalBall, 0xd8e0ec);
+
+      const eotsLens = new THREE.CylinderGeometry(0.042, 0.042, 0.036, isHero ? 16 : 8);
+      eotsLens.rotateX(Math.PI * 0.42);
+      eotsLens.translate(0, chinY - 0.088, eotsZ + 0.068);
+      addBucketMesh(buckets, 'formationGlow', eotsLens, 0x7dd3fc);
+
+      const prismG = new THREE.ConeGeometry(0.148, 0.155, 6);
+      prismG.rotateX(Math.PI);
+      prismG.rotateY(Math.PI / 6);
+      prismG.scale(1.0, 1.0, 1.38);
+      const prismMesh = new THREE.Mesh(prismG, MATS.eotsPrism);
+      prismMesh.name = 'Nose_Ventral_EOTS_Prism';
+      prismMesh.position.set(0, chinY - 0.085, eotsZ);
+
+      // --- C. Swept Airfoil Shark-Fin Blade Antennas (NO boxy blades!) & Center Aft EW Boom ---
+      const makeBladeAnt = (x, y0, y1, zLE0, zLE1, ch0, ch1) => {
+        const g = buildAirfoilLoft([
+          { x: y0, y: 0, zLE: zLE0, chord: ch0, thickness: 0.08, camber: 0 },
+          { x: y1, y: 0, zLE: zLE1, chord: ch1, thickness: 0.06, camber: 0 }
+        ], 6);
+        g.rotateZ(Math.PI * 0.5);
+        g.translate(x, 0, 0);
+        return g;
+      };
+      addBucketMesh(buckets, 'composite', makeBladeAnt(0, 0.52, 0.68, 1.98, 1.84, 0.18, 0.08), 0x2b323f);
+      addBucketMesh(buckets, 'composite', makeBladeAnt(0, 0.46, 0.63, -2.10, -2.28, 0.22, 0.10), 0x2b323f);
+      addBucketMesh(buckets, 'composite', makeBladeAnt(0, -0.34, -0.52, 4.18, 3.98, 0.20, 0.09), 0x2b323f);
+      addBucketMesh(buckets, 'composite', makeBladeAnt(0, -0.34, -0.49, -1.72, -1.88, 0.18, 0.08), 0x2b323f);
+
+      // Sleek Center Aft Electronic-Warfare / Chaff-Flare Tail Sting (`z = -5.8 .. -8.25`)
+      const stingBody = new THREE.CylinderGeometry(0.11, 0.18, 2.35, isHero ? 12 : 6);
+      stingBody.rotateX(Math.PI * 0.5);
+      stingBody.scale(1.25, 0.68, 1.0);
+      stingBody.translate(0, 0.02, -6.92);
+      addBucketMesh(buckets, 'armor', stingBody, 0xcbd5e1);
+
+      const stingCap = new THREE.ConeGeometry(0.11, 0.55, isHero ? 12 : 6);
+      stingCap.rotateX(-Math.PI * 0.5);
+      stingCap.scale(1.25, 0.68, 1.0);
+      stingCap.translate(0, 0.02, -8.36);
+      addBucketMesh(buckets, 'composite', stingCap, 0x3b4252);
+
+      const stingCollar = new THREE.CylinderGeometry(0.116, 0.116, 0.09, isHero ? 14 : 8);
+      stingCollar.rotateX(Math.PI * 0.5);
+      stingCollar.scale(1.25, 0.68, 1.0);
+      stingCollar.translate(0, 0.02, -8.08);
+      addBucketMesh(buckets, 'titanium', stingCollar, 0x9aa6b5);
+
+      // Flush Formation Light Strips
+      for (const s of [1, -1]) {
+        const fwdStrip = buildTransformedBox(0.016, 0.020, 0.40, s * 0.72, 0.04, 4.82, 0, s * 0.20, 0);
+        addBucketMesh(buckets, 'formationGlow', fwdStrip, 0xa5f3fc);
+        const aftStrip = buildTransformedBox(0.016, 0.022, 0.44, s * 1.18, 0.24, -4.65, 0, 0, 0);
+        addBucketMesh(buckets, 'formationGlow', aftStrip, 0xa5f3fc);
+      }
+
+      // Dorsal UARRSI Refueling Slipway & Sawtooth Heat Exchanger Louvers
+      const refuelBay = buildTransformedBox(0.28, 0.030, 0.66, 0, 0.56, -1.30, 0, 0, 0);
+      addBucketMesh(buckets, 'titanium', refuelBay, 0x9aa6b5);
+      const refuelSlot = buildTransformedBox(0.11, 0.040, 0.34, 0, 0.562, -1.35, 0, 0, 0);
+      addBucketMesh(buckets, 'composite', refuelSlot, 0x161a22);
+      const refuelGuide = buildTransformedBox(0.022, 0.012, 0.50, 0, 0.578, -1.28, 0, 0, 0);
+      addBucketMesh(buckets, 'formationGlow', refuelGuide, 0xfde047);
+
+      for (const s of [1, -1]) {
+        for (let lv = 0; lv < 5; lv++) {
+          const lz = 1.90 - lv * 0.20;
+          const lx = s * (0.50 + lv * 0.024);
+          const louver = buildTransformedBox(0.15, 0.024, 0.052, lx, 0.43, lz, -0.35, s * 0.18, s * 0.14);
+          addBucketMesh(buckets, 'titanium', louver, 0x64748b);
+        }
+      }
+
+      // --- D. Dark Matte Cockpit Tub Liner + Sealed Coaming Collar + Interior Details ---
+      const tubFloor = buildTransformedBox(0.68, 0.05, 2.38, 0, -0.17, 3.74, 0, 0, 0);
+      addBucketMesh(buckets, 'composite', tubFloor, 0x1e2430);
+      const aftBulk = buildTransformedBox(0.76, 0.50, 0.12, 0, 0.10, 2.54, -0.16, 0, 0);
+      addBucketMesh(buckets, 'composite', aftBulk, 0x262d3a);
+      const fwdBulk = buildTransformedBox(0.56, 0.36, 0.12, 0, 0.01, 4.90, 0.22, 0, 0);
+      addBucketMesh(buckets, 'composite', fwdBulk, 0x222834);
+
+      // Dark quilted interior tub sidewalls (prevents exterior grey hull from ever bleeding inside cockpit!)
+      for (const s of [1, -1]) {
+        const innerWall = buildTransformedBox(0.06, 0.34, 2.28, s * 0.34, 0.01, 3.72, 0, 0, 0);
+        addBucketMesh(buckets, 'composite', innerWall, 0x1b212c);
+      }
+
+      // Watertight Sculpted Coaming Sill Collar tracing Canopy Perimeter (ZERO SILL GAP!)
+      const zStartC = 4.98, zEndC = 2.46;
+      const canopyStationsZ = isHero ? 26 : 12;
+      const canopyArcSegs = isHero ? 20 : 10;
+      const coamPtsL = [], coamPtsR = [];
+      const evalCoamingPt = (z, side) => {
+        const u = clamp((zStartC - z) / (zStartC - zEndC), 0, 1);
+        const w = 0.415 * Math.sin(u * Math.PI * 0.94 + 0.02);
+        const y = lerp(0.24, 0.455, smoothstep(0, 1, u));
+        return new THREE.Vector3(side * w, y, z);
+      };
+      for (let iz = 0; iz <= canopyStationsZ; iz++) {
+        const z = lerp(zStartC, zEndC, iz / canopyStationsZ);
+        coamPtsL.push(evalCoamingPt(z, 1));
+        coamPtsR.push(evalCoamingPt(z, -1));
+      }
+      addBucketMesh(buckets, 'composite', buildLoftedRibbon(coamPtsL, 0.038, 0.028), 0x2d3544);
+      addBucketMesh(buckets, 'composite', buildLoftedRibbon(coamPtsR, 0.038, 0.028), 0x2d3544);
+
+      // Glare-shield Coaming + Main Instrument Deck + Twin Glowing MFDs
+      const instBlock = buildTransformedBox(0.56, 0.22, 0.36, 0, 0.04, 4.44, 0.18, 0, 0);
+      addBucketMesh(buckets, 'composite', instBlock, 0x1a2029);
+      const glareShield = buildTransformedBox(0.60, 0.045, 0.44, 0, 0.19, 4.46, 0.14, 0, 0);
+      addBucketMesh(buckets, 'composite', glareShield, 0x10141b);
+      for (const s of [-0.14, 0.14]) {
+        const mfd = buildTransformedBox(0.19, 0.14, 0.015, s, 0.06, 4.26, -0.25, 0, 0);
+        addBucketMesh(buckets, 'formationGlow', mfd, 0x38bdf8);
+      }
+
+      // Sleek Bracketed Holographic HUD Combiner Lenses
+      const hudMount = buildTransformedBox(0.22, 0.032, 0.12, 0, 0.22, 4.44, 0, 0, 0);
+      addBucketMesh(buckets, 'titanium', hudMount, 0x64748b);
+      for (const s of [-0.095, 0.095]) {
+        const arm = buildTransformedBox(0.012, 0.19, 0.020, s, 0.31, 4.44, -0.52, 0, 0);
+        addBucketMesh(buckets, 'titanium', arm, 0x94a3b8);
+      }
+      const hudGlass1G = buildTransformedBox(0.18, 0.17, 0.004, 0, 0.33, 4.42, -0.56, 0, 0);
+      const hudGlass2G = buildTransformedBox(0.16, 0.14, 0.004, 0, 0.31, 4.38, -0.44, 0, 0);
+      const hudMesh = new THREE.Mesh(
+        safeMerge([normalizeForMerge(hudGlass1G, 0xffffff), normalizeForMerge(hudGlass2G, 0xffffff)]),
+        MATS.hudHolo
+      );
+      hudMesh.name = 'Cockpit_Holo_HUD';
+
+      // Side Consoles, Sidestick, HOTAS Throttle, Reclined ACES-II Ejection Seat
+      addBucketMesh(buckets, 'composite', buildTransformedBox(0.13, 0.20, 1.05, -0.28, -0.06, 3.68), 0x262d39);
+      addBucketMesh(buckets, 'composite', buildTransformedBox(0.13, 0.20, 1.05,  0.28, -0.06, 3.68), 0x262d39);
+      addBucketMesh(buckets, 'composite', buildStrut(new THREE.Vector3(-0.28, 0.04, 3.85), new THREE.Vector3(-0.26, 0.17, 3.78), 0.018, 0.022, 8), 0x15181e);
+      addBucketMesh(buckets, 'titanium', buildTransformedBox(0.072, 0.055, 0.14, 0.28, 0.07, 3.86, 0.2, 0, 0), 0x475569);
+
+      addBucketMesh(buckets, 'composite', buildTransformedBox(0.42, 0.09, 0.44, 0, -0.09, 3.34, -0.22, 0, 0), 0x2b3240);
+      addBucketMesh(buckets, 'composite', buildTransformedBox(0.38, 0.56, 0.12, 0, 0.17, 3.04, -0.35, 0, 0), 0x323b4a);
+      addBucketMesh(buckets, 'titanium',  buildTransformedBox(0.24, 0.22, 0.14, 0, 0.49, 2.91, -0.35, 0, 0), 0x475569);
+      for (const s of [-0.10, 0.10]) {
+        addBucketMesh(buckets, 'titanium', buildStrut(new THREE.Vector3(s, 0.57, 2.89), new THREE.Vector3(s * 1.15, 0.66, 2.86), 0.01, 0.008, 8), 0xdce4ee);
+      }
+      const ejectLoop = new THREE.TorusGeometry(0.036, 0.007, 6, 12);
+      ejectLoop.translate(0, 0.62, 2.89);
+      addBucketMesh(buckets, 'formationGlow', ejectLoop, 0xfbbf24);
+
+      // --- E. Seamless Frameless Stealth Canopy (`Part_Canopy_Assembly`) ---
+      const hingeZ = 2.46, hingeY = 0.455;
+      canopyGroup.position.set(0, hingeY, hingeZ);
+
+      const evalCanopyArc = (z, tArc) => {
+        const u = clamp((zStartC - z) / (zStartC - zEndC), 0, 1);
+        const angle = tArc * Math.PI;
+        // Closes sharply to tip width = 0 at windshield tip (u = 0) & blends cleanly at aft bulkhead (u = 1)
+        const archW = 0.415 * Math.sin(u * Math.PI * 0.94 + 0.02);
+        const archH = 0.57 * Math.pow(Math.sin(u * Math.PI * 0.92 + 0.04), 0.74);
+        const sillY = lerp(0.24, 0.455, smoothstep(0, 1, u));
+        return new THREE.Vector3(Math.cos(angle) * archW, sillY + Math.sin(angle) * archH - hingeY, z - hingeZ);
+      };
+
+      const gVerts = [], gUvs = [], gIdx = [];
+      const strideC = canopyArcSegs + 1;
+      for (let iz = 0; iz <= canopyStationsZ; iz++) {
+        const z = lerp(zStartC, zEndC, iz / canopyStationsZ);
+        for (let ia = 0; ia <= canopyArcSegs; ia++) {
+          const pt = evalCanopyArc(z, ia / canopyArcSegs);
+          gVerts.push(pt.x, pt.y, pt.z);
+          gUvs.push(ia / canopyArcSegs, iz / canopyStationsZ);
+        }
+      }
+      for (let iz = 0; iz < canopyStationsZ; iz++) {
+        for (let ia = 0; ia < canopyArcSegs; ia++) {
+          const a = iz * strideC + ia, b = (iz + 1) * strideC + ia;
+          const c = (iz + 1) * strideC + ia + 1, d = iz * strideC + ia + 1;
+          gIdx.push(a, b, d, b, c, d);
+        }
+      }
+      const canopyGlassGeom = new THREE.BufferGeometry();
+      canopyGlassGeom.setAttribute('position', new THREE.Float32BufferAttribute(gVerts, 3));
+      canopyGlassGeom.setAttribute('uv', new THREE.Float32BufferAttribute(gUvs, 2));
+      canopyGlassGeom.setIndex(gIdx);
+      canopyGlassGeom.computeVertexNormals();
+      const canopyGlassMesh = new THREE.Mesh(canopyGlassGeom, MATS.canopyGlass);
+      canopyGlassMesh.name = 'Canopy_Teardrop_Glass';
+      canopyGroup.add(canopyGlassMesh);
+
+      // Continuous Smooth Lofted Canopy Sill Rails + Single Aft Canopy Arch Bow (Frameless Forward Windshield!)
+      const railL = [], railR = [], aftBow = [];
+      for (let iz = 0; iz <= canopyStationsZ; iz++) {
+        const z = lerp(zStartC, zEndC, iz / canopyStationsZ);
+        railL.push(evalCanopyArc(z, 0.0));
+        railR.push(evalCanopyArc(z, 1.0));
+      }
+      for (let ia = 0; ia <= canopyArcSegs; ia++) {
+        aftBow.push(evalCanopyArc(2.58, ia / canopyArcSegs));
+      }
+      const frameList = [
+        normalizeForMerge(buildLoftedRibbon(railL, 0.028, 0.022), 0x3b4454),
+        normalizeForMerge(buildLoftedRibbon(railR, 0.028, 0.022), 0x3b4454),
+        normalizeForMerge(buildLoftedRibbon(aftBow, 0.030, 0.022), 0x3b4454)
+      ];
+      const canopyFrameMesh = new THREE.Mesh(safeMerge(frameList), MATS.composite);
+      canopyFrameMesh.name = 'Canopy_Structural_Frame';
+      canopyFrameMesh.castShadow = true;
+      canopyGroup.add(canopyFrameMesh);
+
+      return { prismMesh, hudMesh };
+    }
+
+    // =========================================================================
+    // 7. MAIN WINGS, STEALTH CANARDS, TAILS, STABILATORS & AIRBRAKE
+    // =========================================================================
+    function buildAerodynamicSurfaces(buckets, parts, isHero) {
+      const wingChordSegs = isHero ? 16 : 8;
+      const smallChordSegs = isHero ? 10 : 6;
+      const spanDiv = isHero ? 8 : 4;
+
+      for (const side of [1, -1]) {
+        // --- A. Main Cropped-Delta Wing (aligned 38° LE / -11° TE stealth edges) ---
+        const wingStations = [];
+        for (let i = 0; i <= spanDiv; i++) {
+          const absX = lerp(0.96, 5.45, i / spanDiv);
+          const sec = queryMainWingSection(absX);
+          wingStations.push({
+            x: side * absX, y: sec.yMid, zLE: sec.zLE,
+            chord: sec.chord, thickness: sec.thickness, camber: sec.camber
+          });
+        }
+        addBucketMesh(buckets, 'armor', buildAirfoilLoft(wingStations, wingChordSegs), 0xffffff,
+          (p) => 0.72 + 0.28 * smoothstep(0.95, 1.85, Math.abs(p.x)));
+
+        // Flush Underwing Flap-Track Actuator Fairings
+        for (const fx of [2.15, 3.30, 4.45]) {
+          const fy = queryWingUndersideY(fx, -3.62);
+          const fPod = new THREE.ConeGeometry(0.052, 0.70, isHero ? 10 : 6);
+          fPod.rotateX(Math.PI * 0.5);
+          fPod.scale(0.8, 0.70, 1.0);
+          fPod.translate(side * fx, fy - 0.012, -3.62);
+          addBucketMesh(buckets, 'armor', fPod, 0xcbd5e1);
+        }
+
+        // Sleek Integrated Wingtip LAU-128 Launch Rail & Finlet (NO redundant protruding spike next to missile!)
+        const tipX = side * 5.45, tipY = -0.05;
+        const railShoe = buildTransformedBox(0.11, 0.068, 1.92, tipX, tipY, -3.22, 0, 0, 0);
+        addBucketMesh(buckets, 'composite', railShoe, 0x2d3544);
+
+        const finlet = buildAirfoilLoft([
+          { x: side * 5.43, y: tipY, zLE: -2.95, chord: 1.18, thickness: 0.048, camber: 0 },
+          { x: side * 5.52, y: tipY + 0.34, zLE: -3.45, chord: 0.65, thickness: 0.04, camber: 0 }
+        ], 6);
+        addBucketMesh(buckets, 'armor', finlet, 0xcbd5e1);
+
+        const navLamp = buildTransformedBox(0.040, 0.045, 0.20, side * 5.47, tipY + 0.03, -2.35, 0, 0, 0);
+        addBucketMesh(buckets, side > 0 ? 'navPort' : 'navStbd', navLamp, 0xffffff);
+
+        // --- B. Articulated Leading-Edge Flap (`Part_LE_Flap_L/R`) ---
+        const flapPivot = side > 0 ? parts.Part_LE_Flap_L : parts.Part_LE_Flap_R;
+        const secIn = queryMainWingSection(1.55);
+        const secOut = queryMainWingSection(5.20);
+        const flapSweepAngle = Math.atan2(secOut.zLE - secIn.zLE, 5.20 - 1.55);
+        flapPivot.position.set(side * 1.55, lerp(0.06, -0.05, (1.55 - 0.96) / 4.49), secIn.zLE - 0.14);
+        flapPivot.rotation.set(0, -side * flapSweepAngle, 0);
+
+        const flapSpan = Math.hypot((5.20 - 1.55), secOut.zLE - secIn.zLE);
+        const flapMesh = new THREE.Mesh(
+          normalizeForMerge(buildAirfoilLoft([
+            { x: 0, y: 0, zLE: 0.20, chord: 0.40, thickness: 0.10, camber: 0.02 },
+            { x: side * flapSpan, y: -0.03, zLE: 0.12, chord: 0.26, thickness: 0.10, camber: 0.02 }
+          ], smallChordSegs), 0xe2e8f0),
+          MATS.armor
+        );
+        flapMesh.name = side > 0 ? 'LE_Flap_Port_Mesh' : 'LE_Flap_Stbd_Mesh';
+        flapMesh.castShadow = true; flapMesh.receiveShadow = true;
+        flapPivot.add(flapMesh);
+
+        // --- C. Articulated Aileron along -11° Stealth Trailing Edge (`Part_Aileron_L/R`) ---
+        const ailPivot = side > 0 ? parts.Part_Aileron_L : parts.Part_Aileron_R;
+        const teSweep = Math.atan2(-3.92 - (-4.52), 5.45 - 0.96);
+        ailPivot.position.set(side * 2.05, 0.00, lerp(-4.52, -3.92, (2.05 - 0.96) / 4.49) + 0.18);
+        ailPivot.rotation.set(0, -side * teSweep, 0);
+        const ailSpan = Math.hypot((5.08 - 2.05), -0.40);
+        const ailMesh = new THREE.Mesh(
+          normalizeForMerge(buildAirfoilLoft([
+            { x: 0, y: 0, zLE: 0.06, chord: 0.65, thickness: 0.065, camber: 0.005 },
+            { x: side * ailSpan, y: -0.02, zLE: 0.04, chord: 0.45, thickness: 0.058, camber: 0.005 }
+          ], smallChordSegs), 0xe2e8f0),
+          MATS.armor
+        );
+        ailMesh.name = side > 0 ? 'Aileron_Port_Mesh' : 'Aileron_Stbd_Mesh';
+        ailMesh.castShadow = true; ailMesh.receiveShadow = true;
+        ailPivot.add(ailMesh);
+
+        // --- D. Sleek 38° Swept-LE / Forward-Swept TE Stealth Canards (`Part_Canard_L/R`) ---
+        const canardPivot = side > 0 ? parts.Part_Canard_L : parts.Part_Canard_R;
+        canardPivot.position.set(side * 0.86, 0.09, 3.18);
+
+        const collar = new THREE.CylinderGeometry(0.062, 0.082, 0.24, isHero ? 12 : 6);
+        collar.rotateZ(Math.PI * 0.5);
+        collar.scale(1.0, 0.52, 1.38);
+        collar.translate(side * 0.86, 0.09, 3.18);
+        addBucketMesh(buckets, 'titanium', collar, 0xbec8d6);
+
+        const canardMesh = new THREE.Mesh(
+          normalizeForMerge(buildAirfoilLoft([
+            { x: 0, y: 0, zLE: 0.85, chord: 1.32, thickness: 0.062, camber: 0.01 },
+            { x: side * 1.44, y: 0.12, zLE: -0.28, chord: 0.58, thickness: 0.052, camber: 0.008 }
+          ], smallChordSegs), 0xf1f5f9),
+          MATS.armor
+        );
+        canardMesh.name = side > 0 ? 'Canard_Port_Mesh' : 'Canard_Stbd_Mesh';
+        canardMesh.castShadow = true; canardMesh.receiveShadow = true;
+        canardPivot.add(canardMesh);
+
+        // --- E. All-Moving Diamond Horizontal Stabilators (`Part_Stabilator_L/R`) ---
+        const stabPivot = side > 0 ? parts.Part_Stabilator_L : parts.Part_Stabilator_R;
+        stabPivot.position.set(side * 1.24, 0.02, -6.32);
+
+        const stabCollar = new THREE.CylinderGeometry(0.072, 0.092, 0.26, isHero ? 12 : 6);
+        stabCollar.rotateZ(Math.PI * 0.5);
+        stabCollar.scale(1.0, 0.52, 1.45);
+        stabCollar.translate(side * 1.24, 0.02, -6.32);
+        addBucketMesh(buckets, 'titanium', stabCollar, 0x9aa6b5);
+
+        const stabMesh = new THREE.Mesh(
+          normalizeForMerge(buildAirfoilLoft([
+            { x: 0, y: 0, zLE: 0.88, chord: 1.92, thickness: 0.060, camber: 0 },
+            { x: side * 2.18, y: -0.04, zLE: -0.45, chord: 0.72, thickness: 0.048, camber: 0 }
+          ], smallChordSegs), 0xe8edf5),
+          MATS.armor
+        );
+        stabMesh.name = side > 0 ? 'Stabilator_Port_Mesh' : 'Stabilator_Stbd_Mesh';
+        stabMesh.castShadow = true; stabMesh.receiveShadow = true;
+        stabPivot.add(stabMesh);
+
+        // --- F. Canted Twin Vertical Tails + Root Strake Collar + Articulated Rudders ---
+        const finCant = side * 0.415;
+        const finMatrix = new THREE.Matrix4().compose(
+          new THREE.Vector3(side * 0.90, 0.22, -4.35),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -finCant)),
+          new THREE.Vector3(1, 1, 1)
+        );
+        const buildFinPlate = (y0, y1, zLE0, zLE1, ch0, ch1) => {
+          const g = buildAirfoilLoft([
+            { x: y0, y: 0, zLE: zLE0, chord: ch0, thickness: 0.062, camber: 0 },
+            { x: y1, y: 0, zLE: zLE1, chord: ch1, thickness: 0.050, camber: 0 }
+          ], smallChordSegs);
+          g.rotateZ(Math.PI * 0.5);
+          return g;
+        };
+
+        const mainFinG = buildFinPlate(-0.14, 2.15, 0.78, -0.82, 2.42, 0.96);
+        mainFinG.applyMatrix4(finMatrix);
+        addBucketMesh(buckets, 'armor', mainFinG, 0xffffff, (p) => 0.76 + 0.24 * smoothstep(0.25, 1.35, p.y));
+
+        // Contoured Root Fillet Strake hugging the engine nacelle shoulder smoothly (NO sticking-out black box!)
+        const rootFilletG = buildFinPlate(-0.18, 0.12, 1.05, 0.74, 2.85, 2.45);
+        rootFilletG.applyMatrix4(finMatrix);
+        addBucketMesh(buckets, 'composite', rootFilletG, 0x384152);
+
+        const tipCapG = buildTransformedBox(0.066, 0.075, 1.02, 0, 2.18, -1.28, 0, 0, 0);
+        tipCapG.applyMatrix4(finMatrix);
+        addBucketMesh(buckets, 'composite', tipCapG, 0x3b4252);
+
+        const tailGlowG = buildTransformedBox(0.080, 0.030, 0.36, 0, 1.98, -1.38, 0, 0, 0);
+        tailGlowG.applyMatrix4(finMatrix);
+        addBucketMesh(buckets, 'formationGlow', tailGlowG, 0xa5f3fc);
+
+        const rudderPivot = side > 0 ? parts.Part_Rudder_L : parts.Part_Rudder_R;
+        rudderPivot.position.copy(new THREE.Vector3(0, 0.14, -1.68).applyMatrix4(finMatrix));
+        rudderPivot.rotation.set(0, 0, -finCant);
+        const rudderMesh = new THREE.Mesh(
+          normalizeForMerge(buildFinPlate(0, 1.85, 0.04, -0.15, 0.72, 0.46), 0xe8edf5),
+          MATS.armor
+        );
+        rudderMesh.name = side > 0 ? 'Rudder_Port_Mesh' : 'Rudder_Stbd_Mesh';
+        rudderMesh.castShadow = true; rudderMesh.receiveShadow = true;
+        rudderPivot.add(rudderMesh);
+      }
+
+      // --- G. Articulated Dorsal Airbrake (`Part_Airbrake`) + Hydraulic Piston ---
+      const abPivot = parts.Part_Airbrake;
+      abPivot.position.set(0, 0.565, 1.40);
+      const abPanel = new THREE.CylinderGeometry(0.31, 0.35, 1.66, isHero ? 12 : 6, 1, false, -Math.PI * 0.28, Math.PI * 0.56);
+      abPanel.rotateX(Math.PI * 0.5);
+      abPanel.scale(1.12, 0.24, 1.0);
+      abPanel.translate(0, -0.02, -0.83);
+      const abTrim = buildTransformedBox(0.52, 0.030, 1.60, 0, 0.02, -0.81, 0, 0, 0);
+      const abMesh = new THREE.Mesh(
+        safeMerge([normalizeForMerge(abPanel, 0xe2e8f0), normalizeForMerge(abTrim, 0xcbd5e1)]),
+        MATS.armor
+      );
+      abMesh.name = 'Dorsal_Airbrake_Petal';
+      abMesh.castShadow = true; abMesh.receiveShadow = true;
+      abPivot.add(abMesh);
+
+      addBucketMesh(buckets, 'composite', buildTransformedBox(0.54, 0.04, 1.54, 0, 0.43, 0.56), 0x262d39);
+      addBucketMesh(buckets, 'titanium', buildStrut(new THREE.Vector3(0, 0.44, 0.95), new THREE.Vector3(0, 0.52, 0.45), 0.030, 0.024, 8), 0xe2e8f0);
+    }
+
+    // =========================================================================
+    // 8. STRUCTURAL PYLONS & EXTERNAL ORDNANCE (ZERO-GAP CAMBER CONTOURED)
+    // =========================================================================
+    function buildPylonsAndOrdnance(buckets, isHero) {
+      const segs = isHero ? 16 : 8;
+
+      const buildPylon = (side, absX, zFront, zRear, yBottom) => {
+        const zMid = (zFront + zRear) * 0.5;
+        const ch = zFront - zRear;
+        const pyVerts = [], pyUvs = [], pyIdx = [];
+        const pSegs = isHero ? 10 : 6;
+        const ringN = pSegs * 2;
+        const rowStride = ringN + 1;
+
+        for (let iy = 0; iy <= 1; iy++) {
+          const zStart = iy === 0 ? zFront : zFront - 0.14;
+          const zEnd   = iy === 0 ? zRear  : zRear + 0.06;
+          for (let k = 0; k <= ringN; k++) {
+            let u, xSign;
+            if (k <= pSegs) { u = 1.0 - k / pSegs; xSign = 1; }
+            else { u = (k - pSegs) / pSegs; xSign = -1; }
+            const thick = 0.066 * Math.sin(Math.pow(clamp(u, 0.02, 0.98), 0.55) * Math.PI);
+            const x = side * absX + xSign * thick;
+            const z = lerp(zStart, zEnd, u);
+            const y = iy === 0 ? (queryWingUndersideY(absX, z) + 0.036) : yBottom;
+            pyVerts.push(x, y, z);
+            pyUvs.push(k / ringN, iy);
+          }
+        }
+        for (let k = 0; k < ringN; k++) {
+          const a = k, b = rowStride + k, c = rowStride + k + 1, d = k + 1;
+          pyIdx.push(a, d, b, b, d, c);
+        }
+        const cIdx = pyVerts.length / 3;
+        pyVerts.push(side * absX, yBottom, zMid);
+        pyUvs.push(0.5, 1.0);
+        for (let k = 0; k < ringN; k++) pyIdx.push(cIdx, rowStride + k + 1, rowStride + k);
+
+        const pyG = new THREE.BufferGeometry();
+        pyG.setAttribute('position', new THREE.Float32BufferAttribute(pyVerts, 3));
+        pyG.setAttribute('uv', new THREE.Float32BufferAttribute(pyUvs, 2));
+        pyG.setIndex(pyIdx);
+        pyG.computeVertexNormals();
+        addBucketMesh(buckets, 'armor', pyG, 0xcbd5e1);
+
+        addBucketMesh(buckets, 'composite', buildTransformedBox(0.092, 0.052, ch * 0.70, side * absX, yBottom - 0.014, zMid), 0x262d39);
+        for (const bz of [zMid + ch * 0.22, zMid - ch * 0.22]) {
+          addBucketMesh(buckets, 'titanium', buildTransformedBox(0.142, 0.032, 0.052, side * absX, yBottom - 0.034, bz), 0x94a3b8);
+        }
+      };
+
+      const addMissile = (x, y, zCenter, length, radius, finSpan, radomeColor = 0xe2e8f0) => {
+        const bodyLen = length * 0.78;
+        const noseLen = length * 0.22;
+        const body = new THREE.CylinderGeometry(radius, radius, bodyLen, segs);
+        body.rotateX(Math.PI * 0.5);
+        body.translate(x, y, zCenter - noseLen * 0.35);
+        addBucketMesh(buckets, 'ordnance', body, 0xd8e0ea);
+
+        const nose = new THREE.ConeGeometry(radius, noseLen, segs);
+        nose.rotateX(Math.PI * 0.5);
+        nose.translate(x, y, zCenter + bodyLen * 0.5 + noseLen * 0.15);
+        addBucketMesh(buckets, 'titanium', nose, radomeColor);
+
+        const band = new THREE.CylinderGeometry(radius * 1.02, radius * 1.02, 0.08, segs);
+        band.rotateX(Math.PI * 0.5);
+        band.translate(x, y, zCenter + length * 0.12);
+        addBucketMesh(buckets, 'composite', band, 0x1e293b);
+
+        for (let f = 0; f < 4; f++) {
+          const ang = (f * 0.5 + 0.25) * Math.PI;
+          const fin = buildTransformedBox(0.008, finSpan, 0.34, 0, finSpan * 0.5 + radius * 0.65, 0, -0.22, 0, 0);
+          fin.rotateZ(ang);
+          fin.translate(x, y, zCenter - length * 0.36);
+          addBucketMesh(buckets, 'titanium', fin, 0x64748b);
+        }
+      };
+
+      for (const side of [1, -1]) {
+        // 1. Inboard Pylon (`|x| = 2.28m`) + Stealth Supersonic Drop / Sensor Pod
+        const inX = 2.28, inYBot = -0.34;
+        buildPylon(side, inX, -0.35, -2.55, inYBot);
+        const podY = inYBot - 0.19, podZ = -1.55;
+        const podBody = new THREE.CylinderGeometry(0.18, 0.17, 2.40, 6);
+        podBody.rotateX(Math.PI * 0.5); podBody.rotateZ(Math.PI / 6); podBody.scale(0.95, 0.85, 1.0);
+        podBody.translate(side * inX, podY, podZ);
+        addBucketMesh(buckets, 'armor', podBody, 0xcbd5e1);
+
+        const podNose = new THREE.ConeGeometry(0.171, 0.80, 6);
+        podNose.rotateX(Math.PI * 0.5); podNose.rotateZ(Math.PI / 6); podNose.scale(0.95, 0.85, 1.0);
+        podNose.translate(side * inX, podY, podZ + 1.60);
+        addBucketMesh(buckets, 'composite', podNose, 0x3b4252);
+
+        const podTail = new THREE.ConeGeometry(0.16, 0.66, 6);
+        podTail.rotateX(-Math.PI * 0.5); podTail.rotateZ(Math.PI / 6); podTail.scale(0.95, 0.85, 1.0);
+        podTail.translate(side * inX, podY, podZ - 1.53);
+        addBucketMesh(buckets, 'titanium', podTail, 0x64748b);
+
+        // Recessed under-chin optical sensor turret on sensor pod (flush bezel!)
+        const podLens = new THREE.SphereGeometry(0.052, 12, 8);
+        podLens.translate(side * inX, podY - 0.11, podZ + 1.38);
+        addBucketMesh(buckets, 'formationGlow', podLens, 0x38bdf8);
+
+        // 2. Outboard Pylon (`|x| = 3.55m`) + Long-Range Stealth BVRAAM
+        const outX = 3.55, outYBot = -0.35;
+        buildPylon(side, outX, -1.25, -3.15, outYBot);
+        addMissile(side * outX, outYBot - 0.10, -2.28, 3.30, 0.090, 0.19, 0xf1f5f9);
+
+        // 3. Single Agile AAM riding cleanly on Wingtip LAU-128 Launch Rail (`|x| = 5.56m`)
+        addMissile(side * 5.56, -0.05, -3.10, 2.75, 0.068, 0.15, 0xdbe4ef);
+      }
+    }
+
+    // =========================================================================
+    // 9. TWIN VECTORED THRUST NOZZLES (`Part_Nozzle_L/R`) + SOFT PLASMA PLUME
+    // =========================================================================
+    function buildSoftAlphaPlume(radSegs = 22) {
+      // Multi-ring tapered cone with vertex color fading smoothly from bright plasma -> zero at edge/tip!
+      const len = 1.65, rBase = 0.29;
+      const rings = 10, stride = radSegs + 1;
+      const verts = [], cols = [], uvs = [], idx = [];
+      for (let iz = 0; iz <= rings; iz++) {
+        const u = iz / rings; // 0 = nozzle throat (0), 1 = aft tip (-len)
+        const r = rBase * Math.pow(1.0 - u, 0.72) * (1.0 + 0.10 * Math.sin(u * Math.PI * 5)); // subtle shock diamonds!
+        const fade = Math.sin(clamp(u * 1.35, 0, 1) * Math.PI * 0.5) * Math.pow(1.0 - u, 1.45);
+        for (let it = 0; it <= radSegs; it++) {
+          const th = (it / radSegs) * Math.PI * 2;
+          verts.push(Math.cos(th) * r, Math.sin(th) * r, -0.16 - u * len);
+          uvs.push(it / radSegs, u);
+          cols.push(0.32 * fade, 0.85 * fade, 1.0 * fade);
+        }
+      }
+      for (let iz = 0; iz < rings; iz++) {
+        for (let it = 0; it < radSegs; it++) {
+          const a = iz * stride + it, b = (iz + 1) * stride + it;
+          const c = (iz + 1) * stride + it + 1, d = iz * stride + it + 1;
+          idx.push(a, b, d, b, c, d);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    }
+
+    function buildVectoredNozzles(buckets, parts, isHero) {
+      const petals = isHero ? 12 : 8;
+      const nozzleRefs = [];
+
+      for (const side of [1, -1]) {
+        const nx = side * 0.78, ny = -0.02, nz = -7.52;
+        const collar = new THREE.CylinderGeometry(0.47, 0.44, 0.34, isHero ? 24 : 12, 1, true);
+        collar.rotateX(Math.PI * 0.5);
+        collar.translate(nx, ny, nz + 0.06);
+        addBucketMesh(buckets, 'titanium', collar, 0x8d99a8);
+
+        // Sealed aft engine bulkhead disc behind flameholder (prevents peeking through nozzle joints!)
+        const bulkhead = new THREE.CircleGeometry(0.42, isHero ? 24 : 12);
+        bulkhead.rotateY(Math.PI);
+        bulkhead.translate(nx, ny, nz + 0.02);
+        addBucketMesh(buckets, 'composite', bulkhead, 0x161a22);
+
+        const cone = new THREE.ConeGeometry(0.18, 0.52, isHero ? 16 : 8);
+        cone.rotateX(-Math.PI * 0.5);
+        cone.translate(nx, ny, nz - 0.10);
+        addBucketMesh(buckets, 'titanium', cone, 0x525b68);
+
+        const flameRing = new THREE.TorusGeometry(0.27, 0.022, 8, isHero ? 20 : 10);
+        flameRing.translate(nx, ny, nz + 0.05);
+        addBucketMesh(buckets, 'composite', flameRing, 0x2a313d);
+
+        const np = side > 0 ? parts.Part_Nozzle_L : parts.Part_Nozzle_R;
+        np.position.set(nx, ny, nz);
+
+        const nozzleSolidList = [];
+        const innerBarrel = new THREE.CylinderGeometry(0.37, 0.43, 0.62, isHero ? 20 : 10, 1, true);
+        innerBarrel.rotateX(Math.PI * 0.5);
+        innerBarrel.translate(0, 0, -0.28);
+        nozzleSolidList.push(normalizeForMerge(innerBarrel, 0x3b4252));
+
+        const revBarrel = new THREE.CylinderGeometry(0.365, 0.425, 0.62, isHero ? 20 : 10, 1, true);
+        revBarrel.rotateX(Math.PI * 0.5);
+        const rIdx = revBarrel.index.array;
+        for (let i = 0; i < rIdx.length; i += 3) {
+          const tmp = rIdx[i + 1]; rIdx[i + 1] = rIdx[i + 2]; rIdx[i + 2] = tmp;
+        }
+        revBarrel.computeVertexNormals();
+        revBarrel.translate(0, 0, -0.28);
+        nozzleSolidList.push(normalizeForMerge(revBarrel, 0x475569));
+
+        for (let p = 0; p < petals; p++) {
+          const ang = (p / petals) * Math.PI * 2;
+          const petal = buildTransformedBox(0.21, 0.032, 0.66, 0, 0.435, -0.34, -0.11, 0, 0);
+          petal.rotateZ(ang);
+          nozzleSolidList.push(normalizeForMerge(petal, 0xffffff, (pt) => clamp(1.0 + pt.z * 0.45, 0.52, 1.0)));
+
+          const seal = buildTransformedBox(0.195, 0.026, 0.60, 0, 0.395, -0.31, -0.10, 0, 0);
+          seal.rotateZ(ang + Math.PI / petals);
+          nozzleSolidList.push(normalizeForMerge(seal, 0x94a3b8));
+
+          const rod = buildTransformedBox(0.026, 0.026, 0.34, 0, 0.47, -0.12, -0.05, 0, 0);
+          rod.rotateZ(ang);
+          nozzleSolidList.push(normalizeForMerge(rod, 0xdce4ee));
+        }
+
+        const nozzleMesh = new THREE.Mesh(safeMerge(nozzleSolidList), MATS.nozzle);
+        nozzleMesh.name = side > 0 ? 'Nozzle_Petals_Port' : 'Nozzle_Petals_Stbd';
+        nozzleMesh.castShadow = true; nozzleMesh.receiveShadow = true;
+        np.add(nozzleMesh);
+
+        const abRingG = new THREE.TorusGeometry(0.29, 0.042, 10, isHero ? 24 : 12);
+        abRingG.translate(0, 0, -0.16);
+        const abRingMesh = new THREE.Mesh(abRingG, MATS.afterburner);
+        abRingMesh.name = side > 0 ? 'Afterburner_Ring_L' : 'Afterburner_Ring_R';
+        np.add(abRingMesh);
+
+        const plumeMesh = new THREE.Mesh(buildSoftAlphaPlume(isHero ? 22 : 12), MATS.plasmaPlume);
+        plumeMesh.name = side > 0 ? 'Afterburner_Plume_L' : 'Afterburner_Plume_R';
+        np.add(plumeMesh);
+
+        nozzleRefs.push({ abRingMesh, plumeMesh });
+      }
+      return nozzleRefs;
+    }
+
+    // =========================================================================
+    // 10. COLLIDER PROXIES (`Collider_*`)
+    // =========================================================================
+    function buildColliderProxies() {
+      const colGroup = new THREE.Group();
+      colGroup.name = 'Collider_Group';
+      for (const [name, w, h, d, x, y, z] of [
+        ['Collider_Fuselage', 2.2, 1.0, 16.2, 0, 0.02, 0.6],
+        ['Collider_Wings',    11.4, 0.35, 5.2, 0, 0.0, -2.0],
+        ['Collider_Tails',    3.6, 2.2, 3.2, 0, 1.15, -5.4]
+      ]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), MATS.collider);
+        m.name = name;
+        m.position.set(x, y, z);
+        colGroup.add(m);
+      }
+      colGroup.visible = false;
+      return colGroup;
+    }
+
+    // =========================================================================
+    // 11. ASSET ASSEMBLY + LOD BUILDER + STATE MANAGEMENT
+    // =========================================================================
+    let assetGroup = null;
+    let articulated = null;
+    let colliderGroup = null;
+    let nozzleEffects = [];
+    let currentLOD = 'hero';
+    let currentLivery = 'ghost';
+    let demoIdleActive = false;
+
+    const flightState = {
+      thrust: 0.70, vecPitchDeg: 0, vecYawDeg: 0,
+      canopyPct: 0, airbrakePct: 0, pitchDeg: 0, rollDeg: 0, yawDeg: 0
+    };
+
+    function disposeHierarchy(root) {
+      if (!root) return;
+      root.traverse((obj) => { if (obj.isMesh && obj.geometry) obj.geometry.dispose(); });
+    }
+
+    function buildAircraft(lodMode) {
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        disposeHierarchy(assetGroup);
+      }
+
+      const isHero = (lodMode === 'hero');
+      const root = new THREE.Group();
+      root.name = 'Wraith_IX_Stealth_Interceptor';
+
+      const parts = {
+        Part_Canopy_Assembly: new THREE.Group(),
+        Part_Airbrake:        new THREE.Group(),
+        Part_Canard_L:        new THREE.Group(),
+        Part_Canard_R:        new THREE.Group(),
+        Part_Aileron_L:       new THREE.Group(),
+        Part_Aileron_R:       new THREE.Group(),
+        Part_LE_Flap_L:       new THREE.Group(),
+        Part_LE_Flap_R:       new THREE.Group(),
+        Part_Rudder_L:        new THREE.Group(),
+        Part_Rudder_R:        new THREE.Group(),
+        Part_Stabilator_L:    new THREE.Group(),
+        Part_Stabilator_R:    new THREE.Group(),
+        Part_Nozzle_L:        new THREE.Group(),
+        Part_Nozzle_R:        new THREE.Group()
+      };
+      for (const [k, grp] of Object.entries(parts)) { grp.name = k; root.add(grp); }
+
+      const buckets = {};
+      const fuselageG = buildStealthFuselage(isHero ? 60 : 22, isHero ? 44 : 18);
+      addBucketMesh(buckets, 'armor', fuselageG, 0xffffff, (p, n) => {
+        let ao = 0.86 + 0.14 * clamp(n.y * 0.5 + 0.5, 0, 1);
+        if (Math.abs(p.x) < 0.36 && p.z < -0.5 && p.y > -0.1) ao *= 0.80;
+        if (Math.abs(p.x) < 0.40 && p.z > 2.5 && p.z < 4.95 && p.y < 0.1) ao *= 0.52;
+        if (p.y < -0.05 && p.z > -0.8 && p.z < 2.4 && Math.abs(p.x) > 0.44) ao *= 0.72;
+        return clamp(ao, 0.38, 1.0);
+      });
+
+      buildDSIIntakesAndFans(buckets, isHero);
+      const { prismMesh, hudMesh } = buildCockpitAndNoseSystems(buckets, parts.Part_Canopy_Assembly, isHero);
+      root.add(prismMesh);
+      root.add(hudMesh);
+
+      buildAerodynamicSurfaces(buckets, parts, isHero);
+      buildPylonsAndOrdnance(buckets, isHero);
+      nozzleEffects = buildVectoredNozzles(buckets, parts, isHero);
+
+      const bucketMatMap = {
+        armor: MATS.armor, titanium: MATS.titanium, nozzle: MATS.nozzle,
+        composite: MATS.composite, ordnance: MATS.ordnance,
+        formationGlow: MATS.formationGlow, navPort: MATS.navPort, navStbd: MATS.navStbd
+      };
+      for (const [bKey, geomList] of Object.entries(buckets)) {
+        const merged = safeMerge(geomList);
+        if (!merged) continue;
+        const m = new THREE.Mesh(merged, bucketMatMap[bKey]);
+        m.name = `Airframe_${bKey}`;
+        m.castShadow = true; m.receiveShadow = true;
+        root.add(m);
+      }
+
+      colliderGroup = buildColliderProxies();
+      root.add(colliderGroup);
+
+      assetGroup = root;
+      articulated = parts;
+      scene.add(assetGroup);
+
+      applyArticulationFromState();
+      updateHUDStats();
+    }
+
+    // =========================================================================
+    // 12. ARTICULATION ENGINE & PRE-EXPORT REST-POSE RESET HOOK
+    // =========================================================================
+    function applyArticulationFromState(tTime = 0) {
+      if (!articulated) return;
+      const idlePitch = demoIdleActive ? Math.sin(tTime * 1.4) * 3.5 : 0;
+      const idleRoll  = demoIdleActive ? Math.cos(tTime * 1.1) * 4.0 : 0;
+      const deg = THREE.MathUtils.degToRad;
+
+      const pDeg = flightState.pitchDeg + idlePitch;
+      const rDeg = flightState.rollDeg + idleRoll;
+      const yDeg = flightState.yawDeg;
+
+      articulated.Part_Canopy_Assembly.rotation.x = -deg((flightState.canopyPct / 100) * 38);
+      articulated.Part_Airbrake.rotation.x = deg((flightState.airbrakePct / 100) * 44);
+
+      articulated.Part_Canard_L.rotation.x = -deg(pDeg * 0.9);
+      articulated.Part_Canard_R.rotation.x = -deg(pDeg * 0.9);
+
+      articulated.Part_Aileron_L.rotation.x = deg(rDeg);
+      articulated.Part_Aileron_R.rotation.x = -deg(rDeg);
+
+      const leDroop = Math.max(0, pDeg) * 0.65;
+      articulated.Part_LE_Flap_L.rotation.x = deg(leDroop);
+      articulated.Part_LE_Flap_R.rotation.x = deg(leDroop);
+
+      articulated.Part_Rudder_L.rotation.y = deg(yDeg);
+      articulated.Part_Rudder_R.rotation.y = deg(yDeg);
+
+      articulated.Part_Stabilator_L.rotation.x = deg(pDeg * 0.85 - rDeg * 0.35);
+      articulated.Part_Stabilator_R.rotation.x = deg(pDeg * 0.85 + rDeg * 0.35);
+
+      articulated.Part_Nozzle_L.rotation.set(deg(flightState.vecPitchDeg), deg(flightState.vecYawDeg), 0);
+      articulated.Part_Nozzle_R.rotation.set(deg(flightState.vecPitchDeg), deg(flightState.vecYawDeg), 0);
+
+      const th = flightState.thrust;
+      MATS.afterburner.emissiveIntensity = lerp(0.3, 4.2, th);
+      MATS.plasmaPlume.opacity = lerp(0.0, 0.55, th);
+      burnerPointLight.intensity = lerp(0.15, 2.5, th);
+      for (const eff of nozzleEffects) {
+        eff.plumeMesh.visible = th > 0.03;
+        eff.plumeMesh.scale.set(lerp(0.65, 1.08, th), lerp(0.65, 1.08, th), lerp(0.25, 1.30, th));
+      }
+    }
+
+    function resetAllPosesForRest(resetThrust = false) {
+      demoIdleActive = false;
+      document.getElementById('btn-demo-idle').textContent = '微動展示: 關';
+      flightState.vecPitchDeg = 0; flightState.vecYawDeg = 0;
+      flightState.canopyPct = 0; flightState.airbrakePct = 0;
+      flightState.pitchDeg = 0; flightState.rollDeg = 0; flightState.yawDeg = 0;
+      if (resetThrust) flightState.thrust = 0.70;
+
+      const sync = (id, val, lblId, sfx) => {
+        document.getElementById(id).value = val;
+        document.getElementById(lblId).textContent = `${val}${sfx}`;
+      };
+      sync('sl-vec-pitch', 0, 'val-vec-pitch', '°');
+      sync('sl-vec-yaw', 0, 'val-vec-yaw', '°');
+      sync('sl-canopy', 0, 'val-canopy', '%');
+      sync('sl-airbrake', 0, 'val-airbrake', '%');
+      sync('sl-pitch', 0, 'val-pitch', '°');
+      sync('sl-roll', 0, 'val-roll', '°');
+      sync('sl-yaw', 0, 'val-yaw', '°');
+      if (resetThrust) sync('sl-thrust', 70, 'val-thrust', '%');
+      applyArticulationFromState(0);
+    }
+
+    // =========================================================================
+    // 13. LIVE HUD TELEMETRY & CAMERA PRESETS (FRAMED CLEAR OF SIDEBAR!)
+    // =========================================================================
+    function updateHUDStats() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, meshes = 0;
+      const mats = new Set();
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.visible) {
+          meshes++;
+          const g = obj.geometry;
+          const pos = g.getAttribute('position');
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+          if (obj.material) mats.add(obj.material.name || obj.material.uuid);
+        }
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-meshes').textContent = meshes;
+      document.getElementById('stat-mats').textContent = mats.size;
+      document.getElementById('lod-badge').textContent = currentLOD === 'hero' ? 'HERO LOD' : 'GAME-READY LOD';
+    }
+
+    const CAM_PRESETS = {
+      overview: { pos: [17.8, 6.2, 18.2], target: [1.85, 0.15, 0.20] },
+      cockpit:  { pos: [1.75, 1.35, 5.10], target: [0.15, 0.22, 3.65] },
+      intake:   { pos: [1.35, -0.14, 5.45], target: [0.85, -0.12, 0.85] },
+      ventral:  { pos: [2.85, -1.55, 8.65], target: [0.35, -0.35, 3.30] },
+      nozzle:   { pos: [3.65, 0.72, -11.9], target: [0.25, -0.02, -7.85] },
+      top:      { pos: [1.75, 29.0, 0.0], target: [1.75, 0.0, 0.0] }
+    };
+
+    let camAnim = null;
+    function goToCameraPreset(key) {
+      const p = CAM_PRESETS[key];
+      if (!p) return;
+      camAnim = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        toPos: new THREE.Vector3(...p.pos),
+        fromTgt: controls.target.clone(),
+        toTgt: new THREE.Vector3(...p.target)
+      };
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.cam === key));
+    }
+
+    // =========================================================================
+    // 14. EXPORTS (.GLB, .OBJ, .PNG) WITH PRE-EXPORT REST-POSE RESET HOOK
+    // =========================================================================
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function setExportStatus(msg) { document.getElementById('export-status').textContent = msg; }
+
+    function runWithRestPoseAndExport(fn) {
+      const prevColVis = colliderGroup ? colliderGroup.visible : false;
+      const prevWire = MATS.armor.wireframe;
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMatList) m.wireframe = false;
+
+      resetAllPosesForRest(false);
+      for (const eff of nozzleEffects) eff.plumeMesh.visible = false;
+      assetGroup.updateMatrixWorld(true);
+
+      try {
+        fn();
+      } finally {
+        for (const eff of nozzleEffects) eff.plumeMesh.visible = flightState.thrust > 0.03;
+        if (colliderGroup) colliderGroup.visible = prevColVis;
+        for (const m of solidMatList) m.wireframe = prevWire;
+      }
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      setExportStatus('Baking Rest-Pose GLB...');
+      runWithRestPoseAndExport(() => {
+        new GLTFExporter().parse(
+          assetGroup,
+          (result) => {
+            const blob = new Blob([result], { type: 'model/gltf-binary' });
+            triggerBlobDownload(blob, `Wraith_IX_Stealth_Interceptor_${currentLOD}.glb`);
+            setExportStatus(`Exported .GLB (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+          },
+          (err) => { console.error(err); setExportStatus('GLB Export Error!'); },
+          { binary: true, onlyVisible: true }
+        );
+      });
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      setExportStatus('Generating Rest-Pose OBJ...');
+      runWithRestPoseAndExport(() => {
+        const objText = new OBJExporter().parse(assetGroup);
+        const blob = new Blob([objText], { type: 'text/plain' });
+        triggerBlobDownload(blob, `Wraith_IX_Stealth_Interceptor_${currentLOD}.obj`);
+        setExportStatus(`Exported .OBJ (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+      });
+    });
+
+    function downloadCanvasPNG(canvas, name) {
+      canvas.toBlob((blob) => { if (blob) triggerBlobDownload(blob, name); }, 'image/png');
+    }
+
+    document.getElementById('card-albedo').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvases[currentLivery], `WraithIX_Albedo_${currentLivery}.png`);
+      setExportStatus(`Downloaded Albedo (${currentLivery}).png`);
+    });
+    document.getElementById('card-normal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.normalCanvas, 'WraithIX_Normal_Sobel.png');
+      setExportStatus('Downloaded Normal_Sobel.png');
+    });
+    document.getElementById('card-rough').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.roughCanvas, 'WraithIX_Roughness.png');
+      setExportStatus('Downloaded Roughness.png');
+    });
+    document.getElementById('card-metal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.metalCanvas, 'WraithIX_Metalness.png');
+      setExportStatus('Downloaded Metalness.png');
+    });
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvases[currentLivery], `WraithIX_Albedo_${currentLivery}.png`);
+      downloadCanvasPNG(TEX.normalCanvas, 'WraithIX_Normal_Sobel.png');
+      downloadCanvasPNG(TEX.roughCanvas, 'WraithIX_Roughness.png');
+      downloadCanvasPNG(TEX.metalCanvas, 'WraithIX_Metalness.png');
+      downloadCanvasPNG(TEX.hudCanvas, 'WraithIX_Cockpit_HUD_Emissive.png');
+      setExportStatus('Downloaded 5x 1024×1024 PBR Maps (.png)');
+    });
+
+    // =========================================================================
+    // 15. UI EVENT WIRING
+    // =========================================================================
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => goToCameraPreset(btn.dataset.cam));
+    });
+
+    document.getElementById('btn-lod-hero').addEventListener('click', () => {
+      if (currentLOD === 'hero') return;
+      currentLOD = 'hero';
+      document.getElementById('btn-lod-hero').classList.add('active');
+      document.getElementById('btn-lod-game').classList.remove('active');
+      buildAircraft('hero');
+    });
+    document.getElementById('btn-lod-game').addEventListener('click', () => {
+      if (currentLOD === 'game') return;
+      currentLOD = 'game';
+      document.getElementById('btn-lod-game').classList.add('active');
+      document.getElementById('btn-lod-hero').classList.remove('active');
+      buildAircraft('game');
+    });
+
+    document.querySelectorAll('[data-livery]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentLivery = btn.dataset.livery;
+        document.querySelectorAll('[data-livery]').forEach(b => b.classList.toggle('active', b === btn));
+        MATS.armor.map = TEX.albedoTex[currentLivery];
+        MATS.armor.needsUpdate = true;
+        refreshTextureThumbnails(currentLivery);
+      });
+    });
+
+    const bindSlider = (id, lblId, suffix, onChange) => {
+      const el = document.getElementById(id), lbl = document.getElementById(lblId);
+      el.addEventListener('input', () => {
+        const v = Number(el.value);
+        lbl.textContent = `${v}${suffix}`;
+        onChange(v);
+        applyArticulationFromState(performance.now() * 0.001);
+      });
+    };
+    bindSlider('sl-thrust', 'val-thrust', '%', (v) => { flightState.thrust = v / 100; });
+    bindSlider('sl-vec-pitch', 'val-vec-pitch', '°', (v) => { flightState.vecPitchDeg = v; });
+    bindSlider('sl-vec-yaw', 'val-vec-yaw', '°', (v) => { flightState.vecYawDeg = v; });
+    bindSlider('sl-canopy', 'val-canopy', '%', (v) => { flightState.canopyPct = v; });
+    bindSlider('sl-airbrake', 'val-airbrake', '%', (v) => { flightState.airbrakePct = v; });
+    bindSlider('sl-pitch', 'val-pitch', '°', (v) => { flightState.pitchDeg = v; });
+    bindSlider('sl-roll', 'val-roll', '°', (v) => { flightState.rollDeg = v; });
+    bindSlider('sl-yaw', 'val-yaw', '°', (v) => { flightState.yawDeg = v; });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => resetAllPosesForRest(true));
+    document.getElementById('btn-demo-idle').addEventListener('click', () => {
+      demoIdleActive = !demoIdleActive;
+      document.getElementById('btn-demo-idle').textContent = demoIdleActive ? '微動展示: 開' : '微動展示: 關';
+    });
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      const next = !MATS.armor.wireframe;
+      for (const m of solidMatList) m.wireframe = next;
+      e.currentTarget.classList.toggle('active', next);
+    });
+
+    document.getElementById('btn-colliders').addEventListener('click', (e) => {
+      if (!colliderGroup) return;
+      colliderGroup.visible = !colliderGroup.visible;
+      e.currentTarget.classList.toggle('active', colliderGroup.visible);
+    });
+
+    // =========================================================================
+    // 16. BOOTSTRAP & RENDER LOOP
+    // =========================================================================
+    buildAircraft('hero');
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.6);
+        const s = smoothstep(0, 1, camAnim.t);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      if (demoIdleActive) applyArticulationFromState(elapsed);
+      controls.update();
+      composer.render();
+    }
+    animate();
+  </script>
+</body>
+</html>

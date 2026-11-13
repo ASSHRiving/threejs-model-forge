@@ -1,0 +1,2225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astral Chronos Reliquary — Three.js ModelForge & Unity URP Exporter</title>
+  <style>
+    :root {
+      --bg-deep: #07090f;
+      --panel-bg: rgba(12, 16, 28, 0.84);
+      --panel-border: rgba(212, 175, 95, 0.24);
+      --gold: #e6c278;
+      --gold-dim: #9e8248;
+      --cyan: #4be8ff;
+      --cyan-dim: rgba(75, 232, 255, 0.18);
+      --text: #e9eef7;
+      --muted: #8b99b3;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 42% 38%, #151d32 0%, #090c16 58%, #04050a 100%);
+      color: var(--text);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud-header {
+      position: fixed;
+      top: 18px;
+      left: 20px;
+      z-index: 10;
+      pointer-events: none;
+      max-width: 440px;
+    }
+
+    .badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(75, 232, 255, 0.12);
+      border: 1px solid rgba(75, 232, 255, 0.35);
+      color: var(--cyan);
+    }
+
+    .badge.gold {
+      background: rgba(230, 194, 120, 0.12);
+      border-color: rgba(230, 194, 120, 0.38);
+      color: var(--gold);
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #fff;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .budget-bar {
+      position: fixed;
+      left: 20px;
+      bottom: 18px;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .stat-pill {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 8px 13px;
+      min-width: 112px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      margin-top: 2px;
+      font-size: 16px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--gold);
+    }
+
+    .stat-value.cyan { color: var(--cyan); }
+
+    .control-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      bottom: 16px;
+      width: 318px;
+      z-index: 20;
+      background: var(--panel-bg);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+    }
+
+    .control-panel::-webkit-scrollbar { width: 5px; }
+    .control-panel::-webkit-scrollbar-thumb { background: rgba(230, 194, 120, 0.28); border-radius: 99px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 6px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .seg-btn.active {
+      background: linear-gradient(135deg, rgba(230, 194, 120, 0.24), rgba(75, 232, 255, 0.14));
+      color: #fff;
+      border: 1px solid rgba(230, 194, 120, 0.45);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .toggle-btn:hover { border-color: rgba(230, 194, 120, 0.4); }
+
+    .toggle-btn.on {
+      background: rgba(75, 232, 255, 0.12);
+      border-color: rgba(75, 232, 255, 0.48);
+      color: #fff;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #445069;
+      flex-shrink: 0;
+    }
+
+    .toggle-btn.on .dot {
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .export-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(230, 194, 120, 0.65);
+      background: linear-gradient(135deg, #c89d47 0%, #8f6823 100%);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(200, 157, 71, 0.25);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+
+    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 9px;
+      border: 1px solid rgba(75, 232, 255, 0.35);
+      background: rgba(75, 232, 255, 0.09);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover { background: rgba(75, 232, 255, 0.18); }
+
+    .tex-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    select {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.45);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 7px 9px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .tex-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .tex-thumb {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .tex-thumb canvas {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #000;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tex-thumb:hover canvas {
+      transform: scale(1.04);
+      border-color: var(--gold);
+    }
+
+    .tex-thumb span {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .hierarchy-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 9px;
+      padding: 9px 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10.5px;
+      line-height: 1.55;
+      color: #b4c2dc;
+      max-height: 145px;
+      overflow-y: auto;
+    }
+
+    .status-toast {
+      position: fixed;
+      left: 50%;
+      top: 20px;
+      transform: translateX(-50%) translateY(-16px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 40;
+      background: rgba(12, 20, 34, 0.94);
+      border: 1px solid var(--cyan);
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      transition: all 0.25s ease;
+    }
+
+    .status-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <div class="hud-header">
+    <div class="badge-row">
+      <span class="badge">Three.js Procedural PBR</span>
+      <span class="badge gold">Unity URP Ready · 1u = 1m</span>
+    </div>
+    <h1>星穹時序星盤祭壇 · Astral Chronos Reliquary</h1>
+    <p class="subtitle">
+      1024×1024 程式化 PBR 貼圖 · 3×3 Sobel 法線烘焙 · 原生頂點色 AO (COLOR_0) · 匯出前自動歸位 Rest-Pose Hook
+    </p>
+  </div>
+
+  <div class="budget-bar">
+    <div class="stat-pill">
+      <div class="stat-label">Triangles</div>
+      <div class="stat-value" id="stat-tris">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Vertices</div>
+      <div class="stat-value" id="stat-verts">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Export Meshes</div>
+      <div class="stat-value cyan" id="stat-meshes">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Materials</div>
+      <div class="stat-value cyan" id="stat-mats">—</div>
+    </div>
+  </div>
+
+  <aside class="control-panel">
+    <div>
+      <div class="section-title">
+        <span>幾何精度 · LOD Budget</span>
+        <span style="color: var(--muted); font-weight: 500;">Pivot: y=0</span>
+      </div>
+      <div class="segmented">
+        <button class="seg-btn active" id="btn-lod-hero" data-lod="hero">Hero Showcase (~20k)</button>
+        <button class="seg-btn" id="btn-lod-game" data-lod="game">Game-Ready (~6k)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>預覽與檢視控制</span></div>
+      <div class="toggle-grid">
+        <button class="toggle-btn on" id="tgl-anim"><span>星輪動畫</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-turntable"><span>展示轉盤</span><span class="dot"></span></button>
+        <button class="toggle-btn on" id="tgl-bloom"><span>輝光後製</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-wire"><span>線框拓撲</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-colliders"><span>顯示 Collider</span><span class="dot"></span></button>
+        <button class="toggle-btn on" id="tgl-export-colliders"><span>匯出含 Collider</span><span class="dot"></span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>一鍵匯出 · Asset Export</span></div>
+      <div class="export-stack">
+        <button class="btn-primary" id="btn-export-glb">
+          <span>下載 .GLB 完整模型（含貼圖/階層/AO）</span>
+        </button>
+        <button class="btn-secondary" id="btn-export-obj">
+          <span>下載 .OBJ 幾何備份</span>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">
+        <span>1024×1024 PBR 貼圖檢視</span>
+        <span style="color: var(--muted); font-weight: 500;">點擊縮圖單張下載</span>
+      </div>
+      <div class="tex-controls">
+        <select id="sel-material">
+          <option value="gold">MAT_Royal_Gold (鎏金雕刻)</option>
+          <option value="stone">MAT_Altar_Stone (玄武岩雕石)</option>
+          <option value="bronze">MAT_Dark_Bronze (鍛造青銅)</option>
+          <option value="obsidian">MAT_Obsidian_Rune (黑曜符文)</option>
+          <option value="crystal">MAT_Arcane_Crystal (星界秘晶)</option>
+        </select>
+        <button class="btn-secondary" id="btn-export-pngs" style="width: auto; padding: 7px 11px;">全部 PNG</button>
+      </div>
+      <div class="tex-preview-grid" id="tex-preview-grid"></div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>Unity Prefab 節點階層</span></div>
+      <div class="hierarchy-box" id="hierarchy-box"></div>
+    </div>
+  </aside>
+
+  <div class="status-toast" id="status-toast">Ready</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // =========================================================================
+    // 1. UI Toast Helper & Deterministic PRNG / Noise
+    // =========================================================================
+    const toastEl = document.getElementById('status-toast');
+    let toastTimer = null;
+    function showToast(msg, duration = 2600) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+    }
+
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a |= 0;
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    // Tileable 256x256 value-noise grid for rapid 1024x1024 procedural synthesis
+    function createNoiseField(seed) {
+      const N = 256;
+      const grid = new Float32Array(N * N);
+      const rng = mulberry32(seed);
+      for (let i = 0; i < grid.length; i++) grid[i] = rng();
+
+      function sample(x, y) {
+        const xi = Math.floor(x);
+        const yi = Math.floor(y);
+        const xf = x - xi;
+        const yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf);
+        const v = yf * yf * (3 - 2 * yf);
+        const x0 = xi & 255;
+        const y0 = yi & 255;
+        const x1 = (x0 + 1) & 255;
+        const y1 = (y0 + 1) & 255;
+        const a = grid[(y0 << 8) | x0];
+        const b = grid[(y0 << 8) | x1];
+        const c = grid[(y1 << 8) | x0];
+        const d = grid[(y1 << 8) | x1];
+        return (a + (b - a) * u) * (1 - v) + (c + (d - c) * u) * v;
+      }
+
+      function fbm(u, v, baseFreq, octaves = 4) {
+        let sum = 0;
+        let amp = 0.5;
+        let norm = 0;
+        let freq = baseFreq;
+        for (let o = 0; o < octaves; o++) {
+          sum += amp * sample(u * freq, v * freq);
+          norm += amp;
+          amp *= 0.5;
+          freq *= 2.0;
+        }
+        return sum / norm;
+      }
+
+      return { sample, fbm };
+    }
+
+    // Tileable Worley cellular crack distance (edge = F2 - F1)
+    function createWorleyGrid(seed, cells = 12) {
+      const rng = mulberry32(seed);
+      const px = new Float32Array(cells * cells);
+      const py = new Float32Array(cells * cells);
+      for (let y = 0; y < cells; y++) {
+        for (let x = 0; x < cells; x++) {
+          const idx = y * cells + x;
+          px[idx] = x + 0.15 + rng() * 0.7;
+          py[idx] = y + 0.15 + rng() * 0.7;
+        }
+      }
+      return function worleyEdge(u, v) {
+        const gx = u * cells;
+        const gy = v * cells;
+        const ix = Math.floor(gx);
+        const iy = Math.floor(gy);
+        let d1 = 99;
+        let d2 = 99;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const cx = ((ix + dx) % cells + cells) % cells;
+            const cy = ((iy + dy) % cells + cells) % cells;
+            const idx = cy * cells + cx;
+            const fx = px[idx] + Math.floor((ix + dx) / cells) * cells - (ix + dx < 0 && (ix + dx) % cells !== 0 ? 0 : 0);
+            // Wrap delta carefully
+            let vx = (px[idx] - cx) + ix + dx - gx;
+            let vy = (py[idx] - cy) + iy + dy - gy;
+            const dist = Math.sqrt(vx * vx + vy * vy);
+            if (dist < d1) {
+              d2 = d1;
+              d1 = dist;
+            } else if (dist < d2) {
+              d2 = dist;
+            }
+          }
+        }
+        return d2 - d1;
+      };
+    }
+
+    // =========================================================================
+    // 2. 1024x1024 Procedural PBR Texture Synthesizer + 3x3 Sobel Normal Baker
+    // =========================================================================
+    const TEX_SIZE = 1024;
+
+    function makeCanvas(size = TEX_SIZE) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      return { canvas, ctx: canvas.getContext('2d') };
+    }
+
+    function bakeSobelNormalCanvas(heightBuf, size, strength) {
+      const { canvas, ctx } = makeCanvas(size);
+      const img = ctx.createImageData(size, size);
+      const data = img.data;
+      const mask = size - 1;
+
+      for (let y = 0; y < size; y++) {
+        const ym = (y - 1) & mask;
+        const yp = (y + 1) & mask;
+        const rowM = ym * size;
+        const row0 = y * size;
+        const rowP = yp * size;
+
+        for (let x = 0; x < size; x++) {
+          const xm = (x - 1) & mask;
+          const xp = (x + 1) & mask;
+
+          const tl = heightBuf[rowM + xm];
+          const t  = heightBuf[rowM + x];
+          const tr = heightBuf[rowM + xp];
+          const l  = heightBuf[row0 + xm];
+          const r  = heightBuf[row0 + xp];
+          const bl = heightBuf[rowP + xm];
+          const b  = heightBuf[rowP + x];
+          const br = heightBuf[rowP + xp];
+
+          const dX = (tr + 2 * r + br) - (tl + 2 * l + bl);
+          const dY = (bl + 2 * b + br) - (tl + 2 * t + tr);
+
+          let nx = -dX * strength;
+          let ny = -dY * strength;
+          let nz = 1.0;
+          const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+          nx *= invLen;
+          ny *= invLen;
+          nz *= invLen;
+
+          const p = (row0 + x) * 4;
+          data[p]     = Math.round((nx * 0.5 + 0.5) * 255);
+          data[p + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          data[p + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          data[p + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas;
+    }
+
+    function canvasToTexture(canvas, isSRGB, repeatX = 1, repeatY = 1) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(repeatX, repeatY);
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function generateMaterialSet(kind) {
+      const size = TEX_SIZE;
+      const n1 = createNoiseField(kind.charCodeAt(0) * 131 + 17);
+      const n2 = createNoiseField(kind.charCodeAt(1) * 257 + 91);
+      const worley = createWorleyGrid(kind.charCodeAt(0) * 97 + 43, kind === 'stone' ? 10 : 14);
+
+      const albedo = makeCanvas(size);
+      const rough = makeCanvas(size);
+      const metal = makeCanvas(size);
+      const emissive = makeCanvas(size);
+
+      const albImg = albedo.ctx.createImageData(size, size);
+      const rghImg = rough.ctx.createImageData(size, size);
+      const mtlImg = metal.ctx.createImageData(size, size);
+      const emsImg = emissive.ctx.createImageData(size, size);
+
+      const hBuf = new Float32Array(size * size);
+
+      // Optional crisp vector overlay canvas for filigree/runes before pixel synthesis
+      let patternData = null;
+      if (kind === 'gold' || kind === 'obsidian' || kind === 'glow') {
+        const pat = makeCanvas(size);
+        const pctx = pat.ctx;
+        pctx.fillStyle = '#000';
+        pctx.fillRect(0, 0, size, size);
+
+        if (kind === 'gold') {
+          // Astrolabe degree ticks, twin borders & geometric celestial filigree
+          pctx.strokeStyle = '#ffffff';
+          pctx.lineWidth = 4;
+          for (let i = 0; i < 64; i++) {
+            const x = (i / 64) * size;
+            const len = (i % 4 === 0) ? 130 : (i % 2 === 0 ? 80 : 48);
+            pctx.beginPath();
+            pctx.moveTo(x, 60);
+            pctx.lineTo(x, 60 + len);
+            pctx.moveTo(x, size - 60);
+            pctx.lineTo(x, size - 60 - len);
+            pctx.stroke();
+          }
+          // Center wave / Greek key bands
+          pctx.lineWidth = 8;
+          pctx.beginPath();
+          pctx.moveTo(0, 220); pctx.lineTo(size, 220);
+          pctx.moveTo(0, size - 220); pctx.lineTo(size, size - 220);
+          pctx.stroke();
+
+          pctx.lineWidth = 5;
+          for (let i = 0; i < 16; i++) {
+            const cx = (i + 0.5) * (size / 16);
+            pctx.beginPath();
+            pctx.arc(cx, size * 0.5, 92, 0, Math.PI * 2);
+            pctx.stroke();
+            pctx.beginPath();
+            pctx.moveTo(cx - 120, size * 0.5);
+            pctx.lineTo(cx + 120, size * 0.5);
+            pctx.stroke();
+          }
+        } else if (kind === 'obsidian' || kind === 'glow') {
+          // Carved sacred arcane geometric runes
+          pctx.strokeStyle = '#ffffff';
+          pctx.lineCap = 'round';
+          pctx.lineJoin = 'round';
+          const cols = 8;
+          const cell = size / cols;
+          const rng = mulberry32(kind === 'glow' ? 777 : 909);
+          for (let gy = 0; gy < cols; gy++) {
+            for (let gx = 0; gx < cols; gx++) {
+              const cx = (gx + 0.5) * cell;
+              const cy = (gy + 0.5) * cell;
+              const r = cell * 0.34;
+              pctx.lineWidth = kind === 'glow' ? 7 : 5;
+              pctx.beginPath();
+              pctx.arc(cx, cy, r, 0, Math.PI * 2);
+              pctx.stroke();
+              // Inner rune glyph strokes
+              pctx.beginPath();
+              const pts = 3 + Math.floor(rng() * 3);
+              for (let k = 0; k < pts; k++) {
+                const a = (k / pts) * Math.PI * 2 + rng() * 0.8;
+                const rx = cx + Math.cos(a) * r * 0.82;
+                const ry = cy + Math.sin(a) * r * 0.82;
+                if (k === 0) pctx.moveTo(rx, ry);
+                else pctx.lineTo(rx, ry);
+              }
+              pctx.closePath();
+              pctx.stroke();
+              pctx.beginPath();
+              pctx.moveTo(cx, cy - r * 1.1);
+              pctx.lineTo(cx, cy + r * 1.1);
+              pctx.stroke();
+            }
+          }
+        }
+        patternData = pctx.getImageData(0, 0, size, size).data;
+      }
+
+      for (let y = 0; y < size; y++) {
+        const v = y / size;
+        for (let x = 0; x < size; x++) {
+          const u = x / size;
+          const idx = y * size + x;
+          const p = idx * 4;
+
+          const fbmLo = n1.fbm(u, v, 8, 4);
+          const fbmHi = n2.fbm(u, v, 32, 3);
+          const patVal = patternData ? patternData[p] / 255 : 0;
+
+          let R = 128, G = 128, B = 128;
+          let rgh = 0.5, mtl = 0.0, h = 0.5;
+          let eR = 0, eG = 0, eB = 0;
+
+          if (kind === 'stone') {
+            const crack = Math.min(1, worley(u, v) * 3.8);
+            const crackMask = Math.pow(crack, 0.45);
+            const strata = Math.sin(v * Math.PI * 10 + fbmLo * 3.2) * 0.5 + 0.5;
+            const speck = fbmHi > 0.72 ? (fbmHi - 0.72) * 2.2 : 0;
+            h = (0.45 * fbmLo + 0.25 * fbmHi + 0.15 * strata) * crackMask;
+            const base = 34 + fbmLo * 34 + strata * 10 + speck * 28;
+            const crevice = 0.38 + 0.62 * crackMask;
+            R = base * crevice * 0.96;
+            G = base * crevice * 1.00;
+            B = base * crevice * 1.10;
+            rgh = 0.68 + (1 - crackMask) * 0.24 + (1 - fbmHi) * 0.10;
+            mtl = 0.03;
+          } else if (kind === 'gold') {
+            const brush = n1.fbm(u * 2.5, v * 0.25, 24, 3);
+            const hammer = Math.abs(worley(u, v) - 0.18);
+            const groove = patVal; // 1 = recessed engraved groove
+            h = 0.72 + brush * 0.12 + hammer * 0.08 - groove * 0.48;
+            const tarnish = groove * 0.65 + (1 - fbmLo) * 0.15;
+            R = 236 * (1 - tarnish * 0.55) + brush * 14;
+            G = 186 * (1 - tarnish * 0.62) + brush * 10;
+            B = 92  * (1 - tarnish * 0.70) + brush * 6;
+            rgh = 0.16 + groove * 0.36 + (1 - brush) * 0.09;
+            mtl = 0.95 - groove * 0.28;
+          } else if (kind === 'bronze') {
+            const pit = fbmHi < 0.28 ? (0.28 - fbmHi) * 2.4 : 0;
+            const brush = n2.fbm(u * 0.4, v * 2.0, 20, 3);
+            h = 0.65 + brush * 0.16 - pit * 0.35;
+            const patina = Math.max(0, fbmLo - 0.62) * 1.4;
+            R = 112 * (1 - pit * 0.4) - patina * 35;
+            G = 86  * (1 - pit * 0.35) + patina * 26;
+            B = 62  * (1 - pit * 0.3) + patina * 20;
+            rgh = 0.28 + pit * 0.35 + patina * 0.32;
+            mtl = 0.88 - patina * 0.45;
+          } else if (kind === 'obsidian') {
+            const frac = Math.pow(Math.min(1, worley(u, v) * 4.5), 0.35);
+            const sheen = n1.fbm(u, v, 14, 3);
+            h = 0.62 * frac + sheen * 0.18 - patVal * 0.42;
+            const base = 15 + sheen * 16 + frac * 12;
+            R = base * (1 - patVal * 0.5) + patVal * 32;
+            G = base * (1 - patVal * 0.5) + patVal * 195;
+            B = base * 1.35 * (1 - patVal * 0.5) + patVal * 240;
+            rgh = 0.14 + (1 - frac) * 0.28 + patVal * 0.12;
+            mtl = 0.18 + patVal * 0.35;
+            eR = patVal * 40;
+            eG = patVal * 215;
+            eB = patVal * 255;
+          } else if (kind === 'crystal') {
+            const facet = worley(u, v);
+            const veins = Math.pow(Math.max(0, 1 - Math.abs(fbmLo - 0.5) * 6.5), 2);
+            h = 0.55 + facet * 0.35 + veins * 0.15;
+            R = 36 + veins * 110 + facet * 30;
+            G = 175 + veins * 75 + facet * 40;
+            B = 245 + facet * 10;
+            rgh = 0.08 + veins * 0.14;
+            mtl = 0.12;
+            eR = 18 + veins * 75;
+            eG = 135 + veins * 110;
+            eB = 215 + veins * 40;
+          } else if (kind === 'glow') {
+            const pulse = 0.45 + 0.55 * patVal;
+            h = 0.5 + patVal * 0.35 + fbmHi * 0.1;
+            R = 70 + pulse * 145;
+            G = 210 + pulse * 45;
+            B = 255;
+            rgh = 0.22;
+            mtl = 0.05;
+            eR = 48 + patVal * 160;
+            eG = 200 + patVal * 55;
+            eB = 255;
+          }
+
+          hBuf[idx] = h;
+          albImg.data[p]     = Math.max(0, Math.min(255, Math.round(R)));
+          albImg.data[p + 1] = Math.max(0, Math.min(255, Math.round(G)));
+          albImg.data[p + 2] = Math.max(0, Math.min(255, Math.round(B)));
+          albImg.data[p + 3] = 255;
+
+          const rByte = Math.max(0, Math.min(255, Math.round(rgh * 255)));
+          rghImg.data[p] = rghImg.data[p + 1] = rghImg.data[p + 2] = rByte;
+          rghImg.data[p + 3] = 255;
+
+          const mByte = Math.max(0, Math.min(255, Math.round(mtl * 255)));
+          mtlImg.data[p] = mtlImg.data[p + 1] = mtlImg.data[p + 2] = mByte;
+          mtlImg.data[p + 3] = 255;
+
+          emsImg.data[p]     = Math.max(0, Math.min(255, Math.round(eR)));
+          emsImg.data[p + 1] = Math.max(0, Math.min(255, Math.round(eG)));
+          emsImg.data[p + 2] = Math.max(0, Math.min(255, Math.round(eB)));
+          emsImg.data[p + 3] = 255;
+        }
+      }
+
+      albedo.ctx.putImageData(albImg, 0, 0);
+      rough.ctx.putImageData(rghImg, 0, 0);
+      metal.ctx.putImageData(mtlImg, 0, 0);
+      emissive.ctx.putImageData(emsImg, 0, 0);
+
+      const normalStrength = kind === 'stone' ? 3.8 : kind === 'gold' ? 2.6 : 2.2;
+      const normalCanvas = bakeSobelNormalCanvas(hBuf, size, normalStrength);
+
+      return {
+        canvases: {
+          Albedo: albedo.canvas,
+          Normal: normalCanvas,
+          Roughness: rough.canvas,
+          Metalness: metal.canvas,
+          Emissive: emissive.canvas
+        }
+      };
+    }
+
+    // Generate all material texture sets
+    const texSets = {
+      stone: generateMaterialSet('stone'),
+      gold: generateMaterialSet('gold'),
+      bronze: generateMaterialSet('bronze'),
+      obsidian: generateMaterialSet('obsidian'),
+      crystal: generateMaterialSet('crystal'),
+      glow: generateMaterialSet('glow')
+    };
+
+    function createPBRMaterials() {
+      const s = texSets.stone.canvases;
+      const MAT_Altar_Stone = new THREE.MeshStandardMaterial({
+        name: 'MAT_Altar_Stone',
+        map: canvasToTexture(s.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(s.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(1.15, 1.15),
+        roughnessMap: canvasToTexture(s.Roughness, false, 1, 1),
+        metalnessMap: canvasToTexture(s.Metalness, false, 1, 1),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const g = texSets.gold.canvases;
+      const MAT_Royal_Gold = new THREE.MeshStandardMaterial({
+        name: 'MAT_Royal_Gold',
+        map: canvasToTexture(g.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(g.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughnessMap: canvasToTexture(g.Roughness, false, 1, 1),
+        metalnessMap: canvasToTexture(g.Metalness, false, 1, 1),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const b = texSets.bronze.canvases;
+      const MAT_Dark_Bronze = new THREE.MeshStandardMaterial({
+        name: 'MAT_Dark_Bronze',
+        map: canvasToTexture(b.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(b.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughnessMap: canvasToTexture(b.Roughness, false, 1, 1),
+        metalnessMap: canvasToTexture(b.Metalness, false, 1, 1),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const o = texSets.obsidian.canvases;
+      const MAT_Obsidian_Rune = new THREE.MeshStandardMaterial({
+        name: 'MAT_Obsidian_Rune',
+        map: canvasToTexture(o.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(o.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(1.1, 1.1),
+        roughnessMap: canvasToTexture(o.Roughness, false, 1, 1),
+        metalnessMap: canvasToTexture(o.Metalness, false, 1, 1),
+        emissiveMap: canvasToTexture(o.Emissive, true, 1, 1),
+        emissive: new THREE.Color('#3de6ff'),
+        emissiveIntensity: 1.35,
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const c = texSets.crystal.canvases;
+      const MAT_Arcane_Crystal = new THREE.MeshStandardMaterial({
+        name: 'MAT_Arcane_Crystal',
+        map: canvasToTexture(c.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(c.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughnessMap: canvasToTexture(c.Roughness, false, 1, 1),
+        emissiveMap: canvasToTexture(c.Emissive, true, 1, 1),
+        emissive: new THREE.Color('#2ad8ff'),
+        emissiveIntensity: 1.45,
+        roughness: 0.9,
+        metalness: 0.15,
+        vertexColors: true
+      });
+
+      const w = texSets.glow.canvases;
+      const MAT_Arcane_Glow = new THREE.MeshStandardMaterial({
+        name: 'MAT_Arcane_Glow',
+        map: canvasToTexture(w.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(w.Normal, false, 1, 1),
+        roughnessMap: canvasToTexture(w.Roughness, false, 1, 1),
+        emissiveMap: canvasToTexture(w.Emissive, true, 1, 1),
+        emissive: new THREE.Color('#5ceeff'),
+        emissiveIntensity: 2.35,
+        roughness: 0.35,
+        metalness: 0.1,
+        vertexColors: true
+      });
+
+      const MAT_Collider_Proxy = new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x36ff9b,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.42
+      });
+
+      return {
+        MAT_Altar_Stone,
+        MAT_Royal_Gold,
+        MAT_Dark_Bronze,
+        MAT_Obsidian_Rune,
+        MAT_Arcane_Crystal,
+        MAT_Arcane_Glow,
+        MAT_Collider_Proxy
+      };
+    }
+
+    const materials = createPBRMaterials();
+
+    // =========================================================================
+    // 3. Procedural Geometry Engine (Normalized Attributes, Arc-Length UVs, Vertex AO)
+    // =========================================================================
+
+    function finalizeGeometry(geom, aoFn = null) {
+      // Ensure indexed format across all builders for clean BufferGeometryUtils.mergeGeometries
+      if (!geom.index) {
+        const count = geom.attributes.position.count;
+        const idx = count > 65535 ? new Uint32Array(count) : new Uint16Array(count);
+        for (let i = 0; i < count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      }
+
+      // Strip extraneous attributes so every merged chunk shares identical layout
+      for (const key of Object.keys(geom.attributes)) {
+        if (key !== 'position' && key !== 'normal' && key !== 'uv') {
+          geom.deleteAttribute(key);
+        }
+      }
+
+      if (!geom.attributes.normal) {
+        geom.computeVertexNormals();
+      }
+      if (!geom.attributes.uv) {
+        applyTriplanarUVs(geom, 1.0);
+      }
+
+      const pos = geom.attributes.position;
+      const nrm = geom.attributes.normal;
+      const uv = geom.attributes.uv;
+      const colors = new Float32Array(pos.count * 3);
+
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        const nx = nrm.getX(i);
+        const ny = nrm.getY(i);
+        const nz = nrm.getZ(i);
+        const u = uv.getX(i);
+        const v = uv.getY(i);
+
+        let ao = 1.0;
+        if (aoFn) {
+          ao = aoFn(x, y, z, nx, ny, nz, u, v);
+        } else {
+          // Default physical hemisphere + ground-contact AO
+          const groundContact = Math.min(1.0, 0.56 + y * 1.4);
+          const sky = 0.78 + 0.22 * ny;
+          ao = groundContact * sky;
+        }
+        ao = Math.max(0.18, Math.min(1.0, ao));
+        colors[i * 3]     = ao;
+        colors[i * 3 + 1] = ao;
+        colors[i * 3 + 2] = ao;
+      }
+
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geom.computeBoundingSphere();
+      return geom;
+    }
+
+    function applyTriplanarUVs(geom, scale = 0.55) {
+      if (!geom.attributes.normal) geom.computeVertexNormals();
+      const pos = geom.attributes.position;
+      const nrm = geom.attributes.normal;
+      const uvs = new Float32Array(pos.count * 2);
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = pos.getZ(i);
+        const ax = Math.abs(nrm.getX(i));
+        const ay = Math.abs(nrm.getY(i));
+        const az = Math.abs(nrm.getZ(i));
+        let u = 0, v = 0;
+        if (ay >= ax && ay >= az) {
+          u = x * scale;
+          v = z * scale;
+        } else if (ax >= ay && ax >= az) {
+          u = z * scale;
+          v = y * scale;
+        } else {
+          u = x * scale;
+          v = y * scale;
+        }
+        uvs[i * 2] = u;
+        uvs[i * 2 + 1] = v;
+      }
+      geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      return geom;
+    }
+
+    function mergeParts(parts) {
+      const valid = parts.filter(Boolean);
+      if (valid.length === 0) return null;
+      if (valid.length === 1) return valid[0];
+      return BufferGeometryUtils.mergeGeometries(valid, false);
+    }
+
+    function transformGeom(geom, pos = [0, 0, 0], rot = [0, 0, 0], scl = [1, 1, 1]) {
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rot[0], rot[1], rot[2]));
+      m.compose(new THREE.Vector3(...pos), q, new THREE.Vector3(...scl));
+      geom.applyMatrix4(m);
+      return geom;
+    }
+
+    // Revolved geometry with true cumulative Euclidean arc-length V coordinates
+    function buildLatheProfile(profile2D, radialSegs, uRepeat = 1, vScale = 1, closedLoop = false, aoFn = null) {
+      const pts = closedLoop ? [...profile2D, profile2D[0]] : profile2D;
+      const pCount = pts.length;
+
+      // Cumulative arc length along 2D profile
+      const arc = new Float32Array(pCount);
+      for (let i = 1; i < pCount; i++) {
+        const dr = pts[i][0] - pts[i - 1][0];
+        const dy = pts[i][1] - pts[i - 1][1];
+        arc[i] = arc[i - 1] + Math.sqrt(dr * dr + dy * dy);
+      }
+      const totalArc = Math.max(1e-5, arc[pCount - 1]);
+
+      const cols = radialSegs + 1;
+      const positions = [];
+      const uvs = [];
+      const indices = [];
+
+      for (let s = 0; s < cols; s++) {
+        const uNorm = s / radialSegs;
+        const theta = uNorm * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+
+        for (let p = 0; p < pCount; p++) {
+          const r = pts[p][0];
+          const y = pts[p][1];
+          positions.push(r * cosT, y, r * sinT);
+          uvs.push(uNorm * uRepeat, (arc[p] / totalArc) * vScale);
+        }
+      }
+
+      for (let s = 0; s < radialSegs; s++) {
+        for (let p = 0; p < pCount - 1; p++) {
+          const a = s * pCount + p;
+          const b = (s + 1) * pCount + p;
+          const c = (s + 1) * pCount + (p + 1);
+          const d = s * pCount + (p + 1);
+          indices.push(a, d, b);
+          indices.push(b, d, c);
+        }
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    // Swept custom 2D cross-section along 3D Catmull-Rom spline with Bishop frame (no twist!)
+    // and true cumulative Euclidean arc-length V coordinates
+    function buildSweptSplineTube(curvePoints, profile2D, tubularSegs, scaleFn = null, uRepeat = 1, vScale = 0.65, aoFn = null) {
+      const curve = new THREE.CatmullRomCurve3(curvePoints);
+      const frames = [];
+      const points = [];
+      const arc = new Float32Array(tubularSegs + 1);
+
+      for (let i = 0; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        const p = curve.getPointAt(t);
+        points.push(p);
+        if (i > 0) arc[i] = arc[i - 1] + p.distanceTo(points[i - 1]);
+      }
+
+      // Parallel transport (Bishop) frames
+      let prevT = curve.getTangentAt(0).normalize();
+      const upCandidate = Math.abs(prevT.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      let N = new THREE.Vector3().crossVectors(upCandidate, prevT).normalize();
+      let B = new THREE.Vector3().crossVectors(prevT, N).normalize();
+      frames.push({ T: prevT.clone(), N: N.clone(), B: B.clone() });
+
+      const q = new THREE.Quaternion();
+      for (let i = 1; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        const curT = curve.getTangentAt(t).normalize();
+        q.setFromUnitVectors(prevT, curT);
+        N = N.clone().applyQuaternion(q).normalize();
+        B = new THREE.Vector3().crossVectors(curT, N).normalize();
+        frames.push({ T: curT, N, B });
+        prevT = curT;
+      }
+
+      // Closed profile loop
+      const prof = [...profile2D, profile2D[0]];
+      const pCount = prof.length;
+      const pArc = new Float32Array(pCount);
+      for (let j = 1; j < pCount; j++) {
+        const dx = prof[j][0] - prof[j - 1][0];
+        const dy = prof[j][1] - prof[j - 1][1];
+        pArc[j] = pArc[j - 1] + Math.sqrt(dx * dx + dy * dy);
+      }
+      const totalPArc = Math.max(1e-5, pArc[pCount - 1]);
+
+      const positions = [];
+      const uvs = [];
+      const indices = [];
+
+      for (let i = 0; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        const scl = scaleFn ? scaleFn(t) : 1.0;
+        const sx = Array.isArray(scl) ? scl[0] : scl;
+        const sy = Array.isArray(scl) ? scl[1] : scl;
+        const { N: fn, B: fb } = frames[i];
+        const c = points[i];
+
+        for (let j = 0; j < pCount; j++) {
+          const lx = prof[j][0] * sx;
+          const ly = prof[j][1] * sy;
+          const wx = c.x + fn.x * lx + fb.x * ly;
+          const wy = c.y + fn.y * lx + fb.y * ly;
+          const wz = c.z + fn.z * lx + fb.z * ly;
+          positions.push(wx, wy, wz);
+          uvs.push((pArc[j] / totalPArc) * uRepeat, arc[i] * vScale);
+        }
+      }
+
+      for (let i = 0; i < tubularSegs; i++) {
+        for (let j = 0; j < pCount - 1; j++) {
+          const a = i * pCount + j;
+          const b = (i + 1) * pCount + j;
+          const c = (i + 1) * pCount + (j + 1);
+          const d = i * pCount + (j + 1);
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+
+      // End caps
+      const startCenterIdx = positions.length / 3;
+      positions.push(points[0].x, points[0].y, points[0].z);
+      uvs.push(0.5, 0);
+      for (let j = 0; j < pCount - 1; j++) {
+        indices.push(startCenterIdx, j + 1, j);
+      }
+
+      const endCenterIdx = positions.length / 3;
+      const endOffset = tubularSegs * pCount;
+      const lastP = points[tubularSegs];
+      positions.push(lastP.x, lastP.y, lastP.z);
+      uvs.push(0.5, arc[tubularSegs] * vScale);
+      for (let j = 0; j < pCount - 1; j++) {
+        indices.push(endCenterIdx, endOffset + j, endOffset + j + 1);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    // Faceted beveled prism / plinth with crisp normals and triplanar UVs
+    function buildBeveledPolygonPrism(sides, rBot, rTop, yBot, yTop, rotOffset = Math.PI / 8, aoFn = null) {
+      const geom = new THREE.CylinderGeometry(rTop, rBot, yTop - yBot, sides, 1, false);
+      geom.translate(0, (yTop + yBot) * 0.5, 0);
+      if (rotOffset) geom.rotateY(rotOffset);
+      // Convert to non-indexed for crisp architectural facets, then index cleanly
+      const crisp = geom.toNonIndexed();
+      crisp.computeVertexNormals();
+      applyTriplanarUVs(crisp, 0.55);
+      return finalizeGeometry(crisp, aoFn);
+    }
+
+    // Custom faceted bipyramid crystal with chamfered girdle
+    function buildFacetedCrystal(radius, topH, botH, sides = 8, girdleH = 0.08, aoFn = null) {
+      const positions = [];
+      const uvs = [];
+      const indices = [];
+
+      const yTopG = girdleH * 0.5;
+      const yBotG = -girdleH * 0.5;
+
+      function pushTri(ax, ay, az, au, av, bx, by, bz, bu, bv, cx, cy, cz, cu, cv) {
+        const base = positions.length / 3;
+        positions.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+        uvs.push(au, av, bu, bv, cu, cv);
+        indices.push(base, base + 1, base + 2);
+      }
+
+      for (let i = 0; i < sides; i++) {
+        const a0 = (i / sides) * Math.PI * 2;
+        const a1 = ((i + 1) / sides) * Math.PI * 2;
+        const x0 = Math.cos(a0) * radius;
+        const z0 = Math.sin(a0) * radius;
+        const x1 = Math.cos(a1) * radius;
+        const z1 = Math.sin(a1) * radius;
+
+        const u0 = i / sides;
+        const u1 = (i + 1) / sides;
+        const um = (u0 + u1) * 0.5;
+
+        // Top pyramid facet (CCW outward)
+        pushTri(0, topH, 0, um, 1.0, x1, yTopG, z1, u1, 0.55, x0, yTopG, z0, u0, 0.55);
+        // Girdle quad
+        pushTri(x0, yTopG, z0, u0, 0.55, x1, yTopG, z1, u1, 0.55, x1, yBotG, z1, u1, 0.45);
+        pushTri(x0, yTopG, z0, u0, 0.55, x1, yBotG, z1, u1, 0.45, x0, yBotG, z0, u0, 0.45);
+        // Bottom pyramid facet
+        pushTri(0, -botH, 0, um, 0.0, x0, yBotG, z0, u0, 0.45, x1, yBotG, z1, u1, 0.45);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    // Precision bevelled Astrolabe Ring (built via custom rotated Lathe profile + degree ticks)
+    function buildBevelledRingGeometry(radius, halfWidth, halfThick, radialSegs, aoFn = null) {
+      // 8-point chamfered octagonal ring cross-section (duplicated points for sharp bevel shading)
+      const rIn = radius - halfThick;
+      const rOut = radius + halfThick;
+      const rMidIn = radius - halfThick * 0.55;
+      const rMidOut = radius + halfThick * 0.55;
+      const wMax = halfWidth;
+      const wBevel = halfWidth * 0.62;
+
+      const prof = [
+        [rIn, -wBevel],
+        [rMidIn, -wMax],
+        [rMidOut, -wMax],
+        [rOut, -wBevel],
+        [rOut, wBevel],
+        [rMidOut, wMax],
+        [rMidIn, wMax],
+        [rIn, wBevel],
+        [rIn, -wBevel]
+      ];
+      return buildLatheProfile(prof, radialSegs, 6, 1, false, aoFn);
+    }
+
+    // =========================================================================
+    // 4. Asset Builder: Astral Chronos Reliquary (Hero & Game-Ready LODs)
+    // =========================================================================
+    const CORE_CENTER_Y = 2.15;
+    let assetGroup = null;
+    let dynamicNodes = {
+      ringOuter: null,
+      ringMiddle: null,
+      ringInner: null,
+      coreAssembly: null,
+      orbitShards: null
+    };
+    let colliderMeshes = [];
+
+    function buildAstralChronosReliquary(lodMode = 'hero') {
+      const isHero = lodMode === 'hero';
+
+      const seg = {
+        latheMajor: isHero ? 48 : 16,
+        latheRing:  isHero ? 56 : 22,
+        latheMinor: isHero ? 20 : 8,
+        splineArch: isHero ? 22 : 7,
+        ringTicks:  isHero ? 32 : 8,
+        crystalSides: isHero ? 8 : 6
+      };
+
+      const root = new THREE.Group();
+      root.name = 'Astral_Chronos_Reliquary';
+
+      const stoneParts = [];
+      const goldParts = [];
+      const bronzeParts = [];
+      const obsidianParts = [];
+      const glowParts = [];
+      const colliders = [];
+
+      // ---- A. Stepped Octagonal Stone Dais (y = 0.00 -> 0.64) ----
+      const stoneAO = (x, y, z, nx, ny, nz) => {
+        const r = Math.sqrt(x * x + z * z);
+        const contact = Math.min(1, 0.36 + y * 2.2);
+        const overhang = ny < -0.2 ? 0.45 : 1.0;
+        const stepShadow = (y > 0.21 && y < 0.27 && r < 1.32) ? 0.62 : 1.0;
+        return contact * overhang * stepShadow * (0.76 + 0.24 * ny);
+      };
+
+      // Tier 1 Base Plinth (y = 0 -> 0.16)
+      stoneParts.push(buildBeveledPolygonPrism(8, 1.66, 1.56, 0.00, 0.16, Math.PI / 8, stoneAO));
+      // Tier 2 Stepped Risers (y = 0.16 -> 0.28)
+      stoneParts.push(buildBeveledPolygonPrism(8, 1.44, 1.34, 0.16, 0.28, Math.PI / 8, stoneAO));
+      // Tier 3 Central Altar Pedestal (y = 0.28 -> 0.56)
+      stoneParts.push(buildBeveledPolygonPrism(8, 1.06, 0.94, 0.28, 0.56, Math.PI / 8, stoneAO));
+      // Tier 4 Upper Chamfer Crown (y = 0.56 -> 0.64)
+      stoneParts.push(buildBeveledPolygonPrism(8, 0.96, 0.88, 0.56, 0.64, Math.PI / 8, stoneAO));
+
+      // 8 Corner Anchor Buttress Blocks around Tier 1-2
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const rad = 1.42;
+        const block = buildBeveledPolygonPrism(4, 0.19, 0.14, 0.0, 0.29, Math.PI / 4, stoneAO);
+        transformGeom(block, [Math.cos(a) * rad, 0, Math.sin(a) * rad], [0, -a, 0]);
+        stoneParts.push(block);
+
+        // Bronze clamp on top of each anchor block
+        const clamp = buildBeveledPolygonPrism(4, 0.15, 0.11, 0.28, 0.34, Math.PI / 4);
+        transformGeom(clamp, [Math.cos(a) * rad, 0, Math.sin(a) * rad], [0, -a, 0]);
+        bronzeParts.push(clamp);
+      }
+
+      // ---- B. Recessed Obsidian Scrying Basin & Floor Arcane Ring ----
+      const basin = buildLatheProfile([
+        [0.001, 0.642],
+        [0.54, 0.625],
+        [0.64, 0.665],
+        [0.72, 0.665],
+        [0.74, 0.635]
+      ], seg.latheMajor, 2, 1, false);
+      obsidianParts.push(basin);
+
+      // Floor inlaid glowing sigil ring on Tier 2 terrace (y = 0.285)
+      const floorRing = buildLatheProfile([
+        [1.14, 0.282],
+        [1.14, 0.292],
+        [1.24, 0.292],
+        [1.24, 0.282],
+        [1.14, 0.282]
+      ], seg.latheMajor, 8, 1, false);
+      glowParts.push(floorRing);
+
+      // Gold bezel frame around central scrying basin
+      const basinTrim = buildBevelledRingGeometry(0.75, 0.028, 0.045, seg.latheMajor);
+      transformGeom(basinTrim, [0, 0.655, 0], [Math.PI / 2, 0, 0]);
+      goldParts.push(basinTrim);
+
+      // ---- C. 4 Corner Runic Beacon Pillars (45°, 135°, 225°, 315°) ----
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const px = Math.cos(a) * 1.24;
+        const pz = Math.sin(a) * 1.24;
+
+        // Fluted stone pillar column (y = 0.26 -> 1.12)
+        const pillarProf = [
+          [0.21, 0.26],
+          [0.19, 0.36],
+          [0.14, 0.44],
+          [0.125, 0.96],
+          [0.17, 1.06],
+          [0.19, 1.14],
+          [0.13, 1.14]
+        ];
+        const pillar = buildLatheProfile(pillarProf, 8, 2, 1.4, false, stoneAO);
+        transformGeom(pillar, [px, 0, pz], [0, -a, 0]);
+        stoneParts.push(pillar);
+
+        // Bronze collar at mid-shaft & top socket
+        const collar = buildBevelledRingGeometry(0.145, 0.025, 0.022, seg.latheMinor);
+        transformGeom(collar, [px, 0.72, pz], [Math.PI / 2, 0, 0]);
+        bronzeParts.push(collar);
+
+        const capBase = buildBevelledRingGeometry(0.165, 0.03, 0.026, seg.latheMinor);
+        transformGeom(capBase, [px, 1.15, pz], [Math.PI / 2, 0, 0]);
+        goldParts.push(capBase);
+
+        // 4 delicate gold filigree cage ribs framing the beacon crystal
+        for (let r = 0; r < 4; r++) {
+          const ra = a + (r / 4) * Math.PI * 2;
+          const ribCurve = [
+            new THREE.Vector3(px + Math.cos(ra) * 0.14, 1.16, pz + Math.sin(ra) * 0.14),
+            new THREE.Vector3(px + Math.cos(ra) * 0.18, 1.32, pz + Math.sin(ra) * 0.18),
+            new THREE.Vector3(px + Math.cos(ra) * 0.07, 1.48, pz + Math.sin(ra) * 0.07),
+            new THREE.Vector3(px, 1.56, pz)
+          ];
+          const ribProf = [[-0.014, -0.012], [0.014, -0.012], [0.014, 0.012], [-0.014, 0.012]];
+          goldParts.push(buildSweptSplineTube(ribCurve, ribProf, isHero ? 10 : 4, (t) => 1.0 - t * 0.35, 1, 1.2));
+        }
+
+        // Beacon finial spire
+        const finial = buildFacetedCrystal(0.045, 0.14, 0.03, 6, 0.02);
+        transformGeom(finial, [px, 1.58, pz]);
+        goldParts.push(finial);
+
+        // Glowing beacon crystal inside cage
+        const flame = buildFacetedCrystal(0.068, 0.15, 0.11, 6, 0.03);
+        transformGeom(flame, [px, 1.34, pz]);
+        glowParts.push(flame);
+      }
+
+      // ---- D. 4 Sweeping Celestial Cradle Buttresses & Meridian Outer Frame ----
+      const archProf = [
+        [-0.068, -0.045],
+        [-0.042, -0.068],
+        [ 0.042, -0.068],
+        [ 0.068, -0.045],
+        [ 0.068,  0.045],
+        [ 0.042,  0.068],
+        [-0.042,  0.068],
+        [-0.068,  0.045]
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+
+        // Swept structural arch rising from dais (r=0.92, y=0.58) to meridian cradle (r=1.28, y=2.15)
+        const archPts = [
+          new THREE.Vector3(ca * 0.90, 0.56, sa * 0.90),
+          new THREE.Vector3(ca * 1.18, 0.88, sa * 1.18),
+          new THREE.Vector3(ca * 1.44, 1.42, sa * 1.44),
+          new THREE.Vector3(ca * 1.38, 1.92, sa * 1.38),
+          new THREE.Vector3(ca * 1.24, CORE_CENTER_Y, sa * 1.24)
+        ];
+        const arch = buildSweptSplineTube(
+          archPts,
+          archProf,
+          seg.splineArch,
+          (t) => {
+            const w = 1.15 - 0.35 * t + 0.18 * Math.sin(t * Math.PI * 2);
+            return [w, w * 0.85];
+          },
+          2,
+          0.7
+        );
+        goldParts.push(arch);
+
+        // Bronze structural base socket & upper trunnion bearing
+        const foot = buildBeveledPolygonPrism(6, 0.17, 0.13, 0.54, 0.70, a);
+        transformGeom(foot, [ca * 0.92, 0, sa * 0.92]);
+        bronzeParts.push(foot);
+
+        const trunnion = buildLatheProfile([
+          [0.001, -0.09],
+          [0.095, -0.09],
+          [0.105, -0.04],
+          [0.075,  0.04],
+          [0.095,  0.08],
+          [0.001,  0.08]
+        ], seg.latheMinor, 2, 1, false);
+        // Align lathe Y-axis radially inward
+        const qAlign = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 1, 0),
+          new THREE.Vector3(-ca, 0, -sa)
+        );
+        const eulerAlign = new THREE.Euler().setFromQuaternion(qAlign);
+        transformGeom(trunnion, [ca * 1.25, CORE_CENTER_Y, sa * 1.25], [eulerAlign.x, eulerAlign.y, eulerAlign.z]);
+        bronzeParts.push(trunnion);
+      }
+
+      // Grand Static Meridian Halo Rings (3 orthogonal arcs cradling the astrolabe at y=CORE_CENTER_Y, R=1.24)
+      const meridianHoriz = buildBevelledRingGeometry(1.24, 0.044, 0.052, seg.latheRing);
+      transformGeom(meridianHoriz, [0, CORE_CENTER_Y, 0], [0, 0, 0]);
+      goldParts.push(meridianHoriz);
+
+      const meridianVertical1 = buildBevelledRingGeometry(1.24, 0.044, 0.052, seg.latheRing);
+      transformGeom(meridianVertical1, [0, CORE_CENTER_Y, 0], [Math.PI / 2, 0, 0]);
+      goldParts.push(meridianVertical1);
+
+      const meridianVertical2 = buildBevelledRingGeometry(1.24, 0.044, 0.052, seg.latheRing);
+      meridianVertical2.rotateX(Math.PI / 2);
+      meridianVertical2.rotateY(Math.PI / 2);
+      meridianVertical2.translate(0, CORE_CENTER_Y, 0);
+      bronzeParts.push(meridianVertical2);
+
+      // Crown Sunburst Finial at top of Meridian (y = 3.39 -> 3.68)
+      const crownBase = buildLatheProfile([
+        [0.001, 3.37],
+        [0.13, 3.39],
+        [0.09, 3.45],
+        [0.14, 3.49],
+        [0.04, 3.55],
+        [0.001, 3.69]
+      ], seg.latheMinor, 2, 1, false);
+      goldParts.push(crownBase);
+
+      const crownGem = buildFacetedCrystal(0.065, 0.13, 0.09, 6, 0.03);
+      transformGeom(crownGem, [0, 3.48, 0]);
+      glowParts.push(crownGem);
+
+      // Plumb Spire beneath Meridian (y = 0.76 -> 0.96)
+      const plumbSpire = buildFacetedCrystal(0.065, 0.08, 0.22, 8, 0.02);
+      transformGeom(plumbSpire, [0, 0.90, 0]);
+      goldParts.push(plumbSpire);
+
+      // ---- Build Merged Static Meshes ----
+      const staticMeshes = [
+        { name: 'Altar_Stone_Static', parts: stoneParts, mat: materials.MAT_Altar_Stone },
+        { name: 'Altar_Gold_Frame_Static', parts: goldParts, mat: materials.MAT_Royal_Gold },
+        { name: 'Altar_Bronze_Static', parts: bronzeParts, mat: materials.MAT_Dark_Bronze },
+        { name: 'Altar_Obsidian_Static', parts: obsidianParts, mat: materials.MAT_Obsidian_Rune },
+        { name: 'Altar_Glow_Static', parts: glowParts, mat: materials.MAT_Arcane_Glow }
+      ];
+
+      for (const item of staticMeshes) {
+        const merged = mergeParts(item.parts);
+        if (merged) {
+          const mesh = new THREE.Mesh(merged, item.mat);
+          mesh.name = item.name;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          root.add(mesh);
+        }
+      }
+
+      // ---- E. Helper to Build Articulated Engraved Astrolabe Rings ----
+      function makeEngravedRingNode(name, radius, width, thick, tickCount, hasGlowTrack, restEuler) {
+        const node = new THREE.Group();
+        node.name = name;
+        node.position.set(0, CORE_CENTER_Y, 0);
+        node.userData.restRotation = new THREE.Euler(...restEuler);
+        node.rotation.copy(node.userData.restRotation);
+
+        const gParts = [];
+        const bParts = [];
+        const gemParts = [];
+        const wParts = [];
+
+        // Main bevelled ring (lies in local XZ plane)
+        gParts.push(buildBevelledRingGeometry(radius, width, thick, seg.latheRing));
+
+        // Inner bronze Vernier track
+        bParts.push(buildBevelledRingGeometry(radius - thick * 0.92, width * 0.45, thick * 0.28, seg.latheRing));
+
+        // Engraved degree teeth / notched cogs around outer circumference
+        for (let i = 0; i < tickCount; i++) {
+          const a = (i / tickCount) * Math.PI * 2;
+          const isMajor = i % 4 === 0;
+          const toothW = isMajor ? 0.026 : 0.015;
+          const toothH = isMajor ? width * 1.15 : width * 0.72;
+          const toothD = isMajor ? 0.042 : 0.024;
+          const tooth = buildBeveledPolygonPrism(4, toothW, toothW * 0.75, -toothH, toothH, Math.PI / 4);
+          transformGeom(
+            tooth,
+            [Math.cos(a) * (radius + thick + toothD * 0.35), 0, Math.sin(a) * (radius + thick + toothD * 0.35)],
+            [0, -a, 0],
+            [1, 1, 1]
+          );
+          (isMajor ? gParts : bParts).push(tooth);
+        }
+
+        // 4 Cardinal Bezel Mounts + Gems
+        for (let c = 0; c < 4; c++) {
+          const a = (c / 4) * Math.PI * 2;
+          const bx = Math.cos(a) * radius;
+          const bz = Math.sin(a) * radius;
+
+          const bezel = buildBevelledRingGeometry(0.056, 0.022, 0.018, seg.latheMinor);
+          transformGeom(bezel, [bx, width * 0.9, bz]);
+          gParts.push(bezel);
+
+          const gem = buildFacetedCrystal(0.036, 0.042, 0.028, 6, 0.012);
+          transformGeom(gem, [bx, width * 0.95, bz]);
+          gemParts.push(gem);
+        }
+
+        if (hasGlowTrack) {
+          const glowTrack = buildBevelledRingGeometry(radius + thick * 0.72, width * 0.22, 0.008, seg.latheRing);
+          wParts.push(glowTrack);
+        }
+
+        const gMesh = new THREE.Mesh(mergeParts(gParts), materials.MAT_Royal_Gold);
+        gMesh.name = `${name}_Gold`;
+        gMesh.castShadow = true;
+        gMesh.receiveShadow = true;
+        node.add(gMesh);
+
+        const bMesh = new THREE.Mesh(mergeParts(bParts), materials.MAT_Dark_Bronze);
+        bMesh.name = `${name}_Bronze`;
+        bMesh.castShadow = true;
+        bMesh.receiveShadow = true;
+        node.add(bMesh);
+
+        const gemMesh = new THREE.Mesh(mergeParts(gemParts), materials.MAT_Arcane_Crystal);
+        gemMesh.name = `${name}_Gems`;
+        node.add(gemMesh);
+
+        if (wParts.length > 0) {
+          const wMesh = new THREE.Mesh(mergeParts(wParts), materials.MAT_Arcane_Glow);
+          wMesh.name = `${name}_Glow`;
+          node.add(wMesh);
+        }
+
+        return node;
+      }
+
+      const ringOuter = makeEngravedRingNode('Ring_Outer', 1.05, 0.044, 0.042, seg.ringTicks, false, [0.38, 0.22, 0.14]);
+      const ringMiddle = makeEngravedRingNode('Ring_Middle', 0.85, 0.038, 0.036, Math.round(seg.ringTicks * 0.75), true, [-0.55, 0.45, -0.32]);
+      const ringInner = makeEngravedRingNode('Ring_Inner', 0.65, 0.032, 0.030, Math.round(seg.ringTicks * 0.5), false, [0.85, -0.35, 0.52]);
+
+      root.add(ringOuter, ringMiddle, ringInner);
+
+      // ---- F. Central Levitating Arcane Core Assembly ----
+      const coreAssembly = new THREE.Group();
+      coreAssembly.name = 'Core_Crystal_Assembly';
+      coreAssembly.position.set(0, CORE_CENTER_Y, 0);
+      coreAssembly.userData.restPosition = new THREE.Vector3(0, CORE_CENTER_Y, 0);
+      coreAssembly.userData.restRotation = new THREE.Euler(0, 0, 0);
+
+      const coreCrystalParts = [];
+      const coreAO = (x, y, z, nx, ny) => {
+        const dist = Math.sqrt(x * x + y * y + z * z);
+        return Math.min(1.0, 0.65 + dist * 0.85 + Math.abs(ny) * 0.15);
+      };
+      // Hero center bipyramid crystal
+      coreCrystalParts.push(buildFacetedCrystal(0.18, 0.42, 0.42, seg.crystalSides, 0.12, coreAO));
+      // 4 satellite interlocking crystal shards
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const shard = buildFacetedCrystal(0.065, 0.22, 0.18, 6, 0.05, coreAO);
+        transformGeom(shard, [Math.cos(a) * 0.15, (i % 2 === 0 ? 0.05 : -0.05), Math.sin(a) * 0.15], [0.22 * Math.sin(a), a, -0.22 * Math.cos(a)]);
+        coreCrystalParts.push(shard);
+      }
+      const coreCrystalMesh = new THREE.Mesh(mergeParts(coreCrystalParts), materials.MAT_Arcane_Crystal);
+      coreCrystalMesh.name = 'Core_Arcane_Crystal';
+      coreCrystalMesh.castShadow = true;
+      coreAssembly.add(coreCrystalMesh);
+
+      // Gyroscopic golden filigree cage hugging the core crystal
+      const cageParts = [];
+      const cage1 = buildBevelledRingGeometry(0.32, 0.016, 0.014, seg.latheMinor);
+      transformGeom(cage1, [0, 0, 0], [Math.PI / 4, 0, Math.PI / 6]);
+      const cage2 = buildBevelledRingGeometry(0.32, 0.016, 0.014, seg.latheMinor);
+      transformGeom(cage2, [0, 0, 0], [-Math.PI / 4, 0, -Math.PI / 6]);
+      cageParts.push(cage1, cage2);
+      const cageMesh = new THREE.Mesh(mergeParts(cageParts), materials.MAT_Royal_Gold);
+      cageMesh.name = 'Core_Filigree_Cage';
+      coreAssembly.add(cageMesh);
+
+      // Equatorial arcane halo ring
+      const haloMesh = new THREE.Mesh(
+        buildBevelledRingGeometry(0.38, 0.010, 0.010, seg.latheMinor),
+        materials.MAT_Arcane_Glow
+      );
+      haloMesh.name = 'Core_Energy_Halo';
+      coreAssembly.add(haloMesh);
+
+      root.add(coreAssembly);
+
+      // ---- G. 6 Orbiting Carved Obsidian Rune Monoliths ----
+      const orbitShards = new THREE.Group();
+      orbitShards.name = 'Orbit_Rune_Shards';
+      orbitShards.position.set(0, CORE_CENTER_Y, 0);
+      orbitShards.userData.restRotation = new THREE.Euler(0, 0, 0);
+
+      const shardObsParts = [];
+      const shardGlowParts = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const rx = Math.cos(a) * 0.50;
+        const rz = Math.sin(a) * 0.50;
+        const ry = Math.sin(i * 2.1) * 0.14;
+        const tiltX = Math.sin(a) * 0.25;
+        const tiltZ = -Math.cos(a) * 0.25;
+
+        const body = buildFacetedCrystal(0.052, 0.19, 0.16, 4, 0.16);
+        transformGeom(body, [rx, ry, rz], [tiltX, a, tiltZ]);
+        shardObsParts.push(body);
+
+        const tip = buildFacetedCrystal(0.025, 0.06, 0.04, 4, 0.02);
+        transformGeom(tip, [rx, ry + 0.22, rz], [tiltX, a, tiltZ]);
+        shardGlowParts.push(tip);
+      }
+
+      const shardObsMesh = new THREE.Mesh(mergeParts(shardObsParts), materials.MAT_Obsidian_Rune);
+      shardObsMesh.name = 'Shard_Obsidian_Mesh';
+      shardObsMesh.castShadow = true;
+      orbitShards.add(shardObsMesh);
+
+      const shardGlowMesh = new THREE.Mesh(mergeParts(shardGlowParts), materials.MAT_Arcane_Glow);
+      shardGlowMesh.name = 'Shard_Glow_Mesh';
+      orbitShards.add(shardGlowMesh);
+
+      root.add(orbitShards);
+
+      // ---- H. Low-Poly Convex Collision Proxies (Collider_*) ----
+      const colBase = new THREE.Mesh(
+        finalizeGeometry(new THREE.CylinderGeometry(1.50, 1.66, 0.64, 8).translate(0, 0.32, 0)),
+        materials.MAT_Collider_Proxy
+      );
+      colBase.name = 'Collider_Base_Plinth';
+
+      const colArmillary = new THREE.Mesh(
+        finalizeGeometry(new THREE.IcosahedronGeometry(1.30, 1).translate(0, CORE_CENTER_Y, 0)),
+        materials.MAT_Collider_Proxy
+      );
+      colArmillary.name = 'Collider_Armillary_Sphere';
+
+      const colPillarsParts = [];
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const g = new THREE.CylinderGeometry(0.19, 0.21, 1.32, 6);
+        g.translate(Math.cos(a) * 1.24, 0.92, Math.sin(a) * 1.24);
+        colPillarsParts.push(finalizeGeometry(g));
+      }
+      const colPillars = new THREE.Mesh(mergeParts(colPillarsParts), materials.MAT_Collider_Proxy);
+      colPillars.name = 'Collider_Corner_Pillars';
+
+      colliders.push(colBase, colArmillary, colPillars);
+      for (const cm of colliders) {
+        cm.visible = state.showColliders;
+        cm.userData.isColliderProxy = true;
+        root.add(cm);
+      }
+
+      dynamicNodes = {
+        ringOuter,
+        ringMiddle,
+        ringInner,
+        coreAssembly,
+        orbitShards
+      };
+      colliderMeshes = colliders;
+
+      return root;
+    }
+
+    // =========================================================================
+    // 5. Scene, PMREM Studio Lighting, Post-Processing & OrbitControls
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+
+    // PMREM RoomEnvironment (matches Unity URP Reflection Probes)
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.85;
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 100);
+    camera.position.set(4.55, 2.85, 5.35);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0.65, 1.75, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 1.6;
+    controls.maxDistance = 12;
+    controls.maxPolarAngle = Math.PI * 0.52;
+    controls.update();
+
+    // Studio Lighting (Key + Rim + Hemisphere + max 1 dynamic PointLight)
+    const hemiLight = new THREE.HemisphereLight(0xbcd8ff, 0x1b1410, 0.55);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.35);
+    keyLight.position.set(4.5, 6.8, 4.2);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 18;
+    const d = 2.8;
+    keyLight.shadow.camera.left = -d;
+    keyLight.shadow.camera.right = d;
+    keyLight.shadow.camera.top = d;
+    keyLight.shadow.camera.bottom = -d;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x52d1ff, 1.35);
+    rimLight.position.set(-4.8, 3.6, -4.4);
+    scene.add(rimLight);
+
+    // Consolidated single dynamic PointLight inside the arcane core
+    const corePointLight = new THREE.PointLight(0x4be8ff, 3.2, 6.5, 1.8);
+    corePointLight.position.set(0, CORE_CENTER_Y, 0);
+    scene.add(corePointLight);
+
+    // Studio Floor Grid & Shadow Catcher (explicitly OUTSIDE assetGroup)
+    const studioStage = new THREE.Group();
+    studioStage.name = 'Studio_Stage_NonExported';
+
+    const shadowCatcher = new THREE.Mesh(
+      new THREE.CircleGeometry(4.2, 64).rotateX(-Math.PI / 2),
+      new THREE.ShadowMaterial({ opacity: 0.48 })
+    );
+    shadowCatcher.receiveShadow = true;
+    studioStage.add(shadowCatcher);
+
+    const gridHelper = new THREE.GridHelper(8, 24, 0x3b4d70, 0x182236);
+    gridHelper.position.y = -0.002;
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.45;
+    studioStage.add(gridHelper);
+
+    const polarHelper = new THREE.PolarGridHelper(2.4, 8, 6, 64, 0xd4af5f, 0x243452);
+    polarHelper.position.y = -0.001;
+    polarHelper.material.transparent = true;
+    polarHelper.material.opacity = 0.28;
+    studioStage.add(polarHelper);
+
+    scene.add(studioStage);
+
+    // Post-processing Composer (Viewport-only bloom)
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.34,
+      0.55,
+      0.86
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 6. State Management, Budget HUD & Hierarchy Inspector
+    // =========================================================================
+    const state = {
+      lod: 'hero',
+      animate: true,
+      turntable: false,
+      bloom: true,
+      wireframe: false,
+      showColliders: false,
+      exportColliders: true
+    };
+
+    function rebuildAsset(lodMode) {
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        assetGroup.traverse((obj) => {
+          if (obj.isMesh && obj.geometry) obj.geometry.dispose();
+        });
+      }
+      state.lod = lodMode;
+      assetGroup = buildAstralChronosReliquary(lodMode);
+      applyWireframeState();
+      scene.add(assetGroup);
+      updateBudgetHUD();
+      updateHierarchyBox();
+    }
+
+    function applyWireframeState() {
+      for (const [key, mat] of Object.entries(materials)) {
+        if (key === 'MAT_Collider_Proxy') continue;
+        mat.wireframe = state.wireframe;
+      }
+    }
+
+    function updateBudgetHUD() {
+      if (!assetGroup) return;
+      let tris = 0;
+      let verts = 0;
+      let meshCount = 0;
+      const matNames = new Set();
+
+      assetGroup.traverse((obj) => {
+        if (!obj.isMesh) return;
+        if (obj.userData.isColliderProxy && !state.exportColliders) return;
+        const g = obj.geometry;
+        meshCount++;
+        verts += g.attributes.position.count;
+        tris += g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+        if (obj.material && obj.material.name) matNames.add(obj.material.name);
+      });
+
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-meshes').textContent = meshCount.toString();
+      document.getElementById('stat-mats').textContent = matNames.size.toString();
+    }
+
+    function updateHierarchyBox() {
+      const box = document.getElementById('hierarchy-box');
+      const lines = [];
+      function walk(node, depth) {
+        if (node.userData.isColliderProxy && !state.exportColliders) return;
+        const indent = '  '.repeat(depth);
+        const tag = node.isMesh ? `[Mesh · ${node.material?.name || ''}]` : '[Group]';
+        lines.push(`${indent}├─ ${node.name} <span style="color:#6d7f9e">${tag}</span>`);
+        for (const c of node.children) walk(c, depth + 1);
+      }
+      if (assetGroup) walk(assetGroup, 0);
+      box.innerHTML = lines.join('<br>');
+    }
+
+    // =========================================================================
+    // 7. Pre-Export Pose Reset Hook & One-Click GLB / OBJ / PNG Exporters
+    // =========================================================================
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    // Executes canonical Rest-Pose Reset Hook before serialization and restores after
+    function withRestPoseForExport(callback) {
+      const prevAnim = state.animate;
+      state.animate = false;
+
+      // Save current live preview transforms
+      const saved = {
+        rootRotY: assetGroup.rotation.y,
+        ringOuter: dynamicNodes.ringOuter.rotation.clone(),
+        ringMiddle: dynamicNodes.ringMiddle.rotation.clone(),
+        ringInner: dynamicNodes.ringInner.rotation.clone(),
+        corePos: dynamicNodes.coreAssembly.position.clone(),
+        coreRot: dynamicNodes.coreAssembly.rotation.clone(),
+        shardRot: dynamicNodes.orbitShards.rotation.clone(),
+        colliderVis: colliderMeshes.map((m) => m.visible)
+      };
+
+      // Snap to canonical rest pose
+      assetGroup.rotation.set(0, 0, 0);
+      dynamicNodes.ringOuter.rotation.copy(dynamicNodes.ringOuter.userData.restRotation);
+      dynamicNodes.ringMiddle.rotation.copy(dynamicNodes.ringMiddle.userData.restRotation);
+      dynamicNodes.ringInner.rotation.copy(dynamicNodes.ringInner.userData.restRotation);
+      dynamicNodes.coreAssembly.position.copy(dynamicNodes.coreAssembly.userData.restPosition);
+      dynamicNodes.coreAssembly.rotation.copy(dynamicNodes.coreAssembly.userData.restRotation);
+      dynamicNodes.orbitShards.rotation.copy(dynamicNodes.orbitShards.userData.restRotation);
+
+      // Temporarily detach colliders if excluded from export
+      const detached = [];
+      for (const cm of colliderMeshes) {
+        if (!state.exportColliders) {
+          assetGroup.remove(cm);
+          detached.push(cm);
+        } else {
+          cm.visible = true;
+        }
+      }
+      assetGroup.updateMatrixWorld(true);
+
+      const restore = () => {
+        for (const cm of detached) assetGroup.add(cm);
+        colliderMeshes.forEach((cm, i) => { cm.visible = saved.colliderVis[i]; });
+        assetGroup.rotation.y = saved.rootRotY;
+        dynamicNodes.ringOuter.rotation.copy(saved.ringOuter);
+        dynamicNodes.ringMiddle.rotation.copy(saved.ringMiddle);
+        dynamicNodes.ringInner.rotation.copy(saved.ringInner);
+        dynamicNodes.coreAssembly.position.copy(saved.corePos);
+        dynamicNodes.coreAssembly.rotation.copy(saved.coreRot);
+        dynamicNodes.orbitShards.rotation.copy(saved.shardRot);
+        state.animate = prevAnim;
+      };
+
+      try {
+        callback(restore);
+      } catch (err) {
+        restore();
+        throw err;
+      }
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      showToast('正在執行 Rest-Pose 歸位並打包 .GLB...');
+      const exporter = new GLTFExporter();
+      withRestPoseForExport((restore) => {
+        exporter.parse(
+          assetGroup,
+          (result) => {
+            restore();
+            const blob = new Blob([result], { type: 'model/gltf-binary' });
+            const suffix = state.lod === 'hero' ? 'Hero' : 'GameReady';
+            downloadBlob(blob, `Astral_Chronos_Reliquary_${suffix}.glb`);
+            showToast(`已匯出 Astral_Chronos_Reliquary_${suffix}.glb (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+          },
+          (err) => {
+            restore();
+            console.error('GLTFExporter Error:', err);
+            showToast('GLB 匯出失敗，請查看 Console');
+          },
+          { binary: true, onlyVisible: false }
+        );
+      });
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      const exporter = new OBJExporter();
+      withRestPoseForExport((restore) => {
+        const objText = exporter.parse(assetGroup);
+        restore();
+        const blob = new Blob([objText], { type: 'text/plain' });
+        const suffix = state.lod === 'hero' ? 'Hero' : 'GameReady';
+        downloadBlob(blob, `Astral_Chronos_Reliquary_${suffix}.obj`);
+        showToast(`已匯出 Astral_Chronos_Reliquary_${suffix}.obj`);
+      });
+    });
+
+    // =========================================================================
+    // 8. Texture Preview & PNG Export Controls
+    // =========================================================================
+    const selMat = document.getElementById('sel-material');
+    const previewGrid = document.getElementById('tex-preview-grid');
+
+    function renderTextureThumbnails() {
+      const key = selMat.value;
+      const set = texSets[key].canvases;
+      previewGrid.innerHTML = '';
+      for (const mapName of ['Albedo', 'Normal', 'Roughness', 'Metalness']) {
+        const srcCanvas = set[mapName];
+        const wrap = document.createElement('div');
+        wrap.className = 'tex-thumb';
+        wrap.title = `下載 ${key}_${mapName}.png (1024×1024)`;
+
+        const thumb = document.createElement('canvas');
+        thumb.width = 128;
+        thumb.height = 128;
+        thumb.getContext('2d').drawImage(srcCanvas, 0, 0, 128, 128);
+
+        const lbl = document.createElement('span');
+        lbl.textContent = mapName;
+
+        wrap.append(thumb, lbl);
+        wrap.addEventListener('click', () => {
+          srcCanvas.toBlob((blob) => {
+            downloadBlob(blob, `AstralChronos_${key}_${mapName}_1024.png`);
+            showToast(`已下載 ${key}_${mapName}_1024.png`);
+          }, 'image/png');
+        });
+        previewGrid.appendChild(wrap);
+      }
+    }
+
+    selMat.addEventListener('change', renderTextureThumbnails);
+
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      const key = selMat.value;
+      const set = texSets[key].canvases;
+      const entries = Object.entries(set);
+      entries.forEach(([mapName, canvas], idx) => {
+        setTimeout(() => {
+          canvas.toBlob((blob) => {
+            downloadBlob(blob, `AstralChronos_${key}_${mapName}_1024.png`);
+          }, 'image/png');
+        }, idx * 180);
+      });
+      showToast(`正在批次匯出 ${key} 的 5 張 1024×1024 PNG 貼圖...`);
+    });
+
+    // =========================================================================
+    // 9. UI Wire-up & Animation Loop
+    // =========================================================================
+    document.querySelectorAll('[data-lod]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-lod]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        rebuildAsset(btn.dataset.lod);
+        showToast(`已切換至 ${btn.dataset.lod === 'hero' ? 'Hero Showcase' : 'Game-Ready'} LOD`);
+      });
+    });
+
+    function bindToggle(id, prop, onChange = null) {
+      const el = document.getElementById(id);
+      el.addEventListener('click', () => {
+        state[prop] = !state[prop];
+        el.classList.toggle('on', state[prop]);
+        if (onChange) onChange(state[prop]);
+      });
+    }
+
+    bindToggle('tgl-anim', 'animate');
+    bindToggle('tgl-turntable', 'turntable');
+    bindToggle('tgl-bloom', 'bloom');
+    bindToggle('tgl-wire', 'wireframe', () => applyWireframeState());
+    bindToggle('tgl-colliders', 'showColliders', (v) => {
+      colliderMeshes.forEach((m) => { m.visible = v; });
+    });
+    bindToggle('tgl-export-colliders', 'exportColliders', () => {
+      updateBudgetHUD();
+      updateHierarchyBox();
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Initialize scene
+    rebuildAsset('hero');
+    renderTextureThumbnails();
+
+    const clock = new THREE.Clock();
+    function tick() {
+      requestAnimationFrame(tick);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const t = clock.elapsedTime;
+
+      if (state.animate && assetGroup) {
+        dynamicNodes.ringOuter.rotation.x += 0.14 * dt;
+        dynamicNodes.ringOuter.rotation.y += 0.28 * dt;
+
+        dynamicNodes.ringMiddle.rotation.x -= 0.24 * dt;
+        dynamicNodes.ringMiddle.rotation.y += 0.18 * dt;
+        dynamicNodes.ringMiddle.rotation.z += 0.16 * dt;
+
+        dynamicNodes.ringInner.rotation.x += 0.34 * dt;
+        dynamicNodes.ringInner.rotation.y -= 0.29 * dt;
+        dynamicNodes.ringInner.rotation.z += 0.22 * dt;
+
+        dynamicNodes.orbitShards.rotation.y -= 0.38 * dt;
+
+        dynamicNodes.coreAssembly.rotation.y += 0.52 * dt;
+        dynamicNodes.coreAssembly.position.y = CORE_CENTER_Y + Math.sin(t * 1.8) * 0.045;
+
+        const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
+        corePointLight.intensity = 2.6 + pulse * 1.4;
+        materials.MAT_Arcane_Glow.emissiveIntensity = 1.9 + pulse * 0.9;
+      }
+
+      if (state.turntable && assetGroup) {
+        assetGroup.rotation.y += 0.22 * dt;
+      }
+
+      controls.update();
+      if (state.bloom) {
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
+    }
+
+    tick();
+  </script>
+</body>
+</html>

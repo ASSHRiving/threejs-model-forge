@@ -1,0 +1,31 @@
+# OS & Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Unity Temp / Generated (keep Assets/ & Scripts/ tracked)
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.pidb
+*.booproj
+
+# Node / Temp Artifacts
+node_modules/
+__pycache__/
+*.log

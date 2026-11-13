@@ -1,0 +1,2457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRITON-IX Abyssal Submersible Rig — Three.js ModelForge & Unity URP Exporter</title>
+  <style>
+    :root {
+      --bg-deep: #060a12;
+      --panel-bg: rgba(10, 16, 28, 0.86);
+      --panel-border: rgba(88, 198, 255, 0.24);
+      --amber: #f5b942;
+      --cyan: #48e4ff;
+      --text: #eef3fb;
+      --muted: #8a9bb8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 38% 42%, #132238 0%, #09101d 55%, #04070d 100%);
+      color: var(--text);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud-header {
+      position: fixed;
+      top: 16px;
+      left: 18px;
+      z-index: 10;
+      pointer-events: none;
+      max-width: 520px;
+    }
+
+    .badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(72, 228, 255, 0.12);
+      border: 1px solid rgba(72, 228, 255, 0.35);
+      color: var(--cyan);
+    }
+
+    .badge.amber {
+      background: rgba(245, 185, 66, 0.14);
+      border-color: rgba(245, 185, 66, 0.42);
+      color: var(--amber);
+    }
+
+    h1 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #fff;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.85);
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .budget-bar {
+      position: fixed;
+      left: 18px;
+      bottom: 16px;
+      z-index: 10;
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .stat-pill {
+      background: var(--panel-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 7px 12px;
+      min-width: 102px;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+    }
+
+    .stat-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      margin-top: 2px;
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--amber);
+    }
+
+    .stat-value.cyan { color: var(--cyan); }
+
+    .control-panel {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      bottom: 14px;
+      width: 316px;
+      z-index: 20;
+      background: var(--panel-bg);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+    }
+
+    .control-panel::-webkit-scrollbar { width: 5px; }
+    .control-panel::-webkit-scrollbar-thumb { background: rgba(72, 228, 255, 0.25); border-radius: 99px; }
+
+    .section-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      background: rgba(0, 0, 0, 0.36);
+      padding: 4px;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 6px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .seg-btn.active {
+      background: linear-gradient(135deg, rgba(245, 185, 66, 0.28), rgba(72, 228, 255, 0.16));
+      color: #fff;
+      border: 1px solid rgba(245, 185, 66, 0.5);
+    }
+
+    .cam-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .cam-btn {
+      padding: 6px 5px;
+      border-radius: 7px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .cam-btn:hover, .cam-btn.active {
+      border-color: var(--amber);
+      background: rgba(245, 185, 66, 0.16);
+      color: #fff;
+    }
+
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 7px 9px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .toggle-btn:hover { border-color: rgba(72, 228, 255, 0.4); }
+
+    .toggle-btn.on {
+      background: rgba(72, 228, 255, 0.12);
+      border-color: rgba(72, 228, 255, 0.48);
+      color: #fff;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #445069;
+      flex-shrink: 0;
+    }
+
+    .toggle-btn.on .dot {
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    .export-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 9px;
+      border: 1px solid rgba(245, 185, 66, 0.7);
+      background: linear-gradient(135deg, #d89b2b 0%, #996412 100%);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(216, 155, 43, 0.28);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+
+    .btn-primary:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(72, 228, 255, 0.35);
+      background: rgba(72, 228, 255, 0.09);
+      color: var(--cyan);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover { background: rgba(72, 228, 255, 0.18); }
+
+    .tex-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 7px;
+    }
+
+    select {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.45);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 11.5px;
+      outline: none;
+    }
+
+    .tex-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .tex-thumb {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    .tex-thumb canvas {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #000;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .tex-thumb:hover canvas {
+      transform: scale(1.04);
+      border-color: var(--amber);
+    }
+
+    .tex-thumb span { font-size: 9.5px; color: var(--muted); }
+
+    .hierarchy-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #b4c2dc;
+      max-height: 125px;
+      overflow-y: auto;
+    }
+
+    .status-toast {
+      position: fixed;
+      left: 50%;
+      top: 18px;
+      transform: translateX(-50%) translateY(-16px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 40;
+      background: rgba(10, 18, 32, 0.95);
+      border: 1px solid var(--cyan);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      transition: all 0.25s ease;
+    }
+
+    .status-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <div class="hud-header">
+    <div class="badge-row">
+      <span class="badge">Hard-Surface Marine Robotics</span>
+      <span class="badge amber">Unity URP Ready · 1u = 1m</span>
+    </div>
+    <h1>TRITON-IX 深海研究潛航器 · Abyssal Research Submersible</h1>
+    <p class="subtitle">
+      全放樣流線外殼 · 透視高壓駕駛艙內裝 · 雙 5 軸液壓機械臂與剛性接頭管路 · 1024×1024 Sobel PBR + COLOR_0 AO
+    </p>
+  </div>
+
+  <div class="budget-bar">
+    <div class="stat-pill">
+      <div class="stat-label">Triangles</div>
+      <div class="stat-value" id="stat-tris">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Vertices</div>
+      <div class="stat-value" id="stat-verts">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Export Meshes</div>
+      <div class="stat-value cyan" id="stat-meshes">—</div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-label">Materials</div>
+      <div class="stat-value cyan" id="stat-mats">—</div>
+    </div>
+  </div>
+
+  <aside class="control-panel">
+    <div>
+      <div class="section-title">
+        <span>幾何精度 · LOD Budget</span>
+        <span style="color: var(--muted); font-weight: 500;">Pivot: y=0</span>
+      </div>
+      <div class="segmented">
+        <button class="seg-btn active" id="btn-lod-hero" data-lod="hero">Hero Showcase (~20k)</button>
+        <button class="seg-btn" id="btn-lod-game" data-lod="game">Game-Ready (~6k)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>多視角檢視 · Inspection</span></div>
+      <div class="cam-grid">
+        <button class="cam-btn active" data-cam="hero34">3/4 總覽</button>
+        <button class="cam-btn" data-cam="cockpit">駕駛艙特寫</button>
+        <button class="cam-btn" data-cam="arms">機械臂與管路</button>
+        <button class="cam-btn" data-cam="side">側面輪廓</button>
+        <button class="cam-btn" data-cam="stern">船尾推進器</button>
+        <button class="cam-btn" data-cam="top">俯視檢修</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>預覽與拓撲控制</span></div>
+      <div class="toggle-grid">
+        <button class="toggle-btn on" id="tgl-anim"><span>推進器運轉</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-turntable"><span>展示轉盤</span><span class="dot"></span></button>
+        <button class="toggle-btn on" id="tgl-bloom"><span>輝光後製</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-wire"><span>線框拓撲</span><span class="dot"></span></button>
+        <button class="toggle-btn" id="tgl-colliders"><span>顯示 Collider</span><span class="dot"></span></button>
+        <button class="toggle-btn on" id="tgl-export-colliders"><span>匯出含 Collider</span><span class="dot"></span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>一鍵匯出 · Asset Export</span></div>
+      <div class="export-stack">
+        <button class="btn-primary" id="btn-export-glb">下載 .GLB 完整模型（含貼圖/階層/AO）</button>
+        <button class="btn-secondary" id="btn-export-obj">下載 .OBJ 幾何備份</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">
+        <span>1024×1024 PBR 貼圖</span>
+        <span style="color: var(--muted); font-weight: 500;">點擊縮圖下載</span>
+      </div>
+      <div class="tex-controls">
+        <select id="sel-material">
+          <option value="hull">MAT_Hull_Yellow_Coat (船殼環氧漆)</option>
+          <option value="titanium">MAT_Titanium_Frame (CNC 鈦合金)</option>
+          <option value="composite">MAT_Dark_Composite (防滑菱紋甲板)</option>
+          <option value="brass">MAT_Brass_Fittings (海軍銅閥件)</option>
+          <option value="emissive">MAT_Emissive_Accent (照明與聲納)</option>
+        </select>
+        <button class="btn-secondary" id="btn-export-pngs" style="width: auto; padding: 6px 10px;">全部 PNG</button>
+      </div>
+      <div class="tex-preview-grid" id="tex-preview-grid"></div>
+    </div>
+
+    <div>
+      <div class="section-title"><span>Unity Prefab 節點階層</span></div>
+      <div class="hierarchy-box" id="hierarchy-box"></div>
+    </div>
+  </aside>
+
+  <div class="status-toast" id="status-toast">Ready</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    const toastEl = document.getElementById('status-toast');
+    let toastTimer = null;
+    function showToast(msg, ms = 2600) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+    }
+
+    // =========================================================================
+    // 1. Deterministic Noise & 1024x1024 PBR + 3x3 Sobel Normal Synthesizer
+    // =========================================================================
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return () => {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function createNoiseField(seed) {
+      const N = 256;
+      const grid = new Float32Array(N * N);
+      const rng = mulberry32(seed);
+      for (let i = 0; i < grid.length; i++) grid[i] = rng();
+
+      function sample(x, y) {
+        const xi = Math.floor(x), yi = Math.floor(y);
+        const xf = x - xi, yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+        const x0 = xi & 255, y0 = yi & 255;
+        const x1 = (x0 + 1) & 255, y1 = (y0 + 1) & 255;
+        const a = grid[(y0 << 8) | x0], b = grid[(y0 << 8) | x1];
+        const c = grid[(y1 << 8) | x0], d = grid[(y1 << 8) | x1];
+        return (a + (b - a) * u) * (1 - v) + (c + (d - c) * u) * v;
+      }
+
+      function fbm(u, v, baseFreq, octaves = 4) {
+        let sum = 0, amp = 0.5, norm = 0, freq = baseFreq;
+        for (let o = 0; o < octaves; o++) {
+          sum += amp * sample(u * freq, v * freq);
+          norm += amp; amp *= 0.5; freq *= 2.0;
+        }
+        return sum / norm;
+      }
+      return { sample, fbm };
+    }
+
+    const TEX_SIZE = 1024;
+    function makeCanvas(size = TEX_SIZE) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      return { canvas, ctx: canvas.getContext('2d') };
+    }
+
+    function bakeSobelNormalCanvas(heightBuf, size, strength) {
+      const { canvas, ctx } = makeCanvas(size);
+      const img = ctx.createImageData(size, size);
+      const data = img.data;
+      const mask = size - 1;
+      for (let y = 0; y < size; y++) {
+        const rowM = ((y - 1) & mask) * size;
+        const row0 = y * size;
+        const rowP = ((y + 1) & mask) * size;
+        for (let x = 0; x < size; x++) {
+          const xm = (x - 1) & mask, xp = (x + 1) & mask;
+          const tl = heightBuf[rowM + xm], t = heightBuf[rowM + x], tr = heightBuf[rowM + xp];
+          const l  = heightBuf[row0 + xm],                          r  = heightBuf[row0 + xp];
+          const bl = heightBuf[rowP + xm], b = heightBuf[rowP + x], br = heightBuf[rowP + xp];
+          const dX = (tr + 2 * r + br) - (tl + 2 * l + bl);
+          const dY = (bl + 2 * b + br) - (tl + 2 * t + tr);
+          let nx = -dX * strength, ny = -dY * strength, nz = 1.0;
+          const inv = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+          nx *= inv; ny *= inv; nz *= inv;
+          const p = (row0 + x) * 4;
+          data[p]     = Math.round((nx * 0.5 + 0.5) * 255);
+          data[p + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          data[p + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          data[p + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas;
+    }
+
+    function canvasToTexture(canvas, isSRGB, rx = 1, ry = 1) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(rx, ry);
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function generateMaterialSet(kind) {
+      const size = TEX_SIZE;
+      const n1 = createNoiseField(kind.charCodeAt(0) * 173 + 29);
+      const n2 = createNoiseField(kind.charCodeAt(1) * 311 + 61);
+
+      const albedo = makeCanvas(size);
+      const rough = makeCanvas(size);
+      const metal = makeCanvas(size);
+      const emissive = makeCanvas(size);
+
+      const albImg = albedo.ctx.createImageData(size, size);
+      const rghImg = rough.ctx.createImageData(size, size);
+      const mtlImg = metal.ctx.createImageData(size, size);
+      const emsImg = emissive.ctx.createImageData(size, size);
+      const hBuf = new Float32Array(size * size);
+
+      // Crisp Canvas2D technical panels, rivets, tread diamonds & instrumentation overlays
+      const pat = makeCanvas(size);
+      const pctx = pat.ctx;
+      pctx.fillStyle = '#000';
+      pctx.fillRect(0, 0, size, size);
+
+      if (kind === 'hull') {
+        // Aerospace/Marine panel seams, tonal plate variation & crisp horizontal hazard band
+        const cols = 4, rows = 4;
+        const pw = size / cols, ph = size / rows;
+        const rng = mulberry32(404);
+        for (let gy = 0; gy < rows; gy++) {
+          for (let gx = 0; gx < cols; gx++) {
+            const shade = Math.round(215 + rng() * 40);
+            pctx.fillStyle = `rgb(${shade}, 0, 0)`;
+            pctx.fillRect(gx * pw + 3, gy * ph + 3, pw - 6, ph - 6);
+          }
+        }
+        // Crisp panel seam grooves (green channel)
+        pctx.strokeStyle = 'rgb(0, 255, 0)';
+        pctx.lineWidth = 4;
+        for (let i = 0; i <= cols; i++) {
+          const p = i * pw;
+          pctx.beginPath(); pctx.moveTo(p, 0); pctx.lineTo(p, size); pctx.stroke();
+          pctx.beginPath(); pctx.moveTo(0, p); pctx.lineTo(size, p); pctx.stroke();
+        }
+        // Raised dome rivets along panel edges (green = 128)
+        pctx.fillStyle = 'rgb(240, 128, 0)';
+        for (let gy = 0; gy < rows; gy++) {
+          for (let gx = 0; gx < cols; gx++) {
+            const x0 = gx * pw + 18, y0 = gy * ph + 18;
+            for (let k = 0; k < 7; k++) {
+              const t = x0 + k * 36;
+              pctx.beginPath(); pctx.arc(t, y0, 3.0, 0, Math.PI * 2); pctx.fill();
+              pctx.beginPath(); pctx.arc(t, y0 + ph - 36, 3.0, 0, Math.PI * 2); pctx.fill();
+            }
+          }
+        }
+        // Clean horizontal dark graphite trim band + crisp chevron marks (blue channel)
+        pctx.fillStyle = 'rgb(200, 40, 255)';
+        pctx.fillRect(0, 476, size, 72);
+        pctx.fillStyle = 'rgb(220, 0, 0)';
+        for (let i = 0; i < 16; i++) {
+          const cx = i * 64;
+          pctx.beginPath();
+          pctx.moveTo(cx, 484); pctx.lineTo(cx + 28, 484);
+          pctx.lineTo(cx + 12, 540); pctx.lineTo(cx - 16, 540);
+          pctx.closePath();
+          pctx.fill();
+        }
+      } else if (kind === 'titanium') {
+        // Precision CNC panel joints & fastener recesses
+        pctx.strokeStyle = '#ffffff';
+        pctx.lineWidth = 3;
+        for (let i = 1; i < 4; i++) {
+          pctx.beginPath(); pctx.moveTo(i * 256, 0); pctx.lineTo(i * 256, size); pctx.stroke();
+        }
+        pctx.fillStyle = '#cccccc';
+        for (let y = 32; y < size; y += 128) {
+          for (let x = 24; x < size; x += 256) {
+            pctx.beginPath(); pctx.arc(x, y, 4.5, 0, Math.PI * 2); pctx.fill();
+            pctx.beginPath(); pctx.arc(x + 208, y, 4.5, 0, Math.PI * 2); pctx.fill();
+          }
+        }
+      } else if (kind === 'composite') {
+        // Industrial non-slip diamond tread plate
+        pctx.fillStyle = '#ffffff';
+        const step = 32;
+        for (let y = 0; y < size; y += step) {
+          for (let x = 0; x < size; x += step) {
+            const odd = ((x + y) / step) & 1;
+            pctx.save();
+            pctx.translate(x + step * 0.5, y + step * 0.5);
+            pctx.rotate(odd ? Math.PI / 4 : -Math.PI / 4);
+            pctx.beginPath();
+            pctx.ellipse(0, 0, 9.5, 3.2, 0, 0, Math.PI * 2);
+            pctx.fill();
+            pctx.restore();
+          }
+        }
+      } else if (kind === 'brass') {
+        // Knurled collar bands
+        pctx.strokeStyle = '#ffffff';
+        pctx.lineWidth = 3;
+        for (let x = 0; x < size; x += 16) {
+          pctx.beginPath(); pctx.moveTo(x, 180); pctx.lineTo(x + 12, 340); pctx.stroke();
+          pctx.beginPath(); pctx.moveTo(x + 12, 180); pctx.lineTo(x, 340); pctx.stroke();
+        }
+      } else if (kind === 'emissive') {
+        // Multi-cell LED optic matrix & cyan telemetry grid
+        pctx.strokeStyle = '#38d8ff';
+        pctx.lineWidth = 2;
+        for (let i = 0; i <= 16; i++) {
+          const p = (i / 16) * size;
+          pctx.beginPath(); pctx.moveTo(p, 0); pctx.lineTo(p, size); pctx.stroke();
+          pctx.beginPath(); pctx.moveTo(0, p); pctx.lineTo(size, p); pctx.stroke();
+        }
+        for (let y = 64; y < size; y += 128) {
+          for (let x = 64; x < size; x += 128) {
+            const g = pctx.createRadialGradient(x, y, 4, x, y, 44);
+            g.addColorStop(0, '#ffffff');
+            g.addColorStop(0.55, '#68e8ff');
+            g.addColorStop(1, '#000000');
+            pctx.fillStyle = g;
+            pctx.beginPath(); pctx.arc(x, y, 44, 0, Math.PI * 2); pctx.fill();
+          }
+        }
+      }
+
+      const patData = pctx.getImageData(0, 0, size, size).data;
+
+      for (let y = 0; y < size; y++) {
+        const v = y / size;
+        for (let x = 0; x < size; x++) {
+          const u = x / size;
+          const idx = y * size + x;
+          const p = idx * 4;
+
+          const fLo = n1.fbm(u, v, 8, 4);
+          const fHi = n2.fbm(u, v, 36, 3);
+          const seam = patData[p] / 255;
+          const accent = patData[p + 2] / 255;
+
+          let R = 128, G = 128, B = 128;
+          let rgh = 0.5, mtl = 0.0, h = 0.5;
+          let eR = 0, eG = 0, eB = 0;
+
+          if (kind === 'hull') {
+            // Marine high-vis amber-yellow epoxy paint with panel tonal variation, seams & rivets
+            const plateTone = patData[p] / 255; // 0.84..1.0 per plate
+            const seamChan = patData[p + 1] / 255;
+            const isSeam = seamChan > 0.72 ? 1 : 0;
+            const isRivet = (seamChan > 0.35 && seamChan < 0.72) ? 1 : 0;
+            const isTrim = accent > 0.55 && isSeam === 0;
+            const wear = Math.max(0, fHi - 0.68) * 1.25;
+            h = 0.65 + fHi * 0.05 - isSeam * 0.42 + isRivet * 0.24 - (isTrim ? 0.06 : 0);
+
+            if (isTrim) {
+              R = 30 + fLo * 16; G = 35 + fLo * 16; B = 44 + fLo * 18;
+              rgh = 0.42 + fHi * 0.10;
+              mtl = 0.12;
+            } else {
+              const shade = (1 - isSeam * 0.55) * (0.86 + plateTone * 0.14) * (0.92 + fLo * 0.10);
+              R = (236 - wear * 42) * shade;
+              G = (162 - wear * 24) * shade;
+              B = (26 + wear * 52) * shade;
+              rgh = 0.30 + fHi * 0.14 + isSeam * 0.32 + wear * 0.16;
+              mtl = 0.10 + wear * 0.36 + isRivet * 0.65;
+            }
+          } else if (kind === 'titanium') {
+            // Brushed gunmetal-titanium alloy
+            const brush = n1.fbm(u * 4.0, v * 0.35, 22, 3);
+            const isSeam = seam > 0.78 ? 1 : 0;
+            h = 0.6 + brush * 0.14 - isSeam * 0.42;
+            const shade = (1 - isSeam * 0.52) * (0.86 + brush * 0.22);
+            R = 148 * shade; G = 160 * shade; B = 176 * shade;
+            rgh = 0.28 + (1 - brush) * 0.18 + isSeam * 0.3;
+            mtl = 0.90 - isSeam * 0.25;
+          } else if (kind === 'composite') {
+            // Dark rubberized tread & carbon deck composite
+            const tread = seam;
+            const weave = (Math.sin(u * Math.PI * 64) * Math.sin(v * Math.PI * 64)) * 0.5 + 0.5;
+            h = 0.35 + tread * 0.48 + weave * 0.08;
+            const base = 24 + fLo * 18 + tread * 26 + weave * 8;
+            R = base * 0.96; G = base * 1.00; B = base * 1.12;
+            rgh = 0.68 - tread * 0.26 + fHi * 0.12;
+            mtl = 0.06 + tread * 0.24;
+          } else if (kind === 'brass') {
+            // Lathe-turned naval bronze/brass fittings
+            const lathe = n2.fbm(u * 0.3, v * 3.5, 28, 3);
+            h = 0.6 + lathe * 0.14 + seam * 0.25;
+            const patina = Math.max(0, fLo - 0.65) * 1.2;
+            R = (212 - patina * 65) * (0.88 + lathe * 0.18);
+            G = (162 - patina * 50) * (0.88 + lathe * 0.18);
+            B = (74 - patina * 20)  * (0.88 + lathe * 0.18);
+            rgh = 0.22 + lathe * 0.14 + patina * 0.35;
+            mtl = 0.94 - patina * 0.35;
+          } else if (kind === 'emissive') {
+            const rVal = patData[p] / 255;
+            const gVal = patData[p + 1] / 255;
+            const bVal = patData[p + 2] / 255;
+            h = 0.5 + gVal * 0.35;
+            R = 30 + rVal * 215; G = 90 + gVal * 165; B = 130 + bVal * 125;
+            rgh = 0.14;
+            mtl = 0.1;
+            eR = rVal * 235; eG = gVal * 248; eB = bVal * 255;
+          }
+
+          hBuf[idx] = h;
+          albImg.data[p]     = Math.max(0, Math.min(255, Math.round(R)));
+          albImg.data[p + 1] = Math.max(0, Math.min(255, Math.round(G)));
+          albImg.data[p + 2] = Math.max(0, Math.min(255, Math.round(B)));
+          albImg.data[p + 3] = 255;
+
+          const rB = Math.max(0, Math.min(255, Math.round(rgh * 255)));
+          rghImg.data[p] = rghImg.data[p + 1] = rghImg.data[p + 2] = rB;
+          rghImg.data[p + 3] = 255;
+
+          const mB = Math.max(0, Math.min(255, Math.round(mtl * 255)));
+          mtlImg.data[p] = mtlImg.data[p + 1] = mtlImg.data[p + 2] = mB;
+          mtlImg.data[p + 3] = 255;
+
+          emsImg.data[p]     = Math.max(0, Math.min(255, Math.round(eR)));
+          emsImg.data[p + 1] = Math.max(0, Math.min(255, Math.round(eG)));
+          emsImg.data[p + 2] = Math.max(0, Math.min(255, Math.round(eB)));
+          emsImg.data[p + 3] = 255;
+        }
+      }
+
+      albedo.ctx.putImageData(albImg, 0, 0);
+      rough.ctx.putImageData(rghImg, 0, 0);
+      metal.ctx.putImageData(mtlImg, 0, 0);
+      emissive.ctx.putImageData(emsImg, 0, 0);
+
+      const nStr = kind === 'composite' ? 3.8 : kind === 'hull' ? 2.4 : 2.1;
+      const normalCanvas = bakeSobelNormalCanvas(hBuf, size, nStr);
+
+      return {
+        canvases: {
+          Albedo: albedo.canvas,
+          Normal: normalCanvas,
+          Roughness: rough.canvas,
+          Metalness: metal.canvas,
+          Emissive: emissive.canvas
+        }
+      };
+    }
+
+    const texSets = {
+      hull: generateMaterialSet('hull'),
+      titanium: generateMaterialSet('titanium'),
+      composite: generateMaterialSet('composite'),
+      brass: generateMaterialSet('brass'),
+      emissive: generateMaterialSet('emissive')
+    };
+
+    function createMaterials() {
+      const h = texSets.hull.canvases;
+      const MAT_Hull_Yellow_Coat = new THREE.MeshStandardMaterial({
+        name: 'MAT_Hull_Yellow_Coat',
+        map: canvasToTexture(h.Albedo, true, 2, 2),
+        normalMap: canvasToTexture(h.Normal, false, 2, 2),
+        normalScale: new THREE.Vector2(1.1, 1.1),
+        roughnessMap: canvasToTexture(h.Roughness, false, 2, 2),
+        metalnessMap: canvasToTexture(h.Metalness, false, 2, 2),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const t = texSets.titanium.canvases;
+      const MAT_Titanium_Frame = new THREE.MeshStandardMaterial({
+        name: 'MAT_Titanium_Frame',
+        map: canvasToTexture(t.Albedo, true, 1.5, 1.5),
+        normalMap: canvasToTexture(t.Normal, false, 1.5, 1.5),
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughnessMap: canvasToTexture(t.Roughness, false, 1.5, 1.5),
+        metalnessMap: canvasToTexture(t.Metalness, false, 1.5, 1.5),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const MAT_Chrome_Actuator = new THREE.MeshStandardMaterial({
+        name: 'MAT_Chrome_Actuator',
+        color: new THREE.Color(0xdce6f2),
+        roughness: 0.11,
+        metalness: 0.98,
+        vertexColors: true
+      });
+
+      const c = texSets.composite.canvases;
+      const MAT_Dark_Composite = new THREE.MeshStandardMaterial({
+        name: 'MAT_Dark_Composite',
+        map: canvasToTexture(c.Albedo, true, 2, 2),
+        normalMap: canvasToTexture(c.Normal, false, 2, 2),
+        normalScale: new THREE.Vector2(1.25, 1.25),
+        roughnessMap: canvasToTexture(c.Roughness, false, 2, 2),
+        metalnessMap: canvasToTexture(c.Metalness, false, 2, 2),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const b = texSets.brass.canvases;
+      const MAT_Brass_Fittings = new THREE.MeshStandardMaterial({
+        name: 'MAT_Brass_Fittings',
+        map: canvasToTexture(b.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(b.Normal, false, 1, 1),
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughnessMap: canvasToTexture(b.Roughness, false, 1, 1),
+        metalnessMap: canvasToTexture(b.Metalness, false, 1, 1),
+        roughness: 1.0,
+        metalness: 1.0,
+        vertexColors: true
+      });
+
+      const e = texSets.emissive.canvases;
+      const MAT_Emissive_Accent = new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Accent',
+        map: canvasToTexture(e.Albedo, true, 1, 1),
+        normalMap: canvasToTexture(e.Normal, false, 1, 1),
+        roughnessMap: canvasToTexture(e.Roughness, false, 1, 1),
+        emissiveMap: canvasToTexture(e.Emissive, true, 1, 1),
+        emissive: new THREE.Color('#66e8ff'),
+        emissiveIntensity: 2.2,
+        roughness: 0.3,
+        metalness: 0.1,
+        vertexColors: true
+      });
+
+      const MAT_Viewport_Glass = new THREE.MeshStandardMaterial({
+        name: 'MAT_Viewport_Glass',
+        color: new THREE.Color(0x9ce8ff),
+        roughness: 0.06,
+        metalness: 0.08,
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+        vertexColors: true
+      });
+
+      const MAT_Collider_Proxy = new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x38ff9c,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.42
+      });
+
+      return {
+        MAT_Hull_Yellow_Coat,
+        MAT_Titanium_Frame,
+        MAT_Chrome_Actuator,
+        MAT_Dark_Composite,
+        MAT_Brass_Fittings,
+        MAT_Emissive_Accent,
+        MAT_Viewport_Glass,
+        MAT_Collider_Proxy
+      };
+    }
+
+    const materials = createMaterials();
+
+    // =========================================================================
+    // 2. Precision Geometry Engine (Normalized Attributes, Arc UVs, AO, Anchored Connectors)
+    // =========================================================================
+    function applyTriplanarUVs(geom, scale = 0.65) {
+      if (!geom.attributes.normal) geom.computeVertexNormals();
+      const pos = geom.attributes.position;
+      const nrm = geom.attributes.normal;
+      const uvs = new Float32Array(pos.count * 2);
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const ax = Math.abs(nrm.getX(i)), ay = Math.abs(nrm.getY(i)), az = Math.abs(nrm.getZ(i));
+        let u = 0, v = 0;
+        if (ay >= ax && ay >= az) { u = x * scale; v = z * scale; }
+        else if (ax >= ay && ax >= az) { u = z * scale; v = y * scale; }
+        else { u = x * scale; v = y * scale; }
+        uvs[i * 2] = u; uvs[i * 2 + 1] = v;
+      }
+      geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      return geom;
+    }
+
+    function finalizeGeometry(geom, aoFn = null) {
+      if (!geom.index) {
+        const count = geom.attributes.position.count;
+        const idx = count > 65535 ? new Uint32Array(count) : new Uint16Array(count);
+        for (let i = 0; i < count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      }
+      for (const k of Object.keys(geom.attributes)) {
+        if (k !== 'position' && k !== 'normal' && k !== 'uv') geom.deleteAttribute(k);
+      }
+      if (!geom.attributes.normal) geom.computeVertexNormals();
+      if (!geom.attributes.uv) applyTriplanarUVs(geom, 0.65);
+
+      const pos = geom.attributes.position;
+      const nrm = geom.attributes.normal;
+      const uv = geom.attributes.uv;
+      const colors = new Float32Array(pos.count * 3);
+
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const nx = nrm.getX(i), ny = nrm.getY(i), nz = nrm.getZ(i);
+        let ao = aoFn
+          ? aoFn(x, y, z, nx, ny, nz, uv.getX(i), uv.getY(i))
+          : Math.min(1.0, 0.45 + y * 0.9) * (0.76 + 0.24 * ny);
+        ao = Math.max(0.22, Math.min(1.0, ao));
+        colors[i * 3] = ao; colors[i * 3 + 1] = ao; colors[i * 3 + 2] = ao;
+      }
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geom.computeBoundingSphere();
+      return geom;
+    }
+
+    function mergeParts(parts) {
+      const valid = parts.filter(Boolean);
+      if (valid.length === 0) return null;
+      if (valid.length === 1) return valid[0];
+      return BufferGeometryUtils.mergeGeometries(valid, false);
+    }
+
+    function xform(geom, pos = [0, 0, 0], rot = [0, 0, 0], scl = [1, 1, 1]) {
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rot[0], rot[1], rot[2]));
+      m.compose(new THREE.Vector3(...pos), q, new THREE.Vector3(...scl));
+      geom.applyMatrix4(m);
+      return geom;
+    }
+
+    function alignYToVec(geom, dirVec, originVec) {
+      const d = dirVec.clone().normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+      const m = new THREE.Matrix4().compose(originVec, q, new THREE.Vector3(1, 1, 1));
+      geom.applyMatrix4(m);
+      return geom;
+    }
+
+    // Revolved profile with cumulative Euclidean arc-length V coordinates
+    function buildLatheProfile(profile2D, radialSegs, uRepeat = 1, vScale = 1, aoFn = null) {
+      const pCount = profile2D.length;
+      const arc = new Float32Array(pCount);
+      for (let i = 1; i < pCount; i++) {
+        const dr = profile2D[i][0] - profile2D[i - 1][0];
+        const dy = profile2D[i][1] - profile2D[i - 1][1];
+        arc[i] = arc[i - 1] + Math.sqrt(dr * dr + dy * dy);
+      }
+      const totalArc = Math.max(1e-5, arc[pCount - 1]);
+      const cols = radialSegs + 1;
+      const pos = [], uvs = [], idx = [];
+
+      for (let s = 0; s < cols; s++) {
+        const u = s / radialSegs;
+        const th = u * Math.PI * 2;
+        const c = Math.cos(th), sn = Math.sin(th);
+        for (let p = 0; p < pCount; p++) {
+          pos.push(profile2D[p][0] * c, profile2D[p][1], profile2D[p][0] * sn);
+          uvs.push(u * uRepeat, (arc[p] / totalArc) * vScale);
+        }
+      }
+      for (let s = 0; s < radialSegs; s++) {
+        for (let p = 0; p < pCount - 1; p++) {
+          const a = s * pCount + p, b = (s + 1) * pCount + p;
+          const c = (s + 1) * pCount + p + 1, d = s * pCount + p + 1;
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(idx);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    // Bishop-frame swept tube with cumulative Euclidean arc-length V coordinates
+    function buildSweptSpline(curvePoints, profile2D, tubularSegs, scaleFn = null, uRepeat = 1, vScale = 1.0, capEnds = true, aoFn = null) {
+      const curve = new THREE.CatmullRomCurve3(curvePoints);
+      const pts = [];
+      const arc = new Float32Array(tubularSegs + 1);
+      for (let i = 0; i <= tubularSegs; i++) {
+        const p = curve.getPointAt(i / tubularSegs);
+        pts.push(p);
+        if (i > 0) arc[i] = arc[i - 1] + p.distanceTo(pts[i - 1]);
+      }
+
+      const frames = [];
+      let prevT = curve.getTangentAt(0).normalize();
+      const upRef = Math.abs(prevT.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      let N = new THREE.Vector3().crossVectors(upRef, prevT).normalize();
+      let B = new THREE.Vector3().crossVectors(prevT, N).normalize();
+      frames.push({ T: prevT.clone(), N: N.clone(), B: B.clone() });
+
+      const q = new THREE.Quaternion();
+      for (let i = 1; i <= tubularSegs; i++) {
+        const curT = curve.getTangentAt(i / tubularSegs).normalize();
+        q.setFromUnitVectors(prevT, curT);
+        N = N.clone().applyQuaternion(q).normalize();
+        B = new THREE.Vector3().crossVectors(curT, N).normalize();
+        frames.push({ T: curT, N, B });
+        prevT = curT;
+      }
+
+      const prof = [...profile2D, profile2D[0]];
+      const pCount = prof.length;
+      const pArc = new Float32Array(pCount);
+      for (let j = 1; j < pCount; j++) {
+        const dx = prof[j][0] - prof[j - 1][0], dy = prof[j][1] - prof[j - 1][1];
+        pArc[j] = pArc[j - 1] + Math.sqrt(dx * dx + dy * dy);
+      }
+      const totP = Math.max(1e-5, pArc[pCount - 1]);
+
+      const positions = [], uvs = [], indices = [];
+      for (let i = 0; i <= tubularSegs; i++) {
+        const t = i / tubularSegs;
+        const scl = scaleFn ? scaleFn(t) : 1.0;
+        const sx = Array.isArray(scl) ? scl[0] : scl;
+        const sy = Array.isArray(scl) ? scl[1] : scl;
+        const { N: fn, B: fb } = frames[i];
+        const c = pts[i];
+        for (let j = 0; j < pCount; j++) {
+          const lx = prof[j][0] * sx, ly = prof[j][1] * sy;
+          positions.push(c.x + fn.x * lx + fb.x * ly, c.y + fn.y * lx + fb.y * ly, c.z + fn.z * lx + fb.z * ly);
+          uvs.push((pArc[j] / totP) * uRepeat, arc[i] * vScale);
+        }
+      }
+
+      for (let i = 0; i < tubularSegs; i++) {
+        for (let j = 0; j < pCount - 1; j++) {
+          const a = i * pCount + j, b = (i + 1) * pCount + j;
+          const c = (i + 1) * pCount + j + 1, d = i * pCount + j + 1;
+          indices.push(a, b, d, b, c, d);
+        }
+      }
+
+      if (capEnds) {
+        const sIdx = positions.length / 3;
+        positions.push(pts[0].x, pts[0].y, pts[0].z); uvs.push(0.5, 0);
+        for (let j = 0; j < pCount - 1; j++) indices.push(sIdx, j + 1, j);
+
+        const eIdx = positions.length / 3;
+        const off = tubularSegs * pCount;
+        positions.push(pts[tubularSegs].x, pts[tubularSegs].y, pts[tubularSegs].z);
+        uvs.push(0.5, arc[tubularSegs] * vScale);
+        for (let j = 0; j < pCount - 1; j++) indices.push(eIdx, off + j, off + j + 1);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    function circleProf(radius, segs) {
+      const pts = [];
+      for (let i = 0; i < segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        pts.push([Math.cos(a) * radius, Math.sin(a) * radius]);
+      }
+      return pts;
+    }
+
+    // Station-lofted asymmetric hull shell along Z (with cumulative arc-length V UVs)
+    function buildLoftedHull(stations, radialSegs, aoFn = null) {
+      // station: { z, rx, ryTop, ryBot, cy, superPow }
+      const sCount = stations.length;
+      const cols = radialSegs + 1;
+      const positions = [], uvs = [], indices = [];
+
+      // Cumulative centerline arc length for V
+      const arc = new Float32Array(sCount);
+      for (let i = 1; i < sCount; i++) {
+        const dz = stations[i].z - stations[i - 1].z;
+        const dy = stations[i].cy - stations[i - 1].cy;
+        arc[i] = arc[i - 1] + Math.sqrt(dz * dz + dy * dy);
+      }
+      const totArc = Math.max(1e-5, arc[sCount - 1]);
+
+      for (let i = 0; i < sCount; i++) {
+        const st = stations[i];
+        const vCoord = arc[i] / totArc;
+        const p = st.superPow ?? 2.0;
+        for (let j = 0; j < cols; j++) {
+          const u = j / radialSegs;
+          const th = u * Math.PI * 2;
+          const cs = Math.cos(th), sn = Math.sin(th);
+          const signX = Math.sign(cs), signY = Math.sign(sn);
+          const rxFactor = signX * Math.pow(Math.abs(cs), 2 / p);
+          const ryFactor = signY * Math.pow(Math.abs(sn), 2 / p);
+          const ry = sn >= 0 ? st.ryTop : st.ryBot;
+          positions.push(rxFactor * st.rx, st.cy + ryFactor * ry, st.z);
+          uvs.push(u * 2.0, vCoord * 1.6);
+        }
+      }
+
+      for (let i = 0; i < sCount - 1; i++) {
+        for (let j = 0; j < radialSegs; j++) {
+          const a = i * cols + j, b = (i + 1) * cols + j;
+          const c = (i + 1) * cols + j + 1, d = i * cols + j + 1;
+          indices.push(a, b, d, b, c, d);
+        }
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    // CAD Point-to-Point Strut with Dual Machined End Collars (Guaranteed Zero Floating Gaps)
+    function addStrutWithCollars(bodyParts, collarParts, pA, pB, radius, radialSegs) {
+      const a = new THREE.Vector3(...pA);
+      const b = new THREE.Vector3(...pB);
+      const diff = b.clone().sub(a);
+      const len = diff.length();
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+
+      const shaft = new THREE.CylinderGeometry(radius, radius, len, radialSegs, 1);
+      applyTriplanarUVs(shaft, 1.5);
+      alignYToVec(shaft, diff, mid);
+      bodyParts.push(finalizeGeometry(shaft));
+
+      // Collar sleeves at both anchor ends
+      const collarA = new THREE.CylinderGeometry(radius * 1.55, radius * 1.65, radius * 2.4, Math.max(6, radialSegs), 1);
+      applyTriplanarUVs(collarA, 2.0);
+      alignYToVec(collarA, diff, a.clone().addScaledVector(diff.clone().normalize(), radius * 0.9));
+      collarParts.push(finalizeGeometry(collarA));
+
+      const collarB = new THREE.CylinderGeometry(radius * 1.65, radius * 1.55, radius * 2.4, Math.max(6, radialSegs), 1);
+      applyTriplanarUVs(collarB, 2.0);
+      alignYToVec(collarB, diff, b.clone().addScaledVector(diff.clone().normalize(), -radius * 0.9));
+      collarParts.push(finalizeGeometry(collarB));
+    }
+
+    // CAD Point-to-Point Hydraulic Cylinder + Chrome Piston Rod + Clevis Lugs
+    // CAD Point-to-Point Hydraulic Cylinder + Chrome Piston Rod + Clevis Lugs & Mounting Brackets
+    function addHydraulicActuator(barrelParts, chromeParts, brassParts, pA, pB, rBarrel, rRod, segs, lugBaseA = null, lugBaseB = null) {
+      const a = new THREE.Vector3(...pA);
+      const b = new THREE.Vector3(...pB);
+      const diff = b.clone().sub(a);
+      const len = diff.length();
+      const dir = diff.clone().normalize();
+
+      // Solid titanium clevis mounting lug tabs anchoring each pin to the parent boom
+      for (const [pin, base] of [[a, lugBaseA], [b, lugBaseB]]) {
+        if (!base) continue;
+        const baseV = new THREE.Vector3(...base);
+        const lugDiff = pin.clone().sub(baseV);
+        const lugLen = lugDiff.length();
+        if (lugLen > 0.005) {
+          const lug = new THREE.CylinderGeometry(rBarrel * 0.85, rBarrel * 1.15, lugLen, 6);
+          applyTriplanarUVs(lug, 2.0);
+          alignYToVec(lug, lugDiff, baseV.clone().addScaledVector(lugDiff, 0.5));
+          barrelParts.push(finalizeGeometry(lug));
+        }
+      }
+
+      // Clevis housings at both pins
+      const clevA = new THREE.CylinderGeometry(rBarrel * 1.35, rBarrel * 1.35, rBarrel * 2.2, segs);
+      applyTriplanarUVs(clevA, 2.0);
+      clevA.rotateZ(Math.PI / 2);
+      clevA.translate(a.x, a.y, a.z);
+      brassParts.push(finalizeGeometry(clevA));
+
+      const clevB = new THREE.CylinderGeometry(rBarrel * 1.25, rBarrel * 1.25, rBarrel * 2.0, segs);
+      applyTriplanarUVs(clevB, 2.0);
+      clevB.rotateZ(Math.PI / 2);
+      clevB.translate(b.x, b.y, b.z);
+      brassParts.push(finalizeGeometry(clevB));
+
+      // Outer barrel (56% of stroke from A)
+      const barrelLen = len * 0.56;
+      const barrelMid = a.clone().addScaledVector(dir, barrelLen * 0.5);
+      const barrel = new THREE.CylinderGeometry(rBarrel, rBarrel, barrelLen, segs);
+      applyTriplanarUVs(barrel, 1.5);
+      alignYToVec(barrel, dir, barrelMid);
+      barrelParts.push(finalizeGeometry(barrel));
+
+      // Brass gland seal ring at barrel mouth
+      const gland = new THREE.CylinderGeometry(rBarrel * 1.22, rBarrel * 1.22, rBarrel * 0.9, segs);
+      applyTriplanarUVs(gland, 2.0);
+      alignYToVec(gland, dir, a.clone().addScaledVector(dir, barrelLen));
+      brassParts.push(finalizeGeometry(gland));
+
+      // Chrome piston rod overlapping cleanly from 40% to 100% (inside barrel -> B)
+      const rodLen = len * 0.60;
+      const rodMid = a.clone().addScaledVector(dir, len * 0.70);
+      const rod = new THREE.CylinderGeometry(rRod, rRod, rodLen, segs);
+      applyTriplanarUVs(rod, 2.0);
+      alignYToVec(rod, dir, rodMid);
+      chromeParts.push(finalizeGeometry(rod));
+    }
+
+    // CAD Anchored Conduit: Brass Bulkhead Sockets at Both Ends + Standoff Clamp Pedestals + Embedded Hose
+    function addAnchoredConduit(hoseParts, fittingParts, anchorPts, startNorm, endNorm, radius, tubularSegs, radialSegs, midNormals = null) {
+      const pts = anchorPts.map((p) => new THREE.Vector3(...p));
+      const sN = new THREE.Vector3(...startNorm).normalize();
+      const eN = new THREE.Vector3(...endNorm).normalize();
+
+      // Extend curve start/end slightly inside the hull bulkhead sockets so zero seam gap is possible
+      const curvePts = [
+        pts[0].clone().addScaledVector(sN, -radius * 1.5),
+        pts[0].clone().addScaledVector(sN, radius * 1.4),
+        ...pts.slice(1, -1),
+        pts[pts.length - 1].clone().addScaledVector(eN, radius * 1.4),
+        pts[pts.length - 1].clone().addScaledVector(eN, -radius * 1.5)
+      ];
+
+      hoseParts.push(buildSweptSpline(curvePts, circleProf(radius, radialSegs), tubularSegs, null, 1, 2.5, true));
+
+      // Start & end machined hex bulkhead fittings
+      const sockStart = new THREE.CylinderGeometry(radius * 1.85, radius * 2.1, radius * 3.4, 6);
+      applyTriplanarUVs(sockStart, 2.0);
+      alignYToVec(sockStart, sN, pts[0]);
+      fittingParts.push(finalizeGeometry(sockStart));
+
+      const sockEnd = new THREE.CylinderGeometry(radius * 1.85, radius * 2.1, radius * 3.4, 6);
+      applyTriplanarUVs(sockEnd, 2.0);
+      alignYToVec(sockEnd, eN, pts[pts.length - 1]);
+      fittingParts.push(finalizeGeometry(sockEnd));
+
+      // Intermediate clamp collars + standoff mounting pedestals anchored into parent structure
+      for (let i = 1; i < pts.length - 1; i++) {
+        const tan = pts[i + 1].clone().sub(pts[i - 1]).normalize();
+        const clamp = new THREE.CylinderGeometry(radius * 1.5, radius * 1.5, radius * 2.0, 8);
+        applyTriplanarUVs(clamp, 2.0);
+        alignYToVec(clamp, tan, pts[i]);
+        fittingParts.push(finalizeGeometry(clamp));
+
+        if (midNormals && midNormals[i - 1]) {
+          const mn = new THREE.Vector3(...midNormals[i - 1]).normalize();
+          const pedLen = radius * 3.2;
+          const ped = new THREE.CylinderGeometry(radius * 0.75, radius * 1.1, pedLen, 6);
+          applyTriplanarUVs(ped, 2.0);
+          alignYToVec(ped, mn, pts[i].clone().addScaledVector(mn, -pedLen * 0.5));
+          fittingParts.push(finalizeGeometry(ped));
+        }
+      }
+    }
+
+    // Twisted hydrofoil propeller blade
+    function buildHydrofoilBlade(rRoot, rTip, chordRoot, chordTip, pitchRoot, pitchTip, spanSegs, aoFn = null) {
+      const profSegs = 6; // Symmetric airfoil-like flattened hexagon cross-section
+      const positions = [], uvs = [], indices = [];
+      for (let i = 0; i <= spanSegs; i++) {
+        const t = i / spanSegs;
+        const r = rRoot + (rTip - rRoot) * t;
+        const chord = chordRoot + (chordTip - chordRoot) * t * (1 - 0.35 * t * t);
+        const thick = chord * (0.22 - 0.10 * t);
+        const pitch = pitchRoot + (pitchTip - pitchRoot) * t;
+        const sweepZ = -Math.sin(t * Math.PI * 0.7) * 0.025; // Skewed marine blade sweep
+        const cp = Math.cos(pitch), sp = Math.sin(pitch);
+
+        for (let j = 0; j <= profSegs; j++) {
+          const u = j / profSegs;
+          const th = u * Math.PI * 2;
+          const lx = Math.cos(th) * chord * 0.5;
+          const lz = Math.sin(th) * thick * 0.5;
+          // Rotate chord in X-Z by pitch angle
+          const rx = lx * cp - lz * sp;
+          const rz = lx * sp + lz * cp + sweepZ;
+          positions.push(rx, r, rz);
+          uvs.push(u, t);
+        }
+      }
+
+      const stride = profSegs + 1;
+      for (let i = 0; i < spanSegs; i++) {
+        for (let j = 0; j < profSegs; j++) {
+          const a = i * stride + j, b = (i + 1) * stride + j;
+          const c = (i + 1) * stride + j + 1, d = i * stride + j + 1;
+          indices.push(a, d, b, b, d, c);
+        }
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geom.setIndex(indices);
+      geom.computeVertexNormals();
+      return finalizeGeometry(geom, aoFn);
+    }
+
+    function buildPropellerAssembly(bladeCount, rHub, rTip, bladeSegs, latSegs, mirror = 1) {
+      const brassParts = [];
+      const tiParts = [];
+
+      // Spinner hub + nose cone
+      const hub = buildLatheProfile([
+        [0.001, -0.10],
+        [rHub * 0.92, -0.09],
+        [rHub, -0.03],
+        [rHub,  0.04],
+        [rHub * 0.65, 0.11],
+        [0.001, 0.15]
+      ], latSegs, 1, 1);
+      // Orient spinner along +Z
+      hub.rotateX(Math.PI / 2);
+      brassParts.push(hub);
+
+      for (let i = 0; i < bladeCount; i++) {
+        const ang = (i / bladeCount) * Math.PI * 2;
+        const blade = buildHydrofoilBlade(
+          rHub * 0.85,
+          rTip,
+          rTip * 0.42,
+          rTip * 0.28,
+          0.62 * mirror,
+          0.32 * mirror,
+          bladeSegs
+        );
+        blade.rotateZ(ang);
+        tiParts.push(blade);
+      }
+
+      return { brassGeo: mergeParts(brassParts), bladeGeo: mergeParts(tiParts) };
+    }
+
+    // =========================================================================
+    // 3. Asset Builder: TRITON-IX Deep-Sea Research Submersible & Drydock Rig
+    // =========================================================================
+    let assetGroup = null;
+    let dynamicNodes = {};
+    let colliderMeshes = [];
+
+    function buildTritonSubmersible(lodMode = 'hero') {
+      const isHero = lodMode === 'hero';
+      const seg = {
+        hullRadial: isHero ? 48 : 12,
+        tubeSegs:   isHero ? 24 : 6,
+        tubeRad:    isHero ? 12 : 5,
+        latheMajor: isHero ? 48 : 10,
+        latheMinor: isHero ? 18 : 6,
+        bladeSegs:  isHero ? 7  : 2,
+        domeW:      isHero ? 34 : 10,
+        domeH:      isHero ? 18 : 5,
+        bolts:      isHero ? 16 : 6
+      };
+
+      const root = new THREE.Group();
+      root.name = 'Triton_IX_Submersible_Rig';
+
+      const hullParts = [];
+      const tiParts = [];
+      const chromeParts = [];
+      const compParts = [];
+      const brassParts = [];
+      const glowParts = [];
+      const glassParts = [];
+
+      const HULL_Y = 1.18;
+      const SKID_X = 0.56;
+      const SKID_Y = 0.39;
+
+      // ---- A. Grounded Drydock Cradle Base (y = 0.00 -> 0.40) ----
+      const deckAO = (x, y, z, nx, ny) => Math.min(1.0, 0.34 + y * 2.4) * (0.78 + 0.22 * ny);
+
+      // Chamfered main floor deck slab (2.06 x 0.08 x 2.66)
+      const deckPlate = new THREE.BoxGeometry(2.04, 0.075, 2.64);
+      deckPlate.translate(0, 0.042, -0.04);
+      applyTriplanarUVs(deckPlate, 0.7);
+      compParts.push(finalizeGeometry(deckPlate, deckAO));
+
+      // Titanium perimeter curb rails & 4 corner heavy leveling pads
+      const curbF = new THREE.BoxGeometry(2.10, 0.055, 0.08); curbF.translate(0, 0.032, 1.28);
+      const curbB = new THREE.BoxGeometry(2.10, 0.055, 0.08); curbB.translate(0, 0.032, -1.36);
+      const curbL = new THREE.BoxGeometry(0.08, 0.055, 2.64); curbL.translate(-1.02, 0.032, -0.04);
+      const curbR = new THREE.BoxGeometry(0.08, 0.055, 2.64); curbR.translate( 1.02, 0.032, -0.04);
+      for (const c of [curbF, curbB, curbL, curbR]) {
+        applyTriplanarUVs(c, 0.8);
+        tiParts.push(finalizeGeometry(c, deckAO));
+      }
+
+      for (const sx of [-0.94, 0.94]) {
+        for (const sz of [-1.26, 1.18]) {
+          const foot = new THREE.CylinderGeometry(0.09, 0.11, 0.09, 8);
+          foot.translate(sx, 0.045, sz);
+          applyTriplanarUVs(foot, 1.2);
+          tiParts.push(finalizeGeometry(foot, deckAO));
+
+          const bollard = new THREE.CylinderGeometry(0.035, 0.045, 0.14, 8);
+          bollard.translate(sx, 0.12, sz);
+          applyTriplanarUVs(bollard, 1.5);
+          brassParts.push(finalizeGeometry(bollard));
+        }
+      }
+
+      // 2 Longitudinal Cradle I-Beam Rails (x = +-0.56, y = 0.08 -> 0.24) + 2 Cross-beams
+      for (const sx of [-SKID_X, SKID_X]) {
+        const rail = new THREE.BoxGeometry(0.14, 0.16, 2.14);
+        rail.translate(sx, 0.16, -0.06);
+        applyTriplanarUVs(rail, 0.8);
+        tiParts.push(finalizeGeometry(rail, deckAO));
+      }
+      for (const sz of [-0.72, 0.62]) {
+        const cross = new THREE.BoxGeometry(1.12, 0.12, 0.14);
+        cross.translate(0, 0.14, sz);
+        applyTriplanarUVs(cross, 0.8);
+        tiParts.push(finalizeGeometry(cross, deckAO));
+
+        // 4 Contoured Cradle Chock Saddles seating the skids (skid bottom = 0.39 - 0.046 = 0.344)
+        for (const sx of [-SKID_X, SKID_X]) {
+          const chockBase = new THREE.BoxGeometry(0.18, 0.11, 0.20);
+          chockBase.translate(sx, 0.29, sz);
+          applyTriplanarUVs(chockBase, 1.2);
+          compParts.push(finalizeGeometry(chockBase, deckAO));
+
+          // Left & right saddle cheek walls cupping the skid tube
+          for (const dx of [-0.068, 0.068]) {
+            const cheek = new THREE.BoxGeometry(0.042, 0.11, 0.18);
+            cheek.translate(sx + dx, 0.38, sz);
+            applyTriplanarUVs(cheek, 1.2);
+            compParts.push(finalizeGeometry(cheek, deckAO));
+          }
+        }
+      }
+
+      // ---- B. Submersible Tubular Landing Skids & 4 Shock Struts ----
+      const skidProf = circleProf(0.046, seg.tubeRad);
+      for (const side of [-1, 1]) {
+        const sx = side * SKID_X;
+        const skidPts = [
+          new THREE.Vector3(sx, 0.56,  1.22),
+          new THREE.Vector3(sx, 0.41,  0.96),
+          new THREE.Vector3(sx, SKID_Y,  0.62),
+          new THREE.Vector3(sx, SKID_Y, -0.72),
+          new THREE.Vector3(sx, 0.41, -0.96),
+          new THREE.Vector3(sx, 0.52, -1.16)
+        ];
+        const skidCurve = new THREE.CatmullRomCurve3(skidPts);
+        tiParts.push(buildSweptSpline(skidPts, skidProf, seg.tubeSegs + 6, null, 1, 1.4));
+
+        // Co-axially aligned machined titanium bumper ferrules + brass tow pins at front/rear skid tips
+        const tanF = skidCurve.getTangentAt(0).normalize();
+        const capF = new THREE.CylinderGeometry(0.052, 0.048, 0.068, seg.tubeRad);
+        applyTriplanarUVs(capF, 1.5);
+        alignYToVec(capF, tanF, skidPts[0].clone().addScaledVector(tanF, -0.015));
+        tiParts.push(finalizeGeometry(capF));
+
+        const pinF = new THREE.CylinderGeometry(0.016, 0.016, 0.125, 8);
+        pinF.rotateZ(Math.PI / 2);
+        pinF.translate(sx, 0.56, 1.22);
+        applyTriplanarUVs(pinF, 2.0);
+        brassParts.push(finalizeGeometry(pinF));
+
+        const tanB = skidCurve.getTangentAt(1).normalize();
+        const capB = new THREE.CylinderGeometry(0.048, 0.052, 0.068, seg.tubeRad);
+        applyTriplanarUVs(capB, 1.5);
+        alignYToVec(capB, tanB, skidPts[skidPts.length - 1].clone().addScaledVector(tanB, 0.015));
+        tiParts.push(finalizeGeometry(capB));
+
+        // 2 Diagonal Shock-Absorber Struts positioned cleanly clear of the rubber chock saddles (z=+0.62, -0.72)
+        addStrutWithCollars(chromeParts, brassParts, [sx, SKID_Y,  0.34], [side * 0.42, 0.78,  0.32], 0.030, seg.tubeRad);
+        addStrutWithCollars(chromeParts, brassParts, [sx, SKID_Y, -0.44], [side * 0.40, 0.78, -0.42], 0.030, seg.tubeRad);
+      }
+
+      // ---- C. Station-Lofted Main Pressure Hull & Tail Cone (z = +0.86 -> -1.48) ----
+      const hullAO = (x, y, z, nx, ny) => {
+        const belly = y < HULL_Y - 0.15 ? 0.64 : 1.0;
+        return belly * (0.76 + 0.24 * ny);
+      };
+
+      const hullStations = [
+        { z:  0.86, rx: 0.52, ryTop: 0.52, ryBot: 0.52, cy: HULL_Y, superPow: 2.0 },
+        { z:  0.68, rx: 0.62, ryTop: 0.58, ryBot: 0.56, cy: HULL_Y, superPow: 2.2 },
+        { z:  0.38, rx: 0.72, ryTop: 0.62, ryBot: 0.58, cy: HULL_Y, superPow: 2.3 },
+        { z:  0.00, rx: 0.75, ryTop: 0.63, ryBot: 0.58, cy: HULL_Y, superPow: 2.35 },
+        { z: -0.40, rx: 0.70, ryTop: 0.59, ryBot: 0.54, cy: HULL_Y, superPow: 2.25 },
+        { z: -0.82, rx: 0.58, ryTop: 0.50, ryBot: 0.46, cy: HULL_Y, superPow: 2.15 },
+        { z: -1.18, rx: 0.42, ryTop: 0.39, ryBot: 0.37, cy: HULL_Y, superPow: 2.05 },
+        { z: -1.48, rx: 0.24, ryTop: 0.24, ryBot: 0.24, cy: HULL_Y, superPow: 2.0 },
+        { z: -1.52, rx: 0.01, ryTop: 0.01, ryBot: 0.01, cy: HULL_Y, superPow: 2.0 }
+      ];
+      hullParts.push(buildLoftedHull(hullStations, seg.hullRadial, hullAO));
+
+      // Analytical surface evaluator matching hullStations for zero-gap attachments
+      function evalHullSurface(z, th, extraOffset = 0) {
+        let s0 = hullStations[0], s1 = hullStations[hullStations.length - 1];
+        for (let i = 0; i < hullStations.length - 1; i++) {
+          if (z <= hullStations[i].z && z >= hullStations[i + 1].z) {
+            s0 = hullStations[i]; s1 = hullStations[i + 1]; break;
+          }
+        }
+        const span = s0.z - s1.z;
+        const t = span > 1e-5 ? Math.max(0, Math.min(1, (s0.z - z) / span)) : 0;
+        const rx = s0.rx + (s1.rx - s0.rx) * t;
+        const ryTop = s0.ryTop + (s1.ryTop - s0.ryTop) * t;
+        const ryBot = s0.ryBot + (s1.ryBot - s0.ryBot) * t;
+        const cy = s0.cy + (s1.cy - s0.cy) * t;
+        const p = (s0.superPow + (s1.superPow - s0.superPow) * t);
+        const cs = Math.cos(th), sn = Math.sin(th);
+        const ry = sn >= 0 ? ryTop : ryBot;
+        const x = Math.sign(cs) * Math.pow(Math.abs(cs), 2 / p) * rx;
+        const y = cy + Math.sign(sn) * Math.pow(Math.abs(sn), 2 / p) * ry;
+        const nx = cs / Math.max(0.05, rx);
+        const ny = sn / Math.max(0.05, ry);
+        const nLen = Math.sqrt(nx * nx + ny * ny) || 1;
+        const unx = nx / nLen, uny = ny / nLen;
+        return {
+          pt: [x + unx * extraOffset, y + uny * extraOffset, z],
+          nrm: [unx, uny, 0.15]
+        };
+      }
+
+      // Recessed Side Ballast Sponsons (smooth 6-station hydrodynamic fairings tucked into hull flanks)
+      for (const side of [-1, 1]) {
+        const sponson = buildLoftedHull([
+          { z:  0.56, rx: 0.01, ryTop: 0.01, ryBot: 0.01, cy: HULL_Y - 0.14, superPow: 2.0 },
+          { z:  0.46, rx: 0.12, ryTop: 0.12, ryBot: 0.11, cy: HULL_Y - 0.14, superPow: 2.2 },
+          { z:  0.28, rx: 0.19, ryTop: 0.19, ryBot: 0.17, cy: HULL_Y - 0.14, superPow: 2.4 },
+          { z: -0.35, rx: 0.19, ryTop: 0.19, ryBot: 0.17, cy: HULL_Y - 0.14, superPow: 2.4 },
+          { z: -0.68, rx: 0.11, ryTop: 0.11, ryBot: 0.10, cy: HULL_Y - 0.14, superPow: 2.2 },
+          { z: -0.82, rx: 0.01, ryTop: 0.01, ryBot: 0.01, cy: HULL_Y - 0.14, superPow: 2.0 }
+        ], Math.max(12, Math.floor(seg.hullRadial * 0.75)));
+        sponson.translate(side * 0.67, 0, 0);
+        compParts.push(sponson);
+      }
+
+      // Dorsal Conning Sail Fairing (rooted cleanly at y = 1.66 inside main hull)
+      const sail = buildLoftedHull([
+        { z:  0.42, rx: 0.06, ryTop: 0.06, ryBot: 0.02, cy: 1.72, superPow: 2.0 },
+        { z:  0.22, rx: 0.28, ryTop: 0.34, ryBot: 0.12, cy: 1.72, superPow: 2.5 },
+        { z: -0.34, rx: 0.26, ryTop: 0.32, ryBot: 0.12, cy: 1.72, superPow: 2.5 },
+        { z: -0.68, rx: 0.06, ryTop: 0.06, ryBot: 0.02, cy: 1.72, superPow: 2.0 }
+      ], Math.max(12, Math.floor(seg.hullRadial * 0.65)));
+      hullParts.push(sail);
+
+      // ---- D. Forward Viewport Flange, 16 Bolts, Acrylic Dome & Detailed Cockpit Interior ----
+      // Machined titanium bezel ring at z = 0.86
+      const bezel = buildLatheProfile([
+        [0.44, 0.82],
+        [0.56, 0.82],
+        [0.58, 0.86],
+        [0.56, 0.91],
+        [0.47, 0.91],
+        [0.44, 0.87],
+        [0.44, 0.82]
+      ], seg.latheMajor, 4, 1);
+      bezel.rotateX(Math.PI / 2);
+      bezel.translate(0, HULL_Y, 0);
+      tiParts.push(bezel);
+
+      // Perimeter hex bolts around the pressure viewport ring
+      for (let i = 0; i < seg.bolts; i++) {
+        const a = (i / seg.bolts) * Math.PI * 2;
+        const bolt = new THREE.CylinderGeometry(0.017, 0.017, 0.026, 6);
+        bolt.rotateX(Math.PI / 2);
+        bolt.translate(Math.cos(a) * 0.515, HULL_Y + Math.sin(a) * 0.515, 0.915);
+        applyTriplanarUVs(bolt, 3.0);
+        brassParts.push(finalizeGeometry(bolt));
+      }
+
+      // Inner cockpit bay cylinder & rear bulkhead (visible through the clear dome)
+      const cockpitWall = new THREE.CylinderGeometry(0.445, 0.445, 0.40, seg.latheMajor, 1, true);
+      cockpitWall.rotateX(Math.PI / 2);
+      cockpitWall.translate(0, HULL_Y, 0.65);
+      // Reverse triangle winding so inner faces point cleanly toward the cockpit interior
+      const cwIdx = cockpitWall.index.array;
+      for (let i = 0; i < cwIdx.length; i += 3) {
+        const tmp = cwIdx[i + 1];
+        cwIdx[i + 1] = cwIdx[i + 2];
+        cwIdx[i + 2] = tmp;
+      }
+      cockpitWall.computeVertexNormals();
+      applyTriplanarUVs(cockpitWall, 1.2);
+      compParts.push(finalizeGeometry(cockpitWall));
+
+      const cockpitRear = new THREE.CircleGeometry(0.445, seg.latheMajor);
+      cockpitRear.translate(0, HULL_Y, 0.45);
+      applyTriplanarUVs(cockpitRear, 1.2);
+      compParts.push(finalizeGeometry(cockpitRear));
+
+      // Pilot seat, dual joysticks & dark composite console with glowing cyan MFD telemetry screens
+      const seatBase = new THREE.BoxGeometry(0.32, 0.11, 0.28);
+      seatBase.translate(0, 0.94, 0.60);
+      applyTriplanarUVs(seatBase, 1.5);
+      compParts.push(finalizeGeometry(seatBase));
+
+      const seatBack = new THREE.BoxGeometry(0.28, 0.36, 0.08);
+      xform(seatBack, [0, 1.15, 0.49], [-0.16, 0, 0]);
+      applyTriplanarUVs(seatBack, 1.5);
+      compParts.push(finalizeGeometry(seatBack));
+
+      const consolePod = new THREE.BoxGeometry(0.46, 0.15, 0.20);
+      xform(consolePod, [0, 0.93, 0.80], [0.28, 0, 0]);
+      applyTriplanarUVs(consolePod, 1.5);
+      compParts.push(finalizeGeometry(consolePod));
+
+      // Glowing dual MFD telemetry screens on console
+      for (const sx of [-0.11, 0.11]) {
+        const screen = new THREE.BoxGeometry(0.15, 0.085, 0.018);
+        xform(screen, [sx, 0.995, 0.81], [-0.62, 0, 0]);
+        glowParts.push(finalizeGeometry(screen));
+
+        // Control yoke stalk + T-bar grip anchored cleanly into console
+        const stick = new THREE.CylinderGeometry(0.010, 0.013, 0.10, 8);
+        xform(stick, [sx, 1.015, 0.72], [-0.22, 0, 0]);
+        applyTriplanarUVs(stick, 2.0);
+        chromeParts.push(finalizeGeometry(stick));
+
+        const yokeBar = new THREE.CylinderGeometry(0.011, 0.011, 0.075, 8);
+        xform(yokeBar, [sx, 1.062, 0.708], [0, 0, Math.PI / 2]);
+        applyTriplanarUVs(yokeBar, 2.0);
+        compParts.push(finalizeGeometry(yokeBar));
+      }
+
+      // Hemispherical Crystal-Clear Pressure Acrylic Dome
+      const dome = new THREE.SphereGeometry(0.462, seg.domeW, seg.domeH, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      dome.rotateX(Math.PI / 2);
+      dome.translate(0, HULL_Y, 0.87);
+      glassParts.push(finalizeGeometry(dome));
+
+      // ---- E. Overhead Titanium Bow Guard Roll-Cage & 4-Pod LED Floodlight Bar ----
+      const rollSockL = evalHullSurface(0.36, Math.PI - 0.86, -0.02);
+      const rollSockR = evalHullSurface(0.36, 0.86, -0.02);
+      const rollPts = [
+        new THREE.Vector3(...rollSockL.pt),
+        new THREE.Vector3(-0.44, 1.78, 0.72),
+        new THREE.Vector3(-0.34, 1.79, 1.04),
+        new THREE.Vector3( 0.00, 1.79, 1.10),
+        new THREE.Vector3( 0.34, 1.79, 1.04),
+        new THREE.Vector3( 0.44, 1.78, 0.72),
+        new THREE.Vector3(...rollSockR.pt)
+      ];
+      tiParts.push(buildSweptSpline(rollPts, circleProf(0.028, seg.tubeRad), seg.tubeSegs + 4, null, 1, 2.0));
+
+      // Deck anchor sockets for roll-cage + 4 floodlight housings with yoke brackets
+      for (const sockInfo of [rollSockL, rollSockR]) {
+        const sock = new THREE.CylinderGeometry(0.048, 0.056, 0.07, 8);
+        alignYToVec(sock, new THREE.Vector3(...sockInfo.nrm), new THREE.Vector3(...sockInfo.pt));
+        applyTriplanarUVs(sock, 2.0);
+        brassParts.push(finalizeGeometry(sock));
+      }
+
+      for (const lx of [-0.26, -0.09, 0.09, 0.26]) {
+        // Vertical mounting bracket linking cross-bar (y=1.79, z=1.08) to lamp housing (y=1.70, z=1.09)
+        addStrutWithCollars(tiParts, brassParts, [lx, 1.79, 1.07], [lx, 1.70, 1.09], 0.015, 6);
+
+        const lampBody = new THREE.CylinderGeometry(0.048, 0.042, 0.11, seg.latheMinor);
+        lampBody.rotateX(Math.PI / 2 + 0.14);
+        lampBody.translate(lx, 1.70, 1.10);
+        applyTriplanarUVs(lampBody, 2.0);
+        compParts.push(finalizeGeometry(lampBody));
+
+        const lampFace = new THREE.CylinderGeometry(0.039, 0.039, 0.015, seg.latheMinor);
+        lampFace.rotateX(Math.PI / 2 + 0.14);
+        lampFace.translate(lx, 1.693, 1.152);
+        glowParts.push(finalizeGeometry(lampFace));
+      }
+
+      // Dorsal side safety grab rails (mathematically bolted flush to hull surface via evalHullSurface)
+      for (const side of [-1, 1]) {
+        const thRail = side > 0 ? 0.78 : Math.PI - 0.78;
+        const bF = evalHullSurface( 0.20, thRail, -0.02);
+        const bM = evalHullSurface(-0.22, thRail, -0.02);
+        const bB = evalHullSurface(-0.62, thRail, -0.02);
+        const rF = evalHullSurface( 0.20, thRail,  0.09);
+        const rM = evalHullSurface(-0.22, thRail,  0.10);
+        const rB = evalHullSurface(-0.62, thRail,  0.09);
+
+        const railPts = [
+          new THREE.Vector3(...bF.pt),
+          new THREE.Vector3(...rF.pt),
+          new THREE.Vector3(...rM.pt),
+          new THREE.Vector3(...rB.pt),
+          new THREE.Vector3(...bB.pt)
+        ];
+        tiParts.push(buildSweptSpline(railPts, circleProf(0.016, Math.max(6, seg.tubeRad - 2)), Math.max(8, Math.floor(seg.tubeSegs * 0.6)), null, 1, 2.0));
+        addStrutWithCollars(tiParts, brassParts, bF.pt, rF.pt, 0.014, 6);
+        addStrutWithCollars(tiParts, brassParts, bM.pt, rM.pt, 0.014, 6);
+        addStrutWithCollars(tiParts, brassParts, bB.pt, rB.pt, 0.014, 6);
+      }
+
+      // ---- F. Twin Wing-Mounted Shrouded Azimuth Thrusters ----
+      const propLeftGeo = buildPropellerAssembly(5, 0.068, 0.215, seg.bladeSegs, seg.latheMinor, 1);
+      const propRightGeo = buildPropellerAssembly(5, 0.068, 0.215, seg.bladeSegs, seg.latheMinor, -1);
+
+      const wingX = 1.08, wingY = 1.18, wingZ = -0.34;
+      for (const side of [-1, 1]) {
+        // Swept airfoil pylon spanning cleanly from inside hull (x=side*0.52) to thruster shroud (x=side*1.08)
+        const pylon = new THREE.BoxGeometry(0.44, 0.065, 0.26);
+        xform(pylon, [side * 0.76, wingY, wingZ], [0.12, 0, side * 0.05]);
+        applyTriplanarUVs(pylon, 1.0);
+        hullParts.push(finalizeGeometry(pylon));
+
+        // Root fairing flange bolted to hull
+        const rootFlange = new THREE.BoxGeometry(0.10, 0.14, 0.34);
+        rootFlange.translate(side * 0.62, wingY, wingZ);
+        applyTriplanarUVs(rootFlange, 1.2);
+        tiParts.push(finalizeGeometry(rootFlange));
+
+        // Ducted Kort Nozzle Shroud (lathe rotated along Z)
+        const shroud = buildLatheProfile([
+          [0.225, -0.18],
+          [0.255, -0.15],
+          [0.265,  0.00],
+          [0.260,  0.14],
+          [0.242,  0.19],
+          [0.222,  0.16],
+          [0.220,  0.00],
+          [0.225, -0.18]
+        ], seg.latheMajor, 2, 1);
+        shroud.rotateX(Math.PI / 2);
+        shroud.translate(side * wingX, wingY, wingZ);
+        hullParts.push(shroud);
+
+        // Stator nacelle torpedo pod + 3 radial stator struts anchoring pod inside shroud
+        const pod = buildLatheProfile([
+          [0.001, -0.22],
+          [0.068, -0.14],
+          [0.072,  0.08],
+          [0.001,  0.16]
+        ], seg.latheMinor, 1, 1);
+        pod.rotateX(Math.PI / 2);
+        pod.translate(side * wingX, wingY, wingZ);
+        compParts.push(pod);
+
+        for (let s = 0; s < 3; s++) {
+          const a = (s / 3) * Math.PI * 2;
+          addStrutWithCollars(
+            tiParts,
+            brassParts,
+            [side * wingX + Math.cos(a) * 0.055, wingY + Math.sin(a) * 0.055, wingZ - 0.08],
+            [side * wingX + Math.cos(a) * 0.228, wingY + Math.sin(a) * 0.228, wingZ - 0.08],
+            0.015,
+            6
+          );
+        }
+      }
+
+      // ---- G. Stern Main Shrouded Thruster, Drive Shaft Nacelle & Cruciform Hydroplanes ----
+      const sternZ = -1.74;
+      const sternShroud = buildLatheProfile([
+        [0.295, -0.19],
+        [0.335, -0.15],
+        [0.348,  0.00],
+        [0.338,  0.15],
+        [0.310,  0.19],
+        [0.292,  0.15],
+        [0.290,  0.00],
+        [0.295, -0.19]
+      ], seg.latheMajor, 1, 1);
+      sternShroud.rotateX(Math.PI / 2);
+      sternShroud.translate(0, HULL_Y, sternZ);
+      hullParts.push(sternShroud);
+
+      // Machined stern drive torpedo nacelle linking yellow tailcone (z=-1.36) directly to propeller hub (z=-1.78)
+      const sternNacelle = buildLatheProfile([
+        [0.001, -1.80],
+        [0.082, -1.72],
+        [0.095, -1.52],
+        [0.145, -1.36],
+        [0.001, -1.36]
+      ], seg.latheMinor, 1, 1);
+      sternNacelle.rotateX(Math.PI / 2);
+      sternNacelle.translate(0, HULL_Y, 0);
+      compParts.push(sternNacelle);
+
+      // 4 Cruciform Internal Stator Struts + Swept Tapered Outer Hydroplane Rudder Fins locked onto shroud
+      for (let f = 0; f < 4; f++) {
+        const a = (f / 4) * Math.PI * 2;
+        addStrutWithCollars(
+          tiParts,
+          brassParts,
+          [Math.cos(a) * 0.075, HULL_Y + Math.sin(a) * 0.075, -1.62],
+          [Math.cos(a) * 0.295, HULL_Y + Math.sin(a) * 0.295, -1.62],
+          0.019,
+          6
+        );
+
+        // Sleek swept tapered airfoil rudder fin protruding cleanly from shroud outer wall
+        const finShape = new THREE.Shape();
+        finShape.moveTo(0.11, 0.31);
+        finShape.lineTo(-0.13, 0.31);
+        finShape.lineTo(-0.17, 0.44);
+        finShape.lineTo(0.01, 0.44);
+        finShape.closePath();
+        const finRaw = new THREE.ExtrudeGeometry(finShape, {
+          depth: 0.022,
+          bevelEnabled: true,
+          bevelThickness: 0.004,
+          bevelSize: 0.004,
+          bevelSegments: 1
+        });
+        finRaw.translate(0, 0, -0.011);
+        // Rotate extruded fin from XY plane into YZ plane (radial along +Y, leading edge forward +Z, swept aft -Z)
+        finRaw.rotateY(-Math.PI / 2);
+        const finCr = finRaw.toNonIndexed();
+        finCr.computeVertexNormals();
+        applyTriplanarUVs(finCr, 1.4);
+        xform(finCr, [0, HULL_Y, sternZ - 0.02], [0, 0, a - Math.PI / 2]);
+        tiParts.push(finalizeGeometry(finCr));
+      }
+
+      // ---- H. Clamped External High-Pressure Umbilical Conduits (Clear Hull Clearance + Standoff Clamps!) ----
+      for (const side of [-1, 1]) {
+        const thUmb = side > 0 ? 0.56 : Math.PI - 0.56;
+        const u0 = evalHullSurface(-0.34, thUmb, 0.008);
+        const u1 = evalHullSurface(-0.68, thUmb, 0.054);
+        const u2 = evalHullSurface(-1.04, thUmb, 0.054);
+        const u3 = evalHullSurface(-1.36, thUmb, 0.008);
+
+        addAnchoredConduit(
+          compParts,
+          brassParts,
+          [u0.pt, u1.pt, u2.pt, u3.pt],
+          u0.nrm,
+          u3.nrm,
+          0.020,
+          seg.tubeSegs,
+          Math.max(6, seg.tubeRad - 2),
+          [u1.nrm, u2.nrm]
+        );
+
+        // Lower sponson -> wing pylon thruster power feed conduit with standoff clamp
+        addAnchoredConduit(
+          compParts,
+          brassParts,
+          [
+            [side * 0.72, HULL_Y - 0.04, -0.08],
+            [side * 0.88, HULL_Y + 0.14, -0.21],
+            [side * 1.06, HULL_Y + 0.24, -0.34]
+          ],
+          [side * 0.5, 0.85, 0],
+          [0, 1.0, 0],
+          0.016,
+          Math.max(8, Math.floor(seg.tubeSegs * 0.6)),
+          Math.max(6, seg.tubeRad - 2),
+          [[side * 0.2, 0.9, 0.2]]
+        );
+      }
+
+      // ---- Assemble Merged Static Meshes ----
+      const staticGroups = [
+        { name: 'Hull_Main_Yellow_Static', parts: hullParts, mat: materials.MAT_Hull_Yellow_Coat },
+        { name: 'Frame_Titanium_Static', parts: tiParts, mat: materials.MAT_Titanium_Frame },
+        { name: 'Actuators_Chrome_Static', parts: chromeParts, mat: materials.MAT_Chrome_Actuator },
+        { name: 'Deck_Composite_Static', parts: compParts, mat: materials.MAT_Dark_Composite },
+        { name: 'Valves_Brass_Static', parts: brassParts, mat: materials.MAT_Brass_Fittings },
+        { name: 'Emissive_Lighting_Static', parts: glowParts, mat: materials.MAT_Emissive_Accent },
+        { name: 'Cockpit_Viewport_Glass', parts: glassParts, mat: materials.MAT_Viewport_Glass }
+      ];
+
+      for (const grp of staticGroups) {
+        const merged = mergeParts(grp.parts);
+        if (merged) {
+          const m = new THREE.Mesh(merged, grp.mat);
+          m.name = grp.name;
+          m.castShadow = grp.name !== 'Cockpit_Viewport_Glass';
+          m.receiveShadow = true;
+          root.add(m);
+        }
+      }
+
+      // ---- I. Twin Articulated 5-Axis Hydraulic Manipulator Arms (Rigid Self-Contained Sub-Assemblies) ----
+      function buildManipulatorArm(name, side) {
+        const armNode = new THREE.Group();
+        armNode.name = name;
+        const thSh = side > 0 ? -0.78 : -Math.PI + 0.78;
+        const shSurf = evalHullSurface(0.56, thSh, -0.04);
+        armNode.position.set(shSurf.pt[0], shSurf.pt[1], shSurf.pt[2]);
+        armNode.userData.restRotation = new THREE.Euler(0, 0, 0);
+
+        const aTi = [], aChrome = [], aBrass = [], aHose = [];
+
+        // Hemispherical-capped shoulder turret mount deeply socketed into lower hull
+        const turret = new THREE.CylinderGeometry(0.082, 0.095, 0.12, seg.latheMinor);
+        turret.translate(0, 0.02, 0);
+        applyTriplanarUVs(turret, 1.5);
+        aTi.push(finalizeGeometry(turret));
+
+        const turretCap = new THREE.SphereGeometry(0.082, seg.latheMinor, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        turretCap.translate(0, 0.08, 0);
+        applyTriplanarUVs(turretCap, 1.5);
+        aTi.push(finalizeGeometry(turretCap));
+
+        const elbow = [side * -0.04, -0.14, 0.40];
+        const wrist = [side * -0.12, -0.02, 0.78];
+
+        // Upper boom & forearm boom with machined collars
+        addStrutWithCollars(aTi, aBrass, [0, 0, 0], elbow, 0.036, seg.tubeRad);
+        addStrutWithCollars(aTi, aBrass, elbow, wrist, 0.028, seg.tubeRad);
+
+        // Exact point-to-point hydraulic cylinders WITH solid titanium clevis lug brackets anchored to boom!
+        const shPin = [0, 0.10, 0.03];
+        const upBoomPin = [elbow[0] * 0.68, elbow[1] * 0.68 + 0.075, elbow[2] * 0.68];
+        const upBoomBase = [elbow[0] * 0.68, elbow[1] * 0.68, elbow[2] * 0.68];
+        addHydraulicActuator(aTi, aChrome, aBrass, shPin, upBoomPin, 0.022, 0.012, seg.tubeRad, [0, 0.04, 0.02], upBoomBase);
+
+        const elbPin = [elbow[0], elbow[1] + 0.07, elbow[2] + 0.02];
+        const wrBoomPin = [elbow[0] + (wrist[0] - elbow[0]) * 0.65, elbow[1] + (wrist[1] - elbow[1]) * 0.65 + 0.065, elbow[2] + (wrist[2] - elbow[2]) * 0.65];
+        const wrBoomBase = [elbow[0] + (wrist[0] - elbow[0]) * 0.65, elbow[1] + (wrist[1] - elbow[1]) * 0.65, elbow[2] + (wrist[2] - elbow[2]) * 0.65];
+        addHydraulicActuator(aTi, aChrome, aBrass, elbPin, wrBoomPin, 0.018, 0.010, seg.tubeRad, elbow, wrBoomBase);
+
+        // Clamped flexible hydraulic hose anchored tightly with standoff pedestals to boom
+        addAnchoredConduit(
+          aHose,
+          aBrass,
+          [[side * 0.045, 0.01, 0.04], [elbow[0] + side * 0.045, elbow[1] - 0.02, elbow[2]], [wrist[0] + side * 0.025, wrist[1] - 0.01, wrist[2] - 0.06]],
+          [-side, 0.2, 0.3],
+          [-side, 0.1, 0.6],
+          0.011,
+          Math.max(8, Math.floor(seg.tubeSegs * 0.5)),
+          6,
+          [[side, -0.2, 0]]
+        );
+
+        // Precision dual-jaw manipulator claw at wrist
+        const wristCollar = new THREE.CylinderGeometry(0.042, 0.042, 0.07, seg.latheMinor);
+        wristCollar.rotateX(Math.PI / 2);
+        wristCollar.translate(wrist[0], wrist[1], wrist[2] + 0.03);
+        applyTriplanarUVs(wristCollar, 2.0);
+        aBrass.push(finalizeGeometry(wristCollar));
+
+        for (const jawSide of [-1, 1]) {
+          const jBase = [wrist[0] + jawSide * 0.028, wrist[1], wrist[2] + 0.06];
+          const jMid  = [wrist[0] + jawSide * 0.055, wrist[1], wrist[2] + 0.14];
+          const jTip  = [wrist[0] + jawSide * 0.018, wrist[1], wrist[2] + 0.21];
+          addStrutWithCollars(aChrome, aBrass, jBase, jMid, 0.011, 6);
+          addStrutWithCollars(aChrome, aBrass, jMid, jTip, 0.009, 6);
+        }
+
+        const mTi = new THREE.Mesh(mergeParts(aTi), materials.MAT_Titanium_Frame); mTi.name = `${name}_Frame`; mTi.castShadow = true;
+        const mCh = new THREE.Mesh(mergeParts(aChrome), materials.MAT_Chrome_Actuator); mCh.name = `${name}_Pistons`; mCh.castShadow = true;
+        const mBr = new THREE.Mesh(mergeParts(aBrass), materials.MAT_Brass_Fittings); mBr.name = `${name}_Fittings`;
+        const mHs = new THREE.Mesh(mergeParts(aHose), materials.MAT_Dark_Composite); mHs.name = `${name}_Hose`;
+        armNode.add(mTi, mCh, mBr, mHs);
+        return armNode;
+      }
+
+      const armL = buildManipulatorArm('Part_Arm_L', -1);
+      const armR = buildManipulatorArm('Part_Arm_R',  1);
+      root.add(armL, armR);
+
+      // ---- J. Animated Propellers & Dorsal Acoustic Scanner Pod ----
+      function makePropNode(name, pos, geoPair) {
+        const g = new THREE.Group();
+        g.name = name;
+        g.position.set(...pos);
+        g.userData.restRotation = new THREE.Euler(0, 0, 0);
+        const mHub = new THREE.Mesh(geoPair.brassGeo, materials.MAT_Brass_Fittings); mHub.name = `${name}_Hub`;
+        const mBld = new THREE.Mesh(geoPair.bladeGeo, materials.MAT_Titanium_Frame); mBld.name = `${name}_Blades`;
+        g.add(mHub, mBld);
+        return g;
+      }
+
+      const propL = makePropNode('Part_Propeller_L', [-wingX, wingY, wingZ], propLeftGeo);
+      const propR = makePropNode('Part_Propeller_R', [ wingX, wingY, wingZ], propRightGeo);
+      const propSternGeo = buildPropellerAssembly(6, 0.085, 0.275, seg.bladeSegs, seg.latheMinor, 1);
+      const propStern = makePropNode('Part_Propeller_Stern', [0, HULL_Y, sternZ], propSternGeo);
+      root.add(propL, propR, propStern);
+
+      // Dorsal Acoustic/Optical Scanner Pod
+      const radarNode = new THREE.Group();
+      radarNode.name = 'Part_Radar_Beacon';
+      radarNode.position.set(0, 2.02, -0.04);
+      radarNode.userData.restRotation = new THREE.Euler(0, 0, 0);
+
+      const mastBase = new THREE.CylinderGeometry(0.055, 0.072, 0.14, seg.latheMinor);
+      mastBase.translate(0, 0.04, 0);
+      applyTriplanarUVs(mastBase, 1.5);
+      const scannerBar = new THREE.BoxGeometry(0.30, 0.06, 0.09);
+      scannerBar.translate(0, 0.13, 0);
+      applyTriplanarUVs(scannerBar, 1.5);
+      const radarTi = new THREE.Mesh(mergeParts([finalizeGeometry(mastBase), finalizeGeometry(scannerBar)]), materials.MAT_Titanium_Frame);
+      radarTi.name = 'Part_Radar_Body';
+
+      const beaconLens = new THREE.CylinderGeometry(0.036, 0.042, 0.06, seg.latheMinor);
+      beaconLens.translate(0, 0.19, 0);
+      const radarGlow = new THREE.Mesh(finalizeGeometry(beaconLens), materials.MAT_Emissive_Accent);
+      radarGlow.name = 'Part_Radar_Beacon_Lens';
+      radarNode.add(radarTi, radarGlow);
+      root.add(radarNode);
+
+      // ---- K. Convex Collision Proxies (Collider_*) ----
+      const colCradle = new THREE.Mesh(
+        finalizeGeometry(new THREE.BoxGeometry(2.08, 0.34, 2.66).translate(0, 0.17, -0.04)),
+        materials.MAT_Collider_Proxy
+      );
+      colCradle.name = 'Collider_Drydock_Cradle';
+
+      const colHull = new THREE.Mesh(
+        finalizeGeometry(new THREE.CylinderGeometry(0.68, 0.56, 2.76, 10).rotateX(Math.PI / 2).translate(0, HULL_Y, -0.08)),
+        materials.MAT_Collider_Proxy
+      );
+      colHull.name = 'Collider_Submersible_Hull';
+
+      const colThrusters = new THREE.Mesh(
+        mergeParts([
+          finalizeGeometry(new THREE.CylinderGeometry(0.28, 0.28, 0.40, 8).rotateX(Math.PI / 2).translate(-wingX, wingY, wingZ)),
+          finalizeGeometry(new THREE.CylinderGeometry(0.28, 0.28, 0.40, 8).rotateX(Math.PI / 2).translate( wingX, wingY, wingZ))
+        ]),
+        materials.MAT_Collider_Proxy
+      );
+      colThrusters.name = 'Collider_Wing_Thrusters';
+
+      colliderMeshes = [colCradle, colHull, colThrusters];
+      for (const cm of colliderMeshes) {
+        cm.visible = state.showColliders;
+        cm.userData.isColliderProxy = true;
+        root.add(cm);
+      }
+
+      dynamicNodes = { propL, propR, propStern, radarNode, armL, armR };
+      return root;
+    }
+
+    // =========================================================================
+    // 4. Scene, PMREM Lighting, Post-Processing & Camera Presets
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.06;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.88;
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.05, 100);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 1.1;
+    controls.maxDistance = 12;
+    controls.maxPolarAngle = Math.PI * 0.51;
+
+    const CAM_PRESETS = {
+      hero34:  { pos: [3.48, 2.15, 3.48], target: [0.38, 1.02, -0.08] },
+      cockpit: { pos: [0.92, 1.36, 2.34], target: [0.12, 1.18, 0.85] },
+      arms:    { pos: [1.62, 0.94, 2.38], target: [0.12, 0.68, 0.82] },
+      side:    { pos: [5.45, 1.45, -0.45], target: [0.00, 1.02, -0.85] },
+      stern:   { pos: [-2.65, 1.66, -3.20], target: [-0.25, 1.10, -0.95] },
+      top:     { pos: [0.15, 4.55, 1.35], target: [0.35, 1.00, -0.10] }
+    };
+
+    function applyCameraPreset(key) {
+      const p = CAM_PRESETS[key];
+      if (!p) return;
+      camera.position.set(...p.pos);
+      controls.target.set(...p.target);
+      controls.update();
+    }
+    applyCameraPreset('hero34');
+
+    const hemi = new THREE.HemisphereLight(0xbbe0ff, 0x161b24, 0.50);
+    scene.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0xfff4e0, 2.05);
+    keyLight.position.set(4.5, 6.5, 4.2);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 18;
+    const d = 2.6;
+    keyLight.shadow.camera.left = -d; keyLight.shadow.camera.right = d;
+    keyLight.shadow.camera.top = d;  keyLight.shadow.camera.bottom = -d;
+    keyLight.shadow.bias = -0.0004;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x52c8ff, 1.25);
+    rimLight.position.set(-4.5, 3.2, -4.4);
+    scene.add(rimLight);
+
+    // Max 1 dynamic PointLight inside cockpit/floodlight halo
+    const cockpitLight = new THREE.PointLight(0x4be4ff, 0.85, 2.8, 1.8);
+    cockpitLight.position.set(0, 1.18, 0.80);
+    scene.add(cockpitLight);
+
+    // Non-exported Studio Floor & Grid
+    const studioStage = new THREE.Group();
+    studioStage.name = 'Studio_Stage_NonExported';
+    const shadowPlane = new THREE.Mesh(
+      new THREE.CircleGeometry(4.5, 64).rotateX(-Math.PI / 2),
+      new THREE.ShadowMaterial({ opacity: 0.5 })
+    );
+    shadowPlane.receiveShadow = true;
+    studioStage.add(shadowPlane);
+
+    const grid = new THREE.GridHelper(8, 24, 0x2c4366, 0x132036);
+    grid.position.y = -0.002;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.45;
+    studioStage.add(grid);
+    scene.add(studioStage);
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.20, 0.38, 1.22);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+
+    // =========================================================================
+    // 5. State, Rebuild, Budget HUD & Exporters
+    // =========================================================================
+    const state = {
+      lod: 'hero',
+      animate: true,
+      turntable: false,
+      bloom: true,
+      wireframe: false,
+      showColliders: false,
+      exportColliders: true
+    };
+
+    function rebuildAsset(lodMode) {
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        assetGroup.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+      }
+      state.lod = lodMode;
+      assetGroup = buildTritonSubmersible(lodMode);
+      applyWireframe();
+      scene.add(assetGroup);
+      updateBudgetHUD();
+      updateHierarchy();
+    }
+
+    function applyWireframe() {
+      for (const [k, m] of Object.entries(materials)) {
+        if (k === 'MAT_Collider_Proxy') continue;
+        m.wireframe = state.wireframe;
+      }
+    }
+
+    function updateBudgetHUD() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, meshes = 0;
+      const mats = new Set();
+      assetGroup.traverse((o) => {
+        if (!o.isMesh) return;
+        if (o.userData.isColliderProxy && !state.exportColliders) return;
+        const g = o.geometry;
+        meshes++;
+        verts += g.attributes.position.count;
+        tris += g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+        if (o.material?.name) mats.add(o.material.name);
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-meshes').textContent = meshes.toString();
+      document.getElementById('stat-mats').textContent = mats.size.toString();
+    }
+
+    function updateHierarchy() {
+      const box = document.getElementById('hierarchy-box');
+      const lines = [];
+      function walk(n, d) {
+        if (n.userData.isColliderProxy && !state.exportColliders) return;
+        const tag = n.isMesh ? `[Mesh · ${n.material?.name || ''}]` : '[Group]';
+        lines.push(`${'  '.repeat(d)}├─ ${n.name} <span style="color:#6d80a0">${tag}</span>`);
+        for (const c of n.children) walk(c, d + 1);
+      }
+      if (assetGroup) walk(assetGroup, 0);
+      box.innerHTML = lines.join('<br>');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    function withRestPoseForExport(cb) {
+      const prevAnim = state.animate;
+      state.animate = false;
+      const saved = {
+        rootY: assetGroup.rotation.y,
+        propL: dynamicNodes.propL.rotation.clone(),
+        propR: dynamicNodes.propR.rotation.clone(),
+        propStern: dynamicNodes.propStern.rotation.clone(),
+        radar: dynamicNodes.radarNode.rotation.clone(),
+        armL: dynamicNodes.armL.rotation.clone(),
+        armR: dynamicNodes.armR.rotation.clone(),
+        colVis: colliderMeshes.map((m) => m.visible)
+      };
+
+      assetGroup.rotation.set(0, 0, 0);
+      dynamicNodes.propL.rotation.copy(dynamicNodes.propL.userData.restRotation);
+      dynamicNodes.propR.rotation.copy(dynamicNodes.propR.userData.restRotation);
+      dynamicNodes.propStern.rotation.copy(dynamicNodes.propStern.userData.restRotation);
+      dynamicNodes.radarNode.rotation.copy(dynamicNodes.radarNode.userData.restRotation);
+      dynamicNodes.armL.rotation.copy(dynamicNodes.armL.userData.restRotation);
+      dynamicNodes.armR.rotation.copy(dynamicNodes.armR.userData.restRotation);
+
+      const detached = [];
+      for (const cm of colliderMeshes) {
+        if (!state.exportColliders) { assetGroup.remove(cm); detached.push(cm); }
+        else { cm.visible = true; }
+      }
+      assetGroup.updateMatrixWorld(true);
+
+      const restore = () => {
+        for (const cm of detached) assetGroup.add(cm);
+        colliderMeshes.forEach((cm, i) => { cm.visible = saved.colVis[i]; });
+        assetGroup.rotation.y = saved.rootY;
+        dynamicNodes.propL.rotation.copy(saved.propL);
+        dynamicNodes.propR.rotation.copy(saved.propR);
+        dynamicNodes.propStern.rotation.copy(saved.propStern);
+        dynamicNodes.radarNode.rotation.copy(saved.radar);
+        dynamicNodes.armL.rotation.copy(saved.armL);
+        dynamicNodes.armR.rotation.copy(saved.armR);
+        state.animate = prevAnim;
+      };
+
+      try { cb(restore); } catch (err) { restore(); throw err; }
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      showToast('正在執行 Rest-Pose 歸位並打包 .GLB...');
+      const exporter = new GLTFExporter();
+      withRestPoseForExport((restore) => {
+        exporter.parse(
+          assetGroup,
+          (res) => {
+            restore();
+            const blob = new Blob([res], { type: 'model/gltf-binary' });
+            const tag = state.lod === 'hero' ? 'Hero' : 'GameReady';
+            downloadBlob(blob, `Triton_IX_Submersible_${tag}.glb`);
+            showToast(`已匯出 Triton_IX_Submersible_${tag}.glb (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+          },
+          (err) => { restore(); console.error(err); showToast('GLB 匯出失敗'); },
+          { binary: true, onlyVisible: false }
+        );
+      });
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      const exporter = new OBJExporter();
+      withRestPoseForExport((restore) => {
+        const txt = exporter.parse(assetGroup);
+        restore();
+        const blob = new Blob([txt], { type: 'text/plain' });
+        const tag = state.lod === 'hero' ? 'Hero' : 'GameReady';
+        downloadBlob(blob, `Triton_IX_Submersible_${tag}.obj`);
+        showToast(`已匯出 Triton_IX_Submersible_${tag}.obj`);
+      });
+    });
+
+    // Texture Previews & PNG Exports
+    const selMat = document.getElementById('sel-material');
+    const previewGrid = document.getElementById('tex-preview-grid');
+
+    function renderThumbnails() {
+      const key = selMat.value;
+      const set = texSets[key].canvases;
+      previewGrid.innerHTML = '';
+      for (const mapName of ['Albedo', 'Normal', 'Roughness', 'Metalness']) {
+        const src = set[mapName];
+        const wrap = document.createElement('div');
+        wrap.className = 'tex-thumb';
+        wrap.title = `下載 TritonIX_${key}_${mapName}.png`;
+        const c = document.createElement('canvas');
+        c.width = 128; c.height = 128;
+        c.getContext('2d').drawImage(src, 0, 0, 128, 128);
+        const s = document.createElement('span'); s.textContent = mapName;
+        wrap.append(c, s);
+        wrap.addEventListener('click', () => {
+          src.toBlob((blob) => {
+            downloadBlob(blob, `TritonIX_${key}_${mapName}_1024.png`);
+            showToast(`已下載 TritonIX_${key}_${mapName}_1024.png`);
+          }, 'image/png');
+        });
+        previewGrid.appendChild(wrap);
+      }
+    }
+    selMat.addEventListener('change', renderThumbnails);
+
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      const key = selMat.value;
+      Object.entries(texSets[key].canvases).forEach(([mapName, cv], idx) => {
+        setTimeout(() => {
+          cv.toBlob((blob) => downloadBlob(blob, `TritonIX_${key}_${mapName}_1024.png`), 'image/png');
+        }, idx * 180);
+      });
+      showToast(`正在匯出 ${key} 的 5 張 1024×1024 PNG 貼圖...`);
+    });
+
+    // UI Bindings
+    document.querySelectorAll('[data-lod]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-lod]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        rebuildAsset(btn.dataset.lod);
+        showToast(`已切換至 ${btn.dataset.lod === 'hero' ? 'Hero Showcase' : 'Game-Ready'} LOD`);
+      });
+    });
+
+    document.querySelectorAll('[data-cam]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-cam]').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyCameraPreset(btn.dataset.cam);
+      });
+    });
+
+    function bindToggle(id, prop, cb = null) {
+      const el = document.getElementById(id);
+      el.addEventListener('click', () => {
+        state[prop] = !state[prop];
+        el.classList.toggle('on', state[prop]);
+        if (cb) cb(state[prop]);
+      });
+    }
+    bindToggle('tgl-anim', 'animate');
+    bindToggle('tgl-turntable', 'turntable');
+    bindToggle('tgl-bloom', 'bloom');
+    bindToggle('tgl-wire', 'wireframe', () => applyWireframe());
+    bindToggle('tgl-colliders', 'showColliders', (v) => colliderMeshes.forEach((m) => { m.visible = v; }));
+    bindToggle('tgl-export-colliders', 'exportColliders', () => { updateBudgetHUD(); updateHierarchy(); });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    rebuildAsset('hero');
+    renderThumbnails();
+
+    const clock = new THREE.Clock();
+    function tick() {
+      requestAnimationFrame(tick);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const t = clock.elapsedTime;
+
+      if (state.animate && assetGroup) {
+        dynamicNodes.propL.rotation.z += 12.0 * dt;
+        dynamicNodes.propR.rotation.z -= 12.0 * dt;
+        dynamicNodes.propStern.rotation.z += 9.5 * dt;
+        dynamicNodes.radarNode.rotation.y += 1.4 * dt;
+
+        const armSway = Math.sin(t * 1.3) * 0.04;
+        dynamicNodes.armL.rotation.x = armSway;
+        dynamicNodes.armR.rotation.x = -armSway;
+
+        const pulse = 0.5 + 0.5 * Math.sin(t * 2.2);
+        materials.MAT_Emissive_Accent.emissiveIntensity = 1.85 + pulse * 0.65;
+        cockpitLight.intensity = 0.72 + pulse * 0.32;
+      }
+
+      if (state.turntable && assetGroup) {
+        assetGroup.rotation.y += 0.24 * dt;
+      }
+
+      controls.update();
+      if (state.bloom) composer.render();
+      else renderer.render(scene, camera);
+    }
+    tick();
+  </script>
+</body>
+</html>
