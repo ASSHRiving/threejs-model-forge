@@ -2,7 +2,7 @@
 <html lang="zh-Hant" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ARCANE ASTROLABE ALTAR // PROCEDURAL 3D FORGE</title>
 
   <!-- Tailwind CSS for responsive layout utilities -->
@@ -47,6 +47,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      overscroll-behavior: none;
       background-color: var(--bg-obsidian);
       color: var(--text-primary);
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -58,6 +59,7 @@
       width: 100vw;
       height: 100vh;
       z-index: 1;
+      touch-action: none;
       background: radial-gradient(circle at 50% 42%, #151926 0%, #090b10 58%, #040508 100%);
     }
 
@@ -66,6 +68,7 @@
       width: 100%;
       height: 100%;
       outline: none;
+      touch-action: none;
     }
 
     /* Dark Medieval Dungeon Micro-Bevel Panel Styling */
@@ -236,6 +239,155 @@
     .toast-item {
       animation: toastSlideIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
+
+    .mobile-drawer-fab,
+    .mobile-drawer-tabs {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        top: 8px !important;
+        left: 8px !important;
+        right: 8px !important;
+        gap: 6px !important;
+      }
+      header > .forge-panel {
+        padding: 6px 10px !important;
+        gap: 8px !important;
+      }
+      header h1 {
+        font-size: 11.5px !important;
+        letter-spacing: 0.08em !important;
+      }
+      header p {
+        display: none !important;
+      }
+      header .w-9.h-9 {
+        width: 26px !important;
+        height: 26px !important;
+      }
+      header .w-9.h-9 svg {
+        width: 15px !important;
+        height: 15px !important;
+      }
+      #toggle-left-btn,
+      #toggle-right-btn {
+        display: none !important;
+      }
+      #left-sidebar,
+      #right-sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 50vh !important;
+        border-radius: 16px 16px 0 0 !important;
+        overflow-y: auto !important;
+        z-index: 40 !important;
+        padding: 12px 14px calc(16px + env(safe-area-inset-bottom)) !important;
+        transform: translateY(105%) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      #left-sidebar.mobile-drawer-open,
+      #right-sidebar.mobile-drawer-open {
+        transform: translateY(0) !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .mobile-drawer-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        position: sticky;
+        top: -12px;
+        z-index: 5;
+        background: rgba(12, 14, 21, 0.96);
+        padding: 6px 0 8px;
+        margin-bottom: 2px;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.22);
+      }
+      .mobile-tab-btn {
+        min-height: 36px;
+        border-radius: 8px;
+        border: 1px solid rgba(212, 175, 55, 0.26);
+        background: rgba(18, 21, 31, 0.9);
+        color: #cfd5e4;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .mobile-tab-btn.active {
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.28), rgba(24, 28, 40, 0.96));
+        border-color: #d4af37;
+        color: #f6dc84;
+      }
+      input[type="range"].forge-slider {
+        height: 40px;
+        min-height: 40px;
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+      input[type="range"].forge-slider::-webkit-slider-runnable-track {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(212, 175, 55, 0.28);
+        border-radius: 999px;
+      }
+      input[type="range"].forge-slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+        margin-top: -9px;
+      }
+      input[type="range"].forge-slider::-moz-range-track {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(212, 175, 55, 0.28);
+        border-radius: 999px;
+      }
+      input[type="range"].forge-slider::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+      }
+      #btn-export-glb,
+      #btn-export-obj,
+      #btn-export-png {
+        min-height: 42px !important;
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        position: fixed;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50;
+        min-height: 44px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid #ffe89e;
+        background: linear-gradient(135deg, #e5c358 0%, #b38922 100%);
+        color: #090a0e;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.78), 0 0 18px rgba(212, 175, 55, 0.36);
+      }
+      #toast-container {
+        top: 60px !important;
+        bottom: auto !important;
+        z-index: 60 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -290,6 +442,10 @@
 
   <!-- LEFT FLOATING SIDEBAR: Procedural Material Themes & Parametric Forge Controls -->
   <aside id="left-sidebar" class="forge-panel forge-scroll fixed top-[74px] left-3 bottom-3 w-[336px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-4">
+    <div class="mobile-drawer-tabs" role="tablist">
+      <button type="button" class="mobile-tab-btn active" data-mobile-tab="left">⚙ 參數控制</button>
+      <button type="button" class="mobile-tab-btn" data-mobile-tab="right">📦 匯出 &amp; 資訊</button>
+    </div>
 
     <!-- Section 1: Theme Presets -->
     <div>
@@ -438,6 +594,10 @@
 
   <!-- RIGHT FLOATING DOCK: Mesh Telemetry, Hierarchy & One-Click Export Pipeline -->
   <aside id="right-sidebar" class="forge-panel forge-scroll fixed top-[74px] right-3 bottom-3 w-[328px] max-w-[calc(100vw-24px)] z-10 overflow-y-auto p-4 flex flex-col gap-4">
+    <div class="mobile-drawer-tabs" role="tablist">
+      <button type="button" class="mobile-tab-btn" data-mobile-tab="left">⚙ 參數控制</button>
+      <button type="button" class="mobile-tab-btn active" data-mobile-tab="right">📦 匯出 &amp; 資訊</button>
+    </div>
 
     <!-- Telemetry Metrics -->
     <div class="forge-subcard p-3.5">
@@ -562,6 +722,8 @@
       </div>
     </div>
   </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
 
   <!-- Toast Notification Container (Replaces alert() cleanly) -->
   <div id="toast-container" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-[92vw] max-w-md"></div>
@@ -2292,6 +2454,36 @@
         document.getElementById('left-sidebar').classList.add('panel-collapsed-left');
         document.getElementById('right-sidebar').classList.add('panel-collapsed-right');
       }
+
+      const mobileFab = document.getElementById('mobile-drawer-fab');
+      const leftPanel = document.getElementById('left-sidebar');
+      const rightPanel = document.getElementById('right-sidebar');
+      let activeMobileTab = 'left';
+
+      const syncMobileDrawer = (open) => {
+        if (!leftPanel || !rightPanel || !mobileFab) return;
+        leftPanel.classList.remove('panel-collapsed-left', 'mobile-drawer-open');
+        rightPanel.classList.remove('panel-collapsed-right', 'mobile-drawer-open');
+        if (open) {
+          (activeMobileTab === 'left' ? leftPanel : rightPanel).classList.add('mobile-drawer-open');
+        }
+        mobileFab.textContent = open ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(open));
+      };
+
+      if (mobileFab) {
+        mobileFab.addEventListener('click', () => {
+          const isOpen = leftPanel.classList.contains('mobile-drawer-open') || rightPanel.classList.contains('mobile-drawer-open');
+          syncMobileDrawer(!isOpen);
+        });
+      }
+
+      document.querySelectorAll('.mobile-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          activeMobileTab = btn.dataset.mobileTab;
+          syncMobileDrawer(true);
+        });
+      });
 
       applyTheme('abyssal');
       rebuildAltarAsset();

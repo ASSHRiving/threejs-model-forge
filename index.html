@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>threejs-model-forge — Procedural 3D Asset &amp; Unity URP Collection</title>
   <style>
     :root {
@@ -58,6 +58,16 @@
       color: #fff;
     }
     .launch:hover { filter: brightness(1.1); }
+    @media (max-width: 768px) {
+      html, body { overflow-x: hidden; }
+      body { padding: 24px 14px; }
+      header { margin-bottom: 22px; }
+      h1 { font-size: 24px; }
+      p.sub { font-size: 13px; }
+      .grid { grid-template-columns: 1fr; gap: 14px; }
+      .card { padding: 16px; }
+      .launch { min-height: 44px; padding: 11px 14px; }
+    }
   </style>
 </head>
 <body>

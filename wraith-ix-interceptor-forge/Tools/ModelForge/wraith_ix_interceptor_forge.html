@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>WRAITH-IX Tactical Stealth Interceptor — Three.js to Unity URP Forge</title>
   <style>
     :root {
@@ -17,13 +17,14 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none;
       background: radial-gradient(circle at 42% 44%, #101c2f 0%, #06090f 100%);
       color: var(--text-main);
       font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
       font-size: 11px;
       user-select: none;
     }
-    #viewport { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #viewport, #viewport canvas { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; }
 
     .glass-panel {
       background: var(--panel-bg);
@@ -159,6 +160,111 @@
     .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
 
     #export-status { font-size: 9.5px; color: #7dd3fc; min-height: 14px; text-align: center; }
+
+    .mobile-drawer-fab { display: none; }
+
+    @media (max-width: 768px) {
+      #hud-header {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        min-width: 0;
+        padding: 7px 10px;
+      }
+      .brand-row {
+        margin-bottom: 5px;
+        gap: 6px;
+      }
+      .brand-title {
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        min-width: 0;
+      }
+      .brand-title span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .stat-box {
+        padding: 3px 4px;
+      }
+      .stat-val {
+        font-size: 11px;
+      }
+      .stat-lbl {
+        font-size: 8px;
+      }
+      #camera-bar {
+        top: 82px;
+        left: 8px;
+        right: 8px;
+        bottom: auto;
+        width: auto;
+        max-width: calc(100vw - 16px);
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 5px 6px;
+      }
+      .cam-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 11px;
+        padding: 5px 8px;
+      }
+      #controls-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        max-height: 50vh;
+        border-radius: 16px 16px 0 0;
+        overflow-y: auto;
+        z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      #controls-panel.mobile-drawer-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      input[type="range"] {
+        min-height: 40px;
+        height: 40px;
+      }
+      .btn-primary,
+      .btn-secondary {
+        min-height: 42px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        position: fixed;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50;
+        min-height: 44px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid #bae6fd;
+        background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+        color: #f8fafc;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72), 0 0 16px rgba(56, 189, 248, 0.38);
+      }
+    }
   </style>
 
   <script type="importmap">
@@ -289,6 +395,8 @@
       </div>
     </div>
   </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
 
   <script type="module">
     import * as THREE from 'three';
@@ -2443,6 +2551,16 @@
       controls.update();
       composer.render();
     }
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlsPanel = document.getElementById('controls-panel');
+    if (mobileFab && controlsPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlsPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
     animate();
   </script>
 </body>

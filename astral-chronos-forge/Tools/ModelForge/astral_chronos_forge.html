@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Astral Chronos Reliquary — Three.js ModelForge & Unity URP Exporter</title>
   <style>
     :root {
@@ -23,16 +23,18 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      overscroll-behavior: none;
       background: radial-gradient(circle at 42% 38%, #151d32 0%, #090c16 58%, #04050a 100%);
       color: var(--text);
       font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
 
-    #viewport {
+    #viewport, #viewport canvas {
       position: fixed;
       inset: 0;
       width: 100%;
       height: 100%;
+      touch-action: none;
     }
 
     .hud-header {
@@ -356,6 +358,119 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    .mobile-drawer-fab {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .hud-header {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: calc(100vw - 20px);
+      }
+      .badge-row {
+        margin-bottom: 4px;
+        gap: 5px;
+      }
+      .badge {
+        font-size: 9px;
+        padding: 2px 7px;
+      }
+      h1 {
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .subtitle {
+        display: none;
+      }
+      .budget-bar {
+        top: 56px;
+        left: 10px;
+        right: 10px;
+        bottom: auto;
+        gap: 4px;
+        flex-wrap: nowrap;
+      }
+      .stat-pill {
+        min-width: 0;
+        flex: 1;
+        padding: 4px 6px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+      }
+      .stat-label {
+        font-size: 9px;
+        letter-spacing: 0.03em;
+      }
+      .stat-value {
+        margin-top: 0;
+        font-size: 11px;
+      }
+      .control-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        max-height: 50vh;
+        border-radius: 16px 16px 0 0;
+        overflow-y: auto;
+        z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      .control-panel.mobile-drawer-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      input[type="range"] {
+        min-height: 40px;
+      }
+      .btn-primary,
+      .btn-secondary {
+        min-height: 42px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        position: fixed;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50;
+        min-height: 44px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid #fae3ac;
+        background: linear-gradient(135deg, #e6c278 0%, #b88a2e 100%);
+        color: #080b12;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72), 0 0 16px rgba(230, 194, 120, 0.35);
+      }
+      .status-toast {
+        top: 96px;
+        z-index: 60;
+        font-size: 11.5px;
+      }
+    }
   </style>
 
   <script type="importmap">
@@ -459,6 +574,8 @@
       <div class="hierarchy-box" id="hierarchy-box"></div>
     </div>
   </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
 
   <div class="status-toast" id="status-toast">Ready</div>
 
@@ -2217,6 +2334,17 @@
       } else {
         renderer.render(scene, camera);
       }
+    }
+
+    // Mobile bottom drawer toggle
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlPanel = document.querySelector('.control-panel');
+    if (mobileFab && controlPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
     }
 
     tick();
