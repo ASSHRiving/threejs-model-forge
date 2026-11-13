@@ -16,7 +16,7 @@
 | **Sovereign's Oath (Gothic Altar)** | 哥德皇家大劍聖壇 | [sovereign_s_oath_royal_greatsword_gothic_altar_forge.html](./sovereigns-oath-gothic-altar-forge/Tools/ModelForge/sovereign_s_oath_royal_greatsword_gothic_altar_forge.html) | `SovereignsOathGothicController.cs` |
 | **AEGIS-VII Orbital Drop Mech** | 近未來重型軌道空降作戰機甲 | [aegis_vii_orbital_mech_forge.html](./aegis-vii-orbital-mech-forge/Tools/ModelForge/aegis_vii_orbital_mech_forge.html) | `OrbitalMechController.cs` |
 | **AERO-900X Widebody Commercial Airliner** | 次世代雙發廣體長程客機（含駕駛艙與客艙剖視） | [aero_900x_airliner_forge.html](./aero-900x-airliner-forge/aero_900x_airliner_forge.html) | `AirlinerFlightSystemsController.cs` |
-| **GARGANTUA-IX Relativistic Singularity** | 克爾旋轉黑洞、立體重力透鏡與觀測陣列 | [gargantua_ix_singularity_forge.html](./gargantua-ix-singularity-forge/gargantua_ix_singularity_forge.html) | `SingularityAccretionController.cs` |
+| **GARGANTUA-IX Relativistic Singularity** | 純天文克爾旋轉黑洞、立體重力透鏡、吸積盤與雙極噴流 | [gargantua_ix_singularity_forge.html](./gargantua-ix-singularity-forge/gargantua_ix_singularity_forge.html) | `SingularityAccretionController.cs` |
 | **ENOCHIAN-TOWER Ancient Spire** | 遠古以諾殘冠石塔、15 節懸臂石拱與繞塔雲霧 | [enochian_tower_forge.html](./enochian-tower-forge/enochian_tower_forge.html) | `EnochianTowerController.cs` |
 
 ## 本機預覽方式

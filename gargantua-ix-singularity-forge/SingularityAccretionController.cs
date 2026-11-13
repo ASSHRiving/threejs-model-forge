@@ -4,48 +4,54 @@ using UnityEngine;
 namespace ModelForge.GargantuaIX
 {
     /// <summary>
-    /// Unity URP runtime astrophysics and telemetry controller for GARGANTUA-IX Relativistic Singularity.
+    /// Pure astrophysical Unity URP runtime controller for GARGANTUA-IX Relativistic Singularity.
     /// Attach directly to the imported .glb root GameObject (GARGANTUA_IX_Singularity_Root).
-    /// Drives Keplerian differential accretion rotation, relativistic polar jet scaling/precession,
-    /// Kerr telemetry array orbital motion, and zero-GC MaterialPropertyBlock HDR _EmissionColor pulsing.
+    /// Drives Keplerian differential accretion rotation (innermost fastest, outer slowest),
+    /// helical magnetic flux precession, polar jet luminosity scaling, and zero-GC MaterialPropertyBlock
+    /// HDR _EmissionColor pulsing with blackbody Kelvin shift for Unity URP Post-Processing Bloom.
     /// </summary>
     public class SingularityAccretionController : MonoBehaviour
     {
-        [Header("Relativistic Accretion & Simulation Controls")]
-        [Range(0f, 3f)] public float accretionSpinSpeed = 1.0f;
-        [Range(3000f, 15000f)] public float plasmaTemperatureK = 8800f;
-        [Range(0f, 1f)] public float polarJetIntensity = 0.80f;
-        public bool showTelemetryArray = true;
+        [Header("Relativistic Accretion & Blackbody Controls")]
+        [Range(0f, 3f)] public float kerrSpinVelocity = 1.0f;
+        [Range(3000f, 15000f)] public float blackbodyTemperatureK = 8800f;
+        [Range(0f, 1f)] public float relativisticJetLuminosity = 0.80f;
+        public bool showPolarJetsAndHelices = true;
 
-        [Header("Keplerian Angular Velocities (deg/sec at 1.0x)")]
-        public float photonRingDegPerSec = 66f;
-        public float innerDiskDegPerSec = 48.7f;
-        public float midSpiralDegPerSec = 23.5f;
-        public float outerDustDegPerSec = 11.5f;
-        public float polarJetDegPerSec = 35.5f;
-        public float magneticHelixDegPerSec = 31.5f;
-        public float telemetryRingDegPerSec = 5.7f;
+        [Header("Keplerian Differential Angular Velocities (deg/sec at 1.0x)")]
+        public float photonRingDegPerSec = 71.0f;
+        public float innerHotDiskDegPerSec = 50.4f;
+        public float midTurbulentDiskDegPerSec = 24.1f;
+        public float outerDustHaloDegPerSec = 10.9f;
+        public float polarJetDegPerSec = 37.2f;
+        public float magneticHelixDegPerSec = 30.9f;
+
+        [Header("Magnetic Flux Precession")]
+        [Range(0f, 5f)] public float helixPrecessionAmplitudeDeg = 1.26f;
+        public float helixPrecessionFreq = 0.75f;
 
         [Header("HDR Emission & Pulse Settings (URP Post-Processing Bloom)")]
         [Range(0.2f, 4f)] public float hdrEmissionMultiplier = 1.65f;
-        [Range(0f, 0.5f)] public float plasmaPulseAmplitude = 0.12f;
+        [Range(0f, 0.5f)] public float plasmaPulseAmplitude = 0.10f;
         public float plasmaPulseFrequency = 2.6f;
 
-        [Header("Singularity Sub-Part Transforms (Auto-Resolved)")]
+        [Header("Pure Astrophysical Sub-Parts (Auto-Resolved)")]
+        [SerializeField] private Transform partEventHorizon;
         [SerializeField] private Transform partPhotonRing;
-        [SerializeField] private Transform partAccretionInnerDisk;
-        [SerializeField] private Transform partAccretionMidSpiral;
-        [SerializeField] private Transform partAccretionOuterDust;
+        [SerializeField] private Transform partLensingUpperArc;
+        [SerializeField] private Transform partLensingLowerArc;
+        [SerializeField] private Transform partAccretionInnerHotDisk;
+        [SerializeField] private Transform partAccretionMidTurbulentDisk;
+        [SerializeField] private Transform partAccretionOuterDustHalo;
         [SerializeField] private Transform partNorthPolarJet;
         [SerializeField] private Transform partSouthPolarJet;
-        [SerializeField] private Transform partMagneticHelix;
-        [SerializeField] private Transform partTelemetryRing;
-        [SerializeField] private Transform partSensorNodes;
+        [SerializeField] private Transform partMagneticFluxHelix;
 
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         private MaterialPropertyBlock _mpb;
+        private float _helixYawDeg;
 
         private struct EmissiveBinding
         {
@@ -53,24 +59,25 @@ namespace ModelForge.GargantuaIX
             public Color BaseEmission;
             public float RelativeWeight;
             public bool IsJetOrHelix;
-            public bool IsTelemetryCore;
+            public bool IsTransparentJet;
         }
 
-        private readonly List<EmissiveBinding> _emissiveBindings = new List<EmissiveBinding>(16);
+        private readonly List<EmissiveBinding> _emissiveBindings = new List<EmissiveBinding>(12);
 
         private void Awake()
         {
             _mpb = new MaterialPropertyBlock();
 
+            if (partEventHorizon == null) partEventHorizon = FindDeepChild(transform, "Part_EventHorizon");
             if (partPhotonRing == null) partPhotonRing = FindDeepChild(transform, "Part_PhotonRing");
-            if (partAccretionInnerDisk == null) partAccretionInnerDisk = FindDeepChild(transform, "Part_AccretionInnerDisk");
-            if (partAccretionMidSpiral == null) partAccretionMidSpiral = FindDeepChild(transform, "Part_AccretionMidSpiral");
-            if (partAccretionOuterDust == null) partAccretionOuterDust = FindDeepChild(transform, "Part_AccretionOuterDust");
+            if (partLensingUpperArc == null) partLensingUpperArc = FindDeepChild(transform, "Part_LensingUpperArc");
+            if (partLensingLowerArc == null) partLensingLowerArc = FindDeepChild(transform, "Part_LensingLowerArc");
+            if (partAccretionInnerHotDisk == null) partAccretionInnerHotDisk = FindDeepChild(transform, "Part_AccretionInnerHotDisk");
+            if (partAccretionMidTurbulentDisk == null) partAccretionMidTurbulentDisk = FindDeepChild(transform, "Part_AccretionMidTurbulentDisk");
+            if (partAccretionOuterDustHalo == null) partAccretionOuterDustHalo = FindDeepChild(transform, "Part_AccretionOuterDustHalo");
             if (partNorthPolarJet == null) partNorthPolarJet = FindDeepChild(transform, "Part_NorthPolarJet");
             if (partSouthPolarJet == null) partSouthPolarJet = FindDeepChild(transform, "Part_SouthPolarJet");
-            if (partMagneticHelix == null) partMagneticHelix = FindDeepChild(transform, "Part_MagneticHelix");
-            if (partTelemetryRing == null) partTelemetryRing = FindDeepChild(transform, "Part_TelemetryRing");
-            if (partSensorNodes == null) partSensorNodes = FindDeepChild(transform, "Part_SensorNodes");
+            if (partMagneticFluxHelix == null) partMagneticFluxHelix = FindDeepChild(transform, "Part_MagneticFluxHelix");
 
             CacheEmissiveRenderers();
         }
@@ -79,37 +86,30 @@ namespace ModelForge.GargantuaIX
         {
             _emissiveBindings.Clear();
             RegisterNodeRenderers(partPhotonRing, 2.35f, false, false);
-            RegisterNodeRenderers(FindDeepChild(transform, "Part_LensingUpperArc"), 1.72f, false, false);
-            RegisterNodeRenderers(FindDeepChild(transform, "Part_LensingLowerArc"), 1.72f, false, false);
-            RegisterNodeRenderers(partAccretionInnerDisk, 1.85f, false, false);
-            RegisterNodeRenderers(partAccretionMidSpiral, 1.38f, false, false);
-            RegisterNodeRenderers(partAccretionOuterDust, 0.88f, false, false);
-            RegisterNodeRenderers(partNorthPolarJet, 1.60f, true, false);
-            RegisterNodeRenderers(partSouthPolarJet, 1.60f, true, false);
-            RegisterNodeRenderers(partMagneticHelix, 1.72f, true, false);
-            RegisterNodeRenderers(partTelemetryRing, 1.85f, false, true);
+            RegisterNodeRenderers(partLensingUpperArc, 1.80f, false, false);
+            RegisterNodeRenderers(partLensingLowerArc, 1.80f, false, false);
+            RegisterNodeRenderers(partAccretionInnerHotDisk, 1.95f, false, false);
+            RegisterNodeRenderers(partAccretionMidTurbulentDisk, 1.38f, false, false);
+            RegisterNodeRenderers(partAccretionOuterDustHalo, 0.72f, false, false);
+            RegisterNodeRenderers(partNorthPolarJet, 1.55f, true, true);
+            RegisterNodeRenderers(partSouthPolarJet, 1.55f, true, true);
+            RegisterNodeRenderers(partMagneticFluxHelix, 1.75f, true, false);
         }
 
-        private void RegisterNodeRenderers(Transform root, float weight, bool isJetOrHelix, bool isTelemetry)
+        private void RegisterNodeRenderers(Transform root, float weight, bool isJetOrHelix, bool isTransparentJet)
         {
             if (root == null) return;
-            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
-                var r = renderers[i];
-                var mat = r.sharedMaterial;
+                Renderer r = renderers[i];
+                Material mat = r.sharedMaterial;
                 if (mat == null) continue;
-
-                // Skip non-emissive metallic/gold/quartz surfaces when caching telemetry array
-                if (isTelemetry && !mat.name.Contains("Emissive") && !mat.name.Contains("Strip") && !mat.name.Contains("Core"))
-                {
-                    continue;
-                }
 
                 Color baseEm = mat.HasProperty(EmissionColorId) ? mat.GetColor(EmissionColorId) : Color.white;
                 if (baseEm.maxColorComponent < 0.01f)
                 {
-                    baseEm = isJetOrHelix ? new Color(0.45f, 0.82f, 1.0f) : new Color(1.0f, 0.78f, 0.42f);
+                    baseEm = isJetOrHelix ? new Color(0.55f, 0.85f, 1.0f) : new Color(1.0f, 0.82f, 0.56f);
                 }
 
                 _emissiveBindings.Add(new EmissiveBinding
@@ -118,35 +118,35 @@ namespace ModelForge.GargantuaIX
                     BaseEmission = baseEm,
                     RelativeWeight = weight,
                     IsJetOrHelix = isJetOrHelix,
-                    IsTelemetryCore = isTelemetry
+                    IsTransparentJet = isTransparentJet
                 });
             }
         }
 
         private void Update()
         {
-            UpdateKeplerianRotations();
-            UpdatePolarJetsAndTelemetry();
+            UpdateKeplerianRotationsAndPrecession();
+            UpdatePolarJetsAndHelicesVisibility();
             UpdateZeroGcEmissionProperties();
         }
 
-        private void UpdateKeplerianRotations()
+        private void UpdateKeplerianRotationsAndPrecession()
         {
             float dt = Time.deltaTime;
-            float speed = accretionSpinSpeed;
+            float speed = kerrSpinVelocity;
             if (speed <= 0.0001f) return;
 
             if (partPhotonRing != null)
                 partPhotonRing.Rotate(Vector3.up, photonRingDegPerSec * speed * dt, Space.Self);
 
-            if (partAccretionInnerDisk != null)
-                partAccretionInnerDisk.Rotate(Vector3.up, innerDiskDegPerSec * speed * dt, Space.Self);
+            if (partAccretionInnerHotDisk != null)
+                partAccretionInnerHotDisk.Rotate(Vector3.up, innerHotDiskDegPerSec * speed * dt, Space.Self);
 
-            if (partAccretionMidSpiral != null)
-                partAccretionMidSpiral.Rotate(Vector3.up, midSpiralDegPerSec * speed * dt, Space.Self);
+            if (partAccretionMidTurbulentDisk != null)
+                partAccretionMidTurbulentDisk.Rotate(Vector3.up, midTurbulentDiskDegPerSec * speed * dt, Space.Self);
 
-            if (partAccretionOuterDust != null)
-                partAccretionOuterDust.Rotate(Vector3.up, outerDustDegPerSec * speed * dt, Space.Self);
+            if (partAccretionOuterDustHalo != null)
+                partAccretionOuterDustHalo.Rotate(Vector3.up, outerDustHaloDegPerSec * speed * dt, Space.Self);
 
             if (partNorthPolarJet != null)
                 partNorthPolarJet.Rotate(Vector3.up, polarJetDegPerSec * speed * dt, Space.Self);
@@ -154,60 +154,50 @@ namespace ModelForge.GargantuaIX
             if (partSouthPolarJet != null)
                 partSouthPolarJet.Rotate(Vector3.up, -polarJetDegPerSec * speed * dt, Space.Self);
 
-            if (partMagneticHelix != null)
-                partMagneticHelix.Rotate(Vector3.up, magneticHelixDegPerSec * speed * dt, Space.Self);
-
-            if (partTelemetryRing != null)
-                partTelemetryRing.Rotate(Vector3.up, telemetryRingDegPerSec * speed * dt, Space.Self);
+            if (partMagneticFluxHelix != null)
+            {
+                _helixYawDeg = (_helixYawDeg + magneticHelixDegPerSec * speed * dt) % 360f;
+                float tiltZ = Mathf.Sin(Time.time * helixPrecessionFreq * speed) * helixPrecessionAmplitudeDeg;
+                partMagneticFluxHelix.localRotation = Quaternion.Euler(0f, _helixYawDeg, tiltZ);
+            }
         }
 
-        private void UpdatePolarJetsAndTelemetry()
+        private void UpdatePolarJetsAndHelicesVisibility()
         {
-            bool jetsVisible = polarJetIntensity > 0.01f;
-            float sXZ = Mathf.Lerp(0.35f, 1.05f, polarJetIntensity);
-            float sY = Mathf.Lerp(0.15f, 1.0f, polarJetIntensity);
+            bool jetsVisible = showPolarJetsAndHelices && relativisticJetLuminosity > 0.01f;
+            float sXZ = Mathf.Lerp(0.38f, 1.04f, relativisticJetLuminosity);
+            float sY = Mathf.Lerp(0.18f, 1.00f, relativisticJetLuminosity);
             Vector3 jetScale = new Vector3(sXZ, sY, sXZ);
 
-            if (partNorthPolarJet != null)
-            {
-                if (partNorthPolarJet.gameObject.activeSelf != jetsVisible)
-                    partNorthPolarJet.gameObject.SetActive(jetsVisible);
-                if (jetsVisible) partNorthPolarJet.localScale = jetScale;
-            }
+            ApplyJetTransform(partNorthPolarJet, jetsVisible, jetScale);
+            ApplyJetTransform(partSouthPolarJet, jetsVisible, jetScale);
+            ApplyJetTransform(partMagneticFluxHelix, jetsVisible, jetScale);
+        }
 
-            if (partSouthPolarJet != null)
-            {
-                if (partSouthPolarJet.gameObject.activeSelf != jetsVisible)
-                    partSouthPolarJet.gameObject.SetActive(jetsVisible);
-                if (jetsVisible) partSouthPolarJet.localScale = jetScale;
-            }
-
-            if (partMagneticHelix != null)
-            {
-                if (partMagneticHelix.gameObject.activeSelf != jetsVisible)
-                    partMagneticHelix.gameObject.SetActive(jetsVisible);
-                if (jetsVisible) partMagneticHelix.localScale = jetScale;
-            }
-
-            if (partTelemetryRing != null && partTelemetryRing.gameObject.activeSelf != showTelemetryArray)
-            {
-                partTelemetryRing.gameObject.SetActive(showTelemetryArray);
-            }
+        private static void ApplyJetTransform(Transform target, bool visible, Vector3 scale)
+        {
+            if (target == null) return;
+            if (target.gameObject.activeSelf != visible)
+                target.gameObject.SetActive(visible);
+            if (visible)
+                target.localScale = scale;
         }
 
         private void UpdateZeroGcEmissionProperties()
         {
-            float tempNorm = Mathf.Clamp01((plasmaTemperatureK - 3000f) / 12000f);
-            Color coolShift = new Color(0.85f, 0.28f, 0.12f);
-            Color midShift = new Color(1.0f, 0.74f, 0.35f);
-            Color hotShift = new Color(0.85f, 0.95f, 1.0f);
+            float tempNorm = Mathf.Clamp01((blackbodyTemperatureK - 3000f) / 12000f);
+
+            // Relativistic Doppler & Blackbody temperature shift palette
+            Color coolShift = new Color(0.85f, 0.28f, 0.12f); // #D9481E
+            Color midShift = new Color(1.00f, 0.78f, 0.45f);  // Warm gold-amber
+            Color hotShift = new Color(0.90f, 0.97f, 1.00f);  // #E6F7FF
 
             Color kelvinColor = tempNorm < 0.5f
                 ? Color.Lerp(coolShift, midShift, tempNorm * 2f)
                 : Color.Lerp(midShift, hotShift, (tempNorm - 0.5f) * 2f);
 
             float wave = 1f + plasmaPulseAmplitude * Mathf.Sin(Time.time * plasmaPulseFrequency);
-            float tempGain = Mathf.Lerp(0.75f, 1.38f, tempNorm);
+            float tempGain = Mathf.Lerp(0.76f, 1.32f, tempNorm);
 
             for (int i = 0; i < _emissiveBindings.Count; i++)
             {
@@ -219,16 +209,16 @@ namespace ModelForge.GargantuaIX
                 Color hdrCol;
                 if (b.IsJetOrHelix)
                 {
-                    float jetBoost = polarJetIntensity * hdrEmissionMultiplier * b.RelativeWeight * wave;
+                    float jetPulse = 0.92f + 0.08f * Mathf.Sin(Time.time * 3.2f);
+                    float jetBoost = relativisticJetLuminosity * hdrEmissionMultiplier * b.RelativeWeight * jetPulse;
                     hdrCol = b.BaseEmission * jetBoost;
-                    Color baseAlpha = Color.white;
-                    baseAlpha.a = Mathf.Lerp(0f, 0.86f, polarJetIntensity);
-                    _mpb.SetColor(BaseColorId, baseAlpha);
-                }
-                else if (b.IsTelemetryCore)
-                {
-                    float corePulse = 1f + 0.32f * Mathf.Sin(Time.time * 2.8f);
-                    hdrCol = b.BaseEmission * (hdrEmissionMultiplier * b.RelativeWeight * corePulse);
+
+                    if (b.IsTransparentJet)
+                    {
+                        Color baseAlpha = Color.white;
+                        baseAlpha.a = Mathf.Lerp(0f, 0.64f, relativisticJetLuminosity);
+                        _mpb.SetColor(BaseColorId, baseAlpha);
+                    }
                 }
                 else
                 {
@@ -242,18 +232,18 @@ namespace ModelForge.GargantuaIX
         }
 
         /// <summary>
-        /// Resets all rotating singularities and rings back to canonical rest-pose (0, 0, 0).
+        /// Resets all rotating plasma rings, jets, and magnetic helices back to canonical rest-pose (0, 0, 0).
         /// </summary>
         public void ResetToRestPose()
         {
+            _helixYawDeg = 0f;
             if (partPhotonRing != null) partPhotonRing.localRotation = Quaternion.identity;
-            if (partAccretionInnerDisk != null) partAccretionInnerDisk.localRotation = Quaternion.identity;
-            if (partAccretionMidSpiral != null) partAccretionMidSpiral.localRotation = Quaternion.identity;
-            if (partAccretionOuterDust != null) partAccretionOuterDust.localRotation = Quaternion.identity;
+            if (partAccretionInnerHotDisk != null) partAccretionInnerHotDisk.localRotation = Quaternion.identity;
+            if (partAccretionMidTurbulentDisk != null) partAccretionMidTurbulentDisk.localRotation = Quaternion.identity;
+            if (partAccretionOuterDustHalo != null) partAccretionOuterDustHalo.localRotation = Quaternion.identity;
             if (partNorthPolarJet != null) { partNorthPolarJet.localRotation = Quaternion.identity; partNorthPolarJet.localScale = Vector3.one; }
             if (partSouthPolarJet != null) { partSouthPolarJet.localRotation = Quaternion.identity; partSouthPolarJet.localScale = Vector3.one; }
-            if (partMagneticHelix != null) { partMagneticHelix.localRotation = Quaternion.identity; partMagneticHelix.localScale = Vector3.one; }
-            if (partTelemetryRing != null) partTelemetryRing.localRotation = Quaternion.identity;
+            if (partMagneticFluxHelix != null) { partMagneticFluxHelix.localRotation = Quaternion.identity; partMagneticFluxHelix.localScale = Vector3.one; }
         }
 
         private static Transform FindDeepChild(Transform parent, string targetName)
