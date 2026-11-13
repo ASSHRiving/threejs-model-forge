@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ENOCHIAN-TOWER Ancient Spire — Three.js to Unity URP Forge</title>
+  <style>
+    :root {
+      --bg-deep: #1b2028;
+      --panel-bg: rgba(16, 20, 27, 0.86);
+      --panel-border: rgba(214, 178, 114, 0.28);
+      --accent: #d9a753;
+      --accent-moss: #6d8c52;
+      --accent-amber: #f59e0b;
+      --text-main: #f3efe6;
+      --text-dim: #a39e93;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      overscroll-behavior: none;
+      background: radial-gradient(circle at 48% 42%, #475262 0%, #242a34 58%, #14181f 100%);
+      color: var(--text-main);
+      font-family: "Inter", "Segoe UI", "Noto Sans TC", sans-serif;
+      font-size: 11px;
+      user-select: none;
+    }
+    #viewport, #viewport canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      touch-action: none;
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.56);
+    }
+
+    /* Top-Left Telemetry HUD */
+    #hud-header {
+      position: fixed; top: 12px; left: 12px; z-index: 20;
+      padding: 10px 14px; min-width: 318px;
+    }
+    .brand-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-bottom: 7px;
+    }
+    .brand-title {
+      font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em;
+      color: #fdf6e7; display: flex; align-items: center; gap: 7px;
+    }
+    .brand-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: #f5b951; box-shadow: 0 0 12px #d9a753, 0 0 22px rgba(245, 158, 11, 0.7);
+    }
+    .badge-lod {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(217, 167, 83, 0.16); color: #f6d591;
+      border: 1px solid rgba(217, 167, 83, 0.42);
+      white-space: nowrap;
+    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .stat-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px; padding: 4px 6px; text-align: center;
+    }
+    .stat-val { font-size: 12px; font-weight: 700; color: #f8f5ee; font-variant-numeric: tabular-nums; }
+    .stat-lbl { font-size: 8.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Bottom-Left Camera Presets */
+    #camera-bar {
+      position: fixed; bottom: 12px; left: 12px; right: 316px; z-index: 20;
+      padding: 7px 8px; display: flex; flex-wrap: wrap; gap: 5px;
+      width: fit-content; max-width: calc(100vw - 332px);
+    }
+    .cam-btn {
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      color: var(--text-main); border-radius: 6px;
+      padding: 5px 10px; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.16s ease;
+    }
+    .cam-btn:hover { background: rgba(217, 167, 83, 0.22); border-color: var(--accent); color: #fff; }
+    .cam-btn.active {
+      background: linear-gradient(135deg, #d9a753 0%, #b47d28 100%);
+      border-color: #f6d591; color: #120f0a;
+    }
+
+    /* Right Control & Export Panel */
+    #controls-panel {
+      position: fixed; top: 12px; right: 12px; bottom: 12px; width: 296px; z-index: 20;
+      padding: 11px 12px; display: flex; flex-direction: column; gap: 9px;
+      overflow-y: auto;
+    }
+    #controls-panel::-webkit-scrollbar { width: 4px; }
+    #controls-panel::-webkit-scrollbar-thumb { background: rgba(214, 178, 114, 0.28); border-radius: 4px; }
+
+    .sec-title {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: #f1cf8b;
+      border-bottom: 1px solid rgba(217, 167, 83, 0.22);
+      padding-bottom: 3px; margin-bottom: 6px;
+    }
+    .seg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .seg-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px;
+      padding: 6px 5px; font-size: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; text-align: center;
+    }
+    .pill-btn:hover { border-color: var(--accent); background: rgba(217, 167, 83, 0.14); }
+    .pill-btn.active {
+      background: rgba(217, 167, 83, 0.24); border-color: var(--accent); color: #fff8ea;
+      box-shadow: inset 0 0 8px rgba(217, 167, 83, 0.22);
+    }
+
+    .slider-row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+    .slider-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-dim); line-height: 1.25; }
+    .slider-head span.val { color: #f6e0b3; font-weight: 700; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #d9a753; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+
+    .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .chk-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main); border-radius: 6px; padding: 6px 6px;
+      font-size: 10.5px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chk-btn.active {
+      background: rgba(109, 140, 82, 0.28); border-color: #8ab365; color: #eef7e6;
+    }
+
+    /* Texture Thumbnails */
+    .tex-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .tex-card {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: rgba(0, 0, 0, 0.36); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px; padding: 3px; cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+    .tex-card:hover { border-color: var(--accent); }
+    .tex-card canvas { width: 100%; aspect-ratio: 1; border-radius: 3px; display: block; }
+    .tex-card span { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+    /* Export Buttons */
+    .export-stack { display: flex; flex-direction: column; gap: 5px; }
+    .btn-primary {
+      background: linear-gradient(135deg, #d9a753 0%, #b47521 100%);
+      border: none; color: #161108; font-weight: 800; font-size: 11.5px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(217, 167, 83, 0.30);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-main); font-weight: 600; font-size: 10.5px;
+      padding: 6px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--accent); }
+
+    #export-status { font-size: 9.5px; color: #f6d591; min-height: 14px; text-align: center; }
+
+    .mobile-drawer-fab { display: none; }
+
+    @media (max-width: 768px) {
+      #hud-header {
+        top: 8px; left: 8px; right: 8px;
+        min-width: 0; padding: 6px 10px;
+      }
+      .brand-row { margin-bottom: 4px; gap: 6px; }
+      .brand-title { font-size: 11px; letter-spacing: 0.04em; min-width: 0; }
+      .brand-title span:last-child {
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .stats-grid { gap: 4px; }
+      .stat-box { padding: 2px 4px; display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+      .stat-val { font-size: 11px; }
+      .stat-lbl { font-size: 8px; }
+      #camera-bar {
+        top: 64px; left: 8px; right: 8px; bottom: auto;
+        width: auto; max-width: calc(100vw - 16px);
+        flex-wrap: nowrap; overflow-x: auto; padding: 4px 6px;
+      }
+      .cam-btn { white-space: nowrap; flex-shrink: 0; font-size: 11px; padding: 6px 10px; min-height: 36px; }
+      #controls-panel {
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        width: 100%; max-height: 50vh;
+        border-radius: 16px 16px 0 0; overflow-y: auto; z-index: 40;
+        padding: 14px 14px calc(16px + env(safe-area-inset-bottom));
+        transform: translateY(105%); opacity: 0; pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+        -webkit-overflow-scrolling: touch;
+      }
+      #controls-panel.mobile-drawer-open {
+        transform: translateY(0); opacity: 1; pointer-events: auto;
+      }
+      input[type="range"] { min-height: 40px; height: 40px; }
+      .btn-primary, .btn-secondary, .pill-btn, .chk-btn {
+        min-height: 42px; padding-top: 9px; padding-bottom: 9px;
+      }
+      .mobile-drawer-fab {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        position: fixed; right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 50; min-height: 44px; padding: 10px 16px;
+        border-radius: 999px; border: 1px solid #f6d591;
+        background: linear-gradient(135deg, #d9a753 0%, #b47521 100%);
+        color: #161108; font-size: 13px; font-weight: 800; cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.72), 0 0 18px rgba(217, 167, 83, 0.38);
+      }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <!-- Top-Left Identity & Live Asset Budget HUD -->
+  <div id="hud-header" class="glass-panel">
+    <div class="brand-row">
+      <div class="brand-title">
+        <span class="brand-dot"></span>
+        <span>ENOCHIAN-TOWER ANCIENT SPIRE</span>
+      </div>
+      <span id="lod-badge" class="badge-lod">HERO LOD</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div id="stat-tris" class="stat-val">--</div><div class="stat-lbl">Tris</div></div>
+      <div class="stat-box"><div id="stat-verts" class="stat-val">--</div><div class="stat-lbl">Verts</div></div>
+      <div class="stat-box"><div id="stat-calls" class="stat-val">--</div><div class="stat-lbl">Calls</div></div>
+      <div class="stat-box"><div id="stat-mats" class="stat-val">--</div><div class="stat-lbl">Mats</div></div>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Camera Angle Presets -->
+  <div id="camera-bar" class="glass-panel">
+    <button class="cam-btn active" data-cam="hero">3/4 遠古全塔</button>
+    <button class="cam-btn" data-cam="spire">平視仰望</button>
+    <button class="cam-btn" data-cam="arch">懸臂拱角特寫</button>
+    <button class="cam-btn" data-cam="crown">碎冠符文深淵</button>
+    <button class="cam-btn" data-cam="base">苔蘚扶壁基座</button>
+  </div>
+
+  <!-- Right Control & Export Panel -->
+  <aside id="controls-panel" class="glass-panel">
+    <div>
+      <div class="sec-title">模型細節等級 (LOD Budget)</div>
+      <div class="seg-row">
+        <button id="btn-lod-hero" class="pill-btn active">Hero (~20k)</button>
+        <button id="btn-lod-game" class="pill-btn">Game-Ready (~6k)</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">光照氛圍預設 (Atmosphere Preset)</div>
+      <div class="seg-row-3">
+        <button id="btn-atmo-day" class="pill-btn active" data-atmo="daylight">Ancient Daylight</button>
+        <button id="btn-atmo-dusk" class="pill-btn" data-atmo="dusk">Astral Dusk</button>
+        <button id="btn-atmo-night" class="pill-btn" data-atmo="night">Abyssal Night</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">動態與風化參數 (Tower Simulation)</div>
+      <div class="slider-row">
+        <div class="slider-head"><span>雲霧環繞流速 (Cloud Swirl Speed)</span><span id="val-cloud" class="val">1.00x</span></div>
+        <input id="sl-cloud" type="range" min="0" max="3.0" step="0.05" value="1.0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>符文光輝強度 (Arcane Rune Glow)</span><span id="val-glow" class="val">100%</span></div>
+        <input id="sl-glow" type="range" min="0" max="200" step="5" value="100" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><span>風化苔蘚深度 (Weathering &amp; Moss)</span><span id="val-moss" class="val">65%</span></div>
+        <input id="sl-moss" type="range" min="0" max="100" step="1" value="65" />
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">檢視輔助 (Inspection Mode)</div>
+      <div class="toggle-row">
+        <button id="btn-wireframe" class="chk-btn">線框 Wireframe</button>
+        <button id="btn-colliders" class="chk-btn">碰撞體 Collider_*</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">1024×1024 PBR 貼圖烘焙 (點擊下載 PNG)</div>
+      <div class="tex-grid">
+        <div class="tex-card" id="card-albedo" title="Download ENOCHIAN_TOWER_Albedo.png"><canvas id="prev-albedo" width="96" height="96"></canvas><span>Albedo</span></div>
+        <div class="tex-card" id="card-normal" title="Download ENOCHIAN_TOWER_Normal_Sobel.png"><canvas id="prev-normal" width="96" height="96"></canvas><span>Sobel</span></div>
+        <div class="tex-card" id="card-rough" title="Download ENOCHIAN_TOWER_Roughness.png"><canvas id="prev-rough" width="96" height="96"></canvas><span>Rough</span></div>
+        <div class="tex-card" id="card-metal" title="Download ENOCHIAN_TOWER_Metalness.png"><canvas id="prev-metal" width="96" height="96"></canvas><span>Metal</span></div>
+        <div class="tex-card" id="card-emissive" title="Download ENOCHIAN_TOWER_Emissive.png"><canvas id="prev-emissive" width="96" height="96"></canvas><span>Emiss</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-title">無損導出 Unity URP / Blender</div>
+      <div class="export-stack">
+        <button id="btn-export-glb" class="btn-primary">⬇ 導出 .GLB (Rest-Pose + PBR)</button>
+        <div class="seg-row">
+          <button id="btn-export-obj" class="btn-secondary">⬇ 導出 .OBJ</button>
+          <button id="btn-export-pngs" class="btn-secondary">⬇ 全部 PBR .PNG</button>
+        </div>
+        <button id="btn-reset-pose" class="btn-secondary">↺ 歸零靜止姿態 (Reset Rest-Pose)</button>
+        <div id="export-status">Ready — 1 unit = 1m (H 18.0m / Ø 7.6m)</div>
+      </div>
+    </div>
+  </aside>
+
+  <button id="mobile-drawer-fab" class="mobile-drawer-fab" type="button" aria-expanded="false">⚙ 控制面板</button>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+    import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+    // =========================================================================
+    // 1. RENDERER, SCENE, PMREM ENVIRONMENT & LIGHTING (<= 1 PointLight)
+    // =========================================================================
+    const container = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x45505e);
+    scene.fog = new THREE.FogExp2(0x45505e, 0.0065);
+
+    // RoomEnvironment PMREM for studio-grade IBL matching Unity URP Reflection Probes
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.045).texture;
+    scene.environmentIntensity = 0.88;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const aspect = window.innerWidth / window.innerHeight;
+    const camera = new THREE.PerspectiveCamera(40, aspect, 0.15, 220);
+    const heroZ = aspect < 0.85 ? 34.5 : 30.2;
+    camera.position.set(2.2, 13.2, heroZ);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.target.set(0.45, 8.85, 0);
+    controls.minDistance = 4.2;
+    controls.maxDistance = 62;
+    controls.maxPolarAngle = Math.PI * 0.54;
+
+    // Sky/ground hemisphere + warm directional sun + cool rim (strictly <= 1 PointLight)
+    const hemiLight = new THREE.HemisphereLight(0xdfe9f5, 0x4a4232, 0.88);
+    scene.add(hemiLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff0d4, 1.92);
+    sunLight.position.set(-14, 24, 16);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 4;
+    sunLight.shadow.camera.far = 65;
+    sunLight.shadow.camera.left = -9;
+    sunLight.shadow.camera.right = 9;
+    sunLight.shadow.camera.top = 22;
+    sunLight.shadow.camera.bottom = -2;
+    sunLight.shadow.bias = -0.0005;
+    sunLight.shadow.normalBias = 0.02;
+    scene.add(sunLight);
+
+    const rimLight = new THREE.DirectionalLight(0xa4c0e0, 0.65);
+    rimLight.position.set(16, 12, -14);
+    scene.add(rimLight);
+
+    // Strictly <= 1 dynamic PointLight positioned inside the shattered crown abyss
+    const crownPointLight = new THREE.PointLight(0xffb44c, 15.0, 14.0, 1.5);
+    crownPointLight.position.set(0, 15.65, 0);
+    scene.add(crownPointLight);
+
+    // Non-exported shadow floor disc
+    const stageGroup = new THREE.Group();
+    stageGroup.name = 'Stage_ShadowFloor_NO_EXPORT';
+    const floorGeom = new THREE.CircleGeometry(14, 48);
+    floorGeom.rotateX(-Math.PI / 2);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.30 });
+    const shadowFloor = new THREE.Mesh(floorGeom, floorMat);
+    shadowFloor.position.y = -0.002;
+    shadowFloor.receiveShadow = true;
+    stageGroup.add(shadowFloor);
+    scene.add(stageGroup);
+
+    // =========================================================================
+    // 2. MATH & SEAMLESS NOISE UTILITIES
+    // =========================================================================
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(e0, e1, x) {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+    function hash2(ix, iy) {
+      const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453123;
+      return n - Math.floor(n);
+    }
+    function valueNoise3D(x, y, z) {
+      const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+      const fx = x - ix, fy = y - iy, fz = z - iz;
+      const ux = fx * fx * (3 - 2 * fx);
+      const uy = fy * fy * (3 - 2 * fy);
+      const uz = fz * fz * (3 - 2 * fz);
+      const h = (dx, dy, dz) => {
+        const n = Math.sin((ix + dx) * 127.1 + (iy + dy) * 311.7 + (iz + dz) * 74.7) * 43758.5453;
+        return n - Math.floor(n);
+      };
+      const c000 = h(0, 0, 0), c100 = h(1, 0, 0), c010 = h(0, 1, 0), c110 = h(1, 1, 0);
+      const c001 = h(0, 0, 1), c101 = h(1, 0, 1), c011 = h(0, 1, 1), c111 = h(1, 1, 1);
+      const x00 = lerp(c000, c100, ux), x10 = lerp(c010, c110, ux);
+      const x01 = lerp(c001, c101, ux), x11 = lerp(c011, c111, ux);
+      return lerp(lerp(x00, x10, uy), lerp(x01, x11, uy), uz);
+    }
+    function fbmSeamlessU(u, v, rFreq = 3.0, vScale = 8.0) {
+      const a = u * Math.PI * 2;
+      let sum = 0, amp = 0.5, f = 1.0;
+      for (let oct = 0; oct < 5; oct++) {
+        sum += amp * valueNoise3D(Math.cos(a * f) * rFreq * f + 7.1, v * vScale * f + 13.7, Math.sin(a * f) * rFreq * f + 19.3);
+        amp *= 0.5;
+        f *= 2.02;
+      }
+      return sum;
+    }
+
+    // =========================================================================
+    // 3. PROCEDURAL 1024x1024 PBR TEXTURES + 3x3 SOBEL NORMAL BAKER
+    // =========================================================================
+    const TEX_SIZE = 1024;
+    const UV_BANDS = {
+      stone: { vMin: 0.03, vMax: 0.53 },
+      moss:  { vMin: 0.58, vMax: 0.77 },
+      cloud: { vMin: 0.82, vMax: 0.90 },
+      dark:  { vMin: 0.94, vMax: 0.985 },
+      rune:  { vMin: 0.94, vMax: 0.985 }
+    };
+
+    function bakeNormalFromHeightCanvas(heightCanvas, strength = 2.75) {
+      const w = heightCanvas.width, h = heightCanvas.height;
+      const src = heightCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      const outImg = outCtx.createImageData(w, h);
+      const dst = outImg.data;
+      const sampleH = (px, py) => {
+        const wx = ((px % w) + w) % w;
+        const wy = clamp(py, 0, h - 1);
+        return src[(wy * w + wx) * 4] / 255.0;
+      };
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tl = sampleH(x - 1, y - 1), tc = sampleH(x, y - 1), tr = sampleH(x + 1, y - 1);
+          const ml = sampleH(x - 1, y),                             mr = sampleH(x + 1, y);
+          const bl = sampleH(x - 1, y + 1), bc = sampleH(x, y + 1), br = sampleH(x + 1, y + 1);
+          const dx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+          const dy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+          let nx = -dx * strength, ny = -dy * strength, nz = 1.0;
+          const invLen = 1.0 / Math.hypot(nx, ny, nz);
+          nx *= invLen; ny *= invLen; nz *= invLen;
+          const idx = (y * w + x) * 4;
+          dst[idx]     = Math.round((nx * 0.5 + 0.5) * 255);
+          dst[idx + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+          dst[idx + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+          dst[idx + 3] = 255;
+        }
+      }
+      outCtx.putImageData(outImg, 0, 0);
+      return outCanvas;
+    }
+
+    function createCanvasTex(canvas, isSRGB) {
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      tex.anisotropy = 8;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function buildEnochianTextures() {
+      const mkCanvas = () => {
+        const c = document.createElement('canvas');
+        c.width = TEX_SIZE; c.height = TEX_SIZE;
+        return c;
+      };
+      const albedoCanvas = mkCanvas();
+      const heightCanvas = mkCanvas();
+      const roughCanvas = mkCanvas();
+      const metalCanvas = mkCanvas();
+      const emissiveCanvas = mkCanvas();
+
+      const aCtx = albedoCanvas.getContext('2d');
+      const hCtx = heightCanvas.getContext('2d');
+      const rCtx = roughCanvas.getContext('2d');
+      const mCtx = metalCanvas.getContext('2d');
+      const eCtx = emissiveCanvas.getContext('2d');
+
+      const aImg = aCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const hImg = hCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const rImg = rCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const mImg = mCtx.createImageData(TEX_SIZE, TEX_SIZE);
+      const eImg = eCtx.createImageData(TEX_SIZE, TEX_SIZE);
+
+      const ad = aImg.data, hd = hImg.data, rd = rImg.data, md = mImg.data, ed = eImg.data;
+
+      for (let y = 0; y < TEX_SIZE; y++) {
+        const v = 1.0 - y / (TEX_SIZE - 1);
+        for (let x = 0; x < TEX_SIZE; x++) {
+          const u = x / TEX_SIZE;
+          const idx = (y * TEX_SIZE + x) * 4;
+
+          let ar = 170, ag = 158, ab = 132;
+          let hv = 140;
+          let rv = 220;
+          let mv = 0;
+          let er = 0, eg = 0, eb = 0;
+
+          if (v < 0.555) {
+            // BAND A: Aged Warm Limestone (#B5A788 -> #96876B) with vertical striations & ashlar seams
+            const vs = clamp(v / 0.555, 0, 1);
+            const grain = fbmSeamlessU(u, vs, 5.0, 14.0);
+            const striation = fbmSeamlessU(u * 2.0 + 0.13, vs * 0.25, 9.0, 4.0);
+            const finePore = (hash2(Math.floor(u * 512), Math.floor(vs * 320)) - 0.5) * 0.14;
+
+            const rows = 12.0, cols = 10.0;
+            const rowF = vs * rows;
+            const rowIdx = Math.floor(rowF);
+            const rowLocal = rowF - rowIdx;
+            const colShift = (rowIdx % 2) * 0.5;
+            const colF = ((u * cols + colShift) % cols);
+            const colIdx = Math.floor(colF);
+            const colLocal = colF - colIdx;
+
+            const jitterH = (grain - 0.5) * 0.045;
+            const jitterV = (striation - 0.5) * 0.04;
+            const hSeamDist = Math.min(rowLocal + jitterH, 1.0 - (rowLocal + jitterH));
+            const vSeamDist = Math.min(colLocal + jitterV, 1.0 - (colLocal + jitterV));
+            const hSeam = 1.0 - smoothstep(0.014, 0.062, Math.max(0, hSeamDist));
+            const vSeam = 1.0 - smoothstep(0.012, 0.052, Math.max(0, vSeamDist));
+            const mortar = clamp(Math.max(hSeam, vSeam * 0.88), 0, 1);
+
+            const veinNoise = Math.abs(fbmSeamlessU(u + 0.37, vs + 0.11, 3.6, 12.0) - 0.48);
+            const crack = 1.0 - smoothstep(0.008, 0.036, veinNoise);
+
+            const blockRand = hash2(colIdx + rowIdx * 17, rowIdx * 31);
+            const stoneMix = clamp(grain * 0.6 + blockRand * 0.4 + finePore, 0, 1);
+            let r = lerp(150, 185, stoneMix);
+            let g = lerp(135, 171, stoneMix);
+            let b = lerp(107, 140, stoneMix);
+
+            const streak = smoothstep(0.42, 0.72, striation);
+            r = lerp(r, r * 0.78, streak * 0.42);
+            g = lerp(g, g * 0.79, streak * 0.42);
+            b = lerp(b, b * 0.76, streak * 0.42);
+
+            const mossPatch = smoothstep(0.56, 0.74, grain) * (1.0 - smoothstep(0.0, 0.22, vs));
+            r = lerp(r, 82, mossPatch * 0.55);
+            g = lerp(g, 99, mossPatch * 0.55);
+            b = lerp(b, 62, mossPatch * 0.55);
+
+            const seamDark = clamp(mortar * 0.82 + crack * 0.72, 0, 1);
+            r = lerp(r, 64, seamDark);
+            g = lerp(g, 56, seamDark);
+            b = lerp(b, 44, seamDark);
+
+            ar = Math.round(clamp(r, 24, 225));
+            ag = Math.round(clamp(g, 22, 212));
+            ab = Math.round(clamp(b, 18, 185));
+
+            const hBase = 165 + (grain - 0.5) * 48 + (striation - 0.5) * 28 + finePore * 40;
+            hv = Math.round(clamp(hBase - mortar * 92 - crack * 80, 20, 240));
+
+            let rough = lerp(0.80, 0.92, 1.0 - blockRand * 0.5 + mortar * 0.35);
+            rough = lerp(rough, 0.64, mossPatch * 0.75 + crack * 0.25);
+            rv = Math.round(clamp(rough * 255, 140, 244));
+
+            mv = (grain > 0.76 && striation > 0.62 && mortar < 0.2) ? 38 : 0; // ~0.15 mineral fleck
+          } else if (v < 0.795) {
+            // BAND B: Mossy Olive-Green Base Stone & Terrain (#4D5E3C -> #66784F)
+            const vm = (v - 0.555) / 0.24;
+            const mNoise = fbmSeamlessU(u, vm, 4.2, 8.0);
+            const mFine = fbmSeamlessU(u * 2.0 + 0.4, vm * 1.4, 8.0, 14.0);
+            const mossBlend = smoothstep(0.32, 0.66, mNoise * 0.72 + mFine * 0.28);
+
+            let r = lerp(124, lerp(72, 108, mFine), mossBlend);
+            let g = lerp(114, lerp(92, 128, mFine), mossBlend);
+            let b = lerp(92,  lerp(56, 78, mFine),  mossBlend);
+
+            const pebbleCrack = 1.0 - smoothstep(0.01, 0.05, Math.abs(mNoise - 0.50));
+            r = lerp(r, 48, pebbleCrack * 0.65);
+            g = lerp(g, 52, pebbleCrack * 0.65);
+            b = lerp(b, 38, pebbleCrack * 0.65);
+
+            ar = Math.round(clamp(r, 28, 175));
+            ag = Math.round(clamp(g, 32, 178));
+            ab = Math.round(clamp(b, 22, 145));
+
+            hv = Math.round(clamp(132 + (mNoise - 0.5) * 65 + (mFine - 0.5) * 45 - pebbleCrack * 65, 30, 225));
+            rv = Math.round(clamp(lerp(0.84, 0.64, mossBlend) * 255, 155, 228));
+            mv = 0;
+          } else if (v < 0.925) {
+            // BAND C: Swirling Cloud / Mist Ribbon Parchment-Ivory (#E6E2D6 -> #B6B0A2)
+            const vc = (v - 0.795) / 0.13;
+            const wisp = fbmSeamlessU(u, vc * 0.5, 3.0, 6.0);
+            const curl = 0.5 + 0.5 * Math.sin((vc * 3.0 + wisp * 0.8) * Math.PI * 2);
+            const bright = lerp(0.76, 0.96, wisp * 0.65 + curl * 0.35);
+
+            ar = Math.round(clamp(bright * 242, 150, 246));
+            ag = Math.round(clamp(bright * 238, 146, 242));
+            ab = Math.round(clamp(bright * 224, 134, 230));
+            hv = Math.round(clamp(128 + (wisp - 0.5) * 52 + (curl - 0.5) * 26, 60, 200));
+            rv = Math.round(lerp(0.86, 0.95, 1.0 - curl * 0.5) * 255);
+            mv = 0;
+          } else {
+            // BAND D: Left (u < 0.5): Shadowed Recess / Mortar (#1A1511) | Right (u >= 0.5): Arcane Golden-Amber Runes
+            if (u < 0.5) {
+              const soot = hash2(Math.floor(u * 256), Math.floor(v * 256)) * 12;
+              ar = Math.round(24 + soot);
+              ag = Math.round(20 + soot * 0.8);
+              ab = Math.round(16 + soot * 0.6);
+              hv = Math.round(92 + soot * 2);
+              rv = 236;
+              mv = 0;
+            } else {
+              const ur = (u - 0.5) * 2.0;
+              const vr = (v - 0.925) / 0.075;
+              const glyph = 0.5 + 0.5 * Math.sin(ur * Math.PI * 10.0) * Math.cos(vr * Math.PI * 6.0);
+              const pulse = smoothstep(0.18, 0.88, glyph);
+              ar = Math.round(lerp(185, 255, pulse));
+              ag = Math.round(lerp(122, 215, pulse));
+              ab = Math.round(lerp(36,  112, pulse));
+              hv = Math.round(128 + pulse * 60);
+              rv = Math.round(lerp(0.62, 0.40, pulse) * 255);
+              mv = 38;
+              er = Math.round(lerp(170, 255, pulse));
+              eg = Math.round(lerp(96,  204, pulse));
+              eb = Math.round(lerp(22,  82,  pulse));
+            }
+          }
+
+          ad[idx] = ar; ad[idx + 1] = ag; ad[idx + 2] = ab; ad[idx + 3] = 255;
+          hd[idx] = hv; hd[idx + 1] = hv; hd[idx + 2] = hv; hd[idx + 3] = 255;
+          rd[idx] = rv; rd[idx + 1] = rv; rd[idx + 2] = rv; rd[idx + 3] = 255;
+          md[idx] = mv; md[idx + 1] = mv; md[idx + 2] = mv; md[idx + 3] = 255;
+          ed[idx] = er; ed[idx + 1] = eg; ed[idx + 2] = eb; ed[idx + 3] = 255;
+        }
+      }
+
+      aCtx.putImageData(aImg, 0, 0);
+      hCtx.putImageData(hImg, 0, 0);
+      rCtx.putImageData(rImg, 0, 0);
+      mCtx.putImageData(mImg, 0, 0);
+      eCtx.putImageData(eImg, 0, 0);
+
+      const normalCanvas = bakeNormalFromHeightCanvas(heightCanvas, 2.75);
+
+      return {
+        albedoCanvas,
+        normalCanvas,
+        roughCanvas,
+        metalCanvas,
+        emissiveCanvas,
+        albedoTex:   createCanvasTex(albedoCanvas, true),
+        normalTex:   createCanvasTex(normalCanvas, false),
+        roughTex:    createCanvasTex(roughCanvas, false),
+        metalTex:    createCanvasTex(metalCanvas, false),
+        emissiveTex: createCanvasTex(emissiveCanvas, true)
+      };
+    }
+
+    const TEX = buildEnochianTextures();
+    ['albedo', 'normal', 'rough', 'metal', 'emissive'].forEach((k) => {
+      const dst = document.getElementById(`prev-${k}`);
+      if (!dst) return;
+      const src = TEX[`${k}Canvas`];
+      dst.getContext('2d').drawImage(src, 0, 0, dst.width, dst.height);
+    });
+
+    // =========================================================================
+    // 4. PBR MATERIALS (Strict ColorSpace + Named for Unity URP)
+    // =========================================================================
+    const MATS = {
+      stoneTower: new THREE.MeshStandardMaterial({
+        name: 'MAT_Enochian_Limestone',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.0, 1.0),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 0.90,
+        vertexColors: true
+      }),
+      mossTerrain: new THREE.MeshStandardMaterial({
+        name: 'MAT_Enochian_Moss_Foundation',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(1.15, 1.15),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 1.0,
+        metalness: 1.0,
+        envMapIntensity: 0.85,
+        vertexColors: true
+      }),
+      mistClouds: new THREE.MeshStandardMaterial({
+        name: 'MAT_Enochian_Swirling_Mist',
+        color: 0xffffff,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.45, 0.45),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        roughness: 0.95,
+        metalness: 0.0,
+        envMapIntensity: 0.72,
+        vertexColors: true
+      }),
+      arcaneRune: new THREE.MeshStandardMaterial({
+        name: 'MAT_Emissive_Arcane_Rune',
+        color: 0xffd578,
+        map: TEX.albedoTex,
+        normalMap: TEX.normalTex,
+        normalScale: new THREE.Vector2(0.55, 0.55),
+        roughnessMap: TEX.roughTex,
+        metalnessMap: TEX.metalTex,
+        emissiveMap: TEX.emissiveTex,
+        emissive: 0xffb338,
+        emissiveIntensity: 2.25,
+        roughness: 0.52,
+        metalness: 0.15,
+        vertexColors: true
+      }),
+      colliderMat: new THREE.MeshBasicMaterial({
+        name: 'MAT_Collider_Proxy',
+        color: 0x38bdf8,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.42
+      })
+    };
+    const solidMaterials = [MATS.stoneTower, MATS.mossTerrain, MATS.mistClouds, MATS.arcaneRune];
+
+    // =========================================================================
+    // 5. GEOMETRY HELPERS: ARC-LENGTH UVs, NORMAL SMOOTHING & VERTEX AO
+    // =========================================================================
+    function normalizeForMerge(geom, baseHex = 0xffffff, aoFn = null) {
+      if (!geom.index) {
+        const posAttr = geom.getAttribute('position');
+        const idx = new Uint32Array(posAttr.count);
+        for (let i = 0; i < posAttr.count; i++) idx[i] = i;
+        geom.setIndex(new THREE.BufferAttribute(idx, 1));
+      }
+      if (!geom.getAttribute('normal')) geom.computeVertexNormals();
+      const pos = geom.getAttribute('position');
+      if (!geom.getAttribute('uv')) {
+        const uvs = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+          uvs[i * 2] = 0.5;
+          uvs[i * 2 + 1] = 0.25;
+        }
+        geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      }
+      if (!geom.getAttribute('color')) {
+        const norm = geom.getAttribute('normal');
+        const col = new Float32Array(pos.count * 3);
+        const baseC = new THREE.Color(baseHex);
+        const vPos = new THREE.Vector3(), vNorm = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          vPos.fromBufferAttribute(pos, i);
+          vNorm.fromBufferAttribute(norm, i);
+          const ao = aoFn ? aoFn(vPos, vNorm) : 1.0;
+          col[i * 3]     = baseC.r * ao;
+          col[i * 3 + 1] = baseC.g * ao;
+          col[i * 3 + 2] = baseC.b * ao;
+        }
+        geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      }
+      for (const attrName of Object.keys(geom.attributes)) {
+        if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
+          geom.deleteAttribute(attrName);
+        }
+      }
+      return geom;
+    }
+
+    function safeMerge(list) {
+      if (!list || list.length === 0) return null;
+      if (list.length === 1) return list[0];
+      const merged = BufferGeometryUtils.mergeGeometries(list, false);
+      for (const g of list) g.dispose();
+      return merged;
+    }
+
+    function averageSeamNormals(geom, segCount, stride, closedU = true, closedV = true) {
+      const norm = geom.getAttribute('normal');
+      if (!norm) return;
+      const nA = new THREE.Vector3(), nB = new THREE.Vector3();
+      if (closedU) {
+        for (let k = 0; k < stride; k++) {
+          const i0 = k;
+          const i1 = segCount * stride + k;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      if (closedV) {
+        const lastK = stride - 1;
+        for (let i = 0; i <= segCount; i++) {
+          const i0 = i * stride;
+          const i1 = i * stride + lastK;
+          nA.fromBufferAttribute(norm, i0);
+          nB.fromBufferAttribute(norm, i1);
+          nA.add(nB).normalize();
+          norm.setXYZ(i0, nA.x, nA.y, nA.z);
+          norm.setXYZ(i1, nA.x, nA.y, nA.z);
+        }
+      }
+      norm.needsUpdate = true;
+    }
+
+    function applyStoneBoxUVs(geom, band = UV_BANDS.stone, tileU = 0.35, tileV = 0.25) {
+      const pos = geom.getAttribute('position');
+      const norm = geom.getAttribute('normal');
+      const uv = new Float32Array(pos.count * 2);
+      const spanV = band.vMax - band.vMin;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const nx = Math.abs(norm.getX(i)), ny = Math.abs(norm.getY(i)), nz = Math.abs(norm.getZ(i));
+        let uu = 0, vv = 0;
+        if (ny >= nx && ny >= nz) {
+          uu = (x + z) * tileU;
+          vv = (z - x) * tileV;
+        } else if (nx >= nz) {
+          uu = z * tileU;
+          vv = y * tileV;
+        } else {
+          uu = x * tileU;
+          vv = y * tileV;
+        }
+        const vFold = 1.0 - Math.abs(((vv % 2) + 2) % 2 - 1.0);
+        uv[i * 2] = uu;
+        uv[i * 2 + 1] = band.vMin + vFold * spanV;
+      }
+      geom.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      return geom;
+    }
+
+    // Multi-station Bishop parallel-transport swept loft with cumulative Euclidean arc-length V
+    function buildSweptCurveLoft({
+      curve, tubularSegs, radialSegs,
+      rxFn, rbFn,
+      profileShape = 'squircle', // 'squircle' | 'teardrop' | 'circle'
+      squirclePower = 4.0,
+      uRepeat = 1.0,
+      vMin = UV_BANDS.stone.vMin,
+      vMax = UV_BANDS.stone.vMax,
+      capMode = 'bevel3', // 'bevel3' | 'bevel1' | 'none'
+      colorFn = null,
+      tStart = 0.0,
+      tEnd = 1.0,
+      arcScaleOffset = 0.0,
+      arcTotalGlobal = null
+    }) {
+      const pts = [], tangs = [];
+      for (let i = 0; i <= tubularSegs; i++) {
+        const s = i / tubularSegs;
+        const t = lerp(tStart, tEnd, s);
+        pts.push(curve.getPointAt(clamp(t, 0, 1)));
+        tangs.push(curve.getTangentAt(clamp(t, 0, 1)).normalize());
+      }
+
+      const arc = [0];
+      for (let i = 1; i <= tubularSegs; i++) {
+        arc.push(arc[i - 1] + pts[i].distanceTo(pts[i - 1]));
+      }
+      const segArc = Math.max(0.0001, arc[tubularSegs]);
+      const denomArc = arcTotalGlobal || segArc;
+
+      const normals = [], binormals = [];
+      const t0 = tangs[0];
+      const upRef = Math.abs(t0.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+      const n0 = new THREE.Vector3().crossVectors(t0, upRef).normalize();
+      const b0 = new THREE.Vector3().crossVectors(t0, n0).normalize();
+      if (new THREE.Vector3().crossVectors(n0, b0).dot(t0) < 0) b0.negate();
+      normals.push(n0);
+      binormals.push(b0);
+
+      for (let i = 1; i <= tubularSegs; i++) {
+        const q = new THREE.Quaternion().setFromUnitVectors(tangs[i - 1], tangs[i]);
+        const ni = normals[i - 1].clone().applyQuaternion(q).normalize();
+        const bi = new THREE.Vector3().crossVectors(tangs[i], ni).normalize();
+        if (new THREE.Vector3().crossVectors(ni, bi).dot(tangs[i]) < 0) bi.negate();
+        normals.push(ni);
+        binormals.push(bi);
+      }
+
+      const stations = [];
+      if (capMode === 'bevel3') {
+        const startBevels = [
+          { sLocal: 0.000, scale: 0.001 },
+          { sLocal: 0.020, scale: 0.82 },
+          { sLocal: 0.052, scale: 0.94 },
+          { sLocal: 0.095, scale: 1.00 }
+        ];
+        for (const bs of startBevels) {
+          const tt = lerp(tStart, tEnd, bs.sLocal);
+          stations.push({ t: tt, sLocal: bs.sLocal, sArc: (arcScaleOffset + segArc * bs.sLocal) / denomArc, pt: curve.getPointAt(clamp(tt, 0, 1)), N: normals[0], B: binormals[0], endScale: bs.scale });
+        }
+        for (let i = 1; i < tubularSegs; i++) {
+          const sLocal = i / tubularSegs;
+          if (sLocal <= 0.10 || sLocal >= 0.90) continue;
+          const tt = lerp(tStart, tEnd, sLocal);
+          stations.push({ t: tt, sLocal, sArc: (arcScaleOffset + arc[i]) / denomArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+        const endBevels = [
+          { sLocal: 0.905, scale: 1.00 },
+          { sLocal: 0.948, scale: 0.94 },
+          { sLocal: 0.980, scale: 0.82 },
+          { sLocal: 1.000, scale: 0.001 }
+        ];
+        for (const bs of endBevels) {
+          const tt = lerp(tStart, tEnd, bs.sLocal);
+          stations.push({ t: tt, sLocal: bs.sLocal, sArc: (arcScaleOffset + segArc * bs.sLocal) / denomArc, pt: curve.getPointAt(clamp(tt, 0, 1)), N: normals[tubularSegs], B: binormals[tubularSegs], endScale: bs.scale });
+        }
+      } else if (capMode === 'bevel1') {
+        const sb = [{ sLocal: 0.0, scale: 0.001 }, { sLocal: 0.07, scale: 0.88 }];
+        for (const bs of sb) {
+          const tt = lerp(tStart, tEnd, bs.sLocal);
+          stations.push({ t: tt, sLocal: bs.sLocal, sArc: (arcScaleOffset + segArc * bs.sLocal) / denomArc, pt: curve.getPointAt(clamp(tt, 0, 1)), N: normals[0], B: binormals[0], endScale: bs.scale });
+        }
+        for (let i = 0; i <= tubularSegs; i++) {
+          const sLocal = i / tubularSegs;
+          if (sLocal <= 0.075 || sLocal >= 0.925) continue;
+          const tt = lerp(tStart, tEnd, sLocal);
+          stations.push({ t: tt, sLocal, sArc: (arcScaleOffset + arc[i]) / denomArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+        const eb = [{ sLocal: 0.93, scale: 0.88 }, { sLocal: 1.0, scale: 0.001 }];
+        for (const bs of eb) {
+          const tt = lerp(tStart, tEnd, bs.sLocal);
+          stations.push({ t: tt, sLocal: bs.sLocal, sArc: (arcScaleOffset + segArc * bs.sLocal) / denomArc, pt: curve.getPointAt(clamp(tt, 0, 1)), N: normals[tubularSegs], B: binormals[tubularSegs], endScale: bs.scale });
+        }
+      } else {
+        for (let i = 0; i <= tubularSegs; i++) {
+          const sLocal = i / tubularSegs;
+          const tt = lerp(tStart, tEnd, sLocal);
+          stations.push({ t: tt, sLocal, sArc: (arcScaleOffset + arc[i]) / denomArc, pt: pts[i], N: normals[i], B: binormals[i], endScale: 1.0 });
+        }
+      }
+
+      const stride = radialSegs + 1;
+      const pos = [], uv = [], col = [], idx = [];
+      const tmpC = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < stations.length; i++) {
+        const st = stations[i];
+        const rx = rxFn(st.t, st.sLocal, st.pt) * st.endScale;
+        const rb = rbFn(st.t, st.sLocal, st.pt) * st.endScale;
+
+        for (let k = 0; k <= radialSegs; k++) {
+          const uFrac = k / radialSegs;
+          const ang = uFrac * Math.PI * 2;
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          let lx, lb;
+          if (profileShape === 'squircle') {
+            const pNorm = Math.pow(Math.pow(Math.abs(ca), squirclePower) + Math.pow(Math.abs(sa), squirclePower), -1 / squirclePower);
+            lx = ca * pNorm * rx;
+            lb = sa * pNorm * rb;
+          } else if (profileShape === 'teardrop') {
+            lx = ca * rx;
+            lb = sa * rb * (1.0 - 0.36 * ca);
+          } else {
+            lx = ca * rx;
+            lb = sa * rb;
+          }
+
+          const wx = st.pt.x + st.N.x * lx + st.B.x * lb;
+          const wy = st.pt.y + st.N.y * lx + st.B.y * lb;
+          const wz = st.pt.z + st.N.z * lx + st.B.z * lb;
+          pos.push(wx, wy, wz);
+          uv.push(uFrac * uRepeat, lerp(vMin, vMax, clamp(st.sArc, 0, 1)));
+
+          if (colorFn) {
+            colorFn(st.t, st.sLocal, ang, wx, wy, wz, tmpC);
+            col.push(tmpC.r, tmpC.g, tmpC.b);
+          }
+        }
+      }
+
+      const numS = stations.length - 1;
+      for (let i = 0; i < numS; i++) {
+        for (let k = 0; k < radialSegs; k++) {
+          const a = i * stride + k;
+          const b = (i + 1) * stride + k;
+          const c = (i + 1) * stride + (k + 1);
+          const d = i * stride + (k + 1);
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      if (colorFn) g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, numS, stride, false, true);
+      return g;
+    }
+
+    // Multi-ring Lathe builder with true cumulative Euclidean arc-length V coordinates
+    function buildArcLengthLathe(profilePts, radialSegs, vMin, vMax, uRepeat = 6.0, aoList = null) {
+      const nProf = profilePts.length;
+      const stride = nProf;
+      const arc = [0];
+      for (let k = 1; k < nProf; k++) {
+        arc.push(arc[k - 1] + profilePts[k].distanceTo(profilePts[k - 1]));
+      }
+      const totalArc = Math.max(0.0001, arc[nProf - 1]);
+
+      const pos = [], uv = [], col = [], idx = [];
+      for (let it = 0; it <= radialSegs; it++) {
+        const uFrac = it / radialSegs;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        for (let k = 0; k < nProf; k++) {
+          const pt = profilePts[k];
+          pos.push(pt.x * cT, pt.y, -pt.x * sT);
+          uv.push(uFrac * uRepeat, lerp(vMin, vMax, arc[k] / totalArc));
+          const ao = aoList ? aoList[k] : 1.0;
+          col.push(ao, ao, ao);
+        }
+      }
+
+      for (let it = 0; it < radialSegs; it++) {
+        for (let k = 0; k < nProf - 1; k++) {
+          const a = it * stride + k;
+          const b = (it + 1) * stride + k;
+          const c = (it + 1) * stride + (k + 1);
+          const d = it * stride + (k + 1);
+          idx.push(a, b, c, a, c, d);
+        }
+      }
+
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      averageSeamNormals(g, radialSegs, stride, true, false);
+      return g;
+    }
+
+    // =========================================================================
+    // 6. ENOCHIAN TOWER ARCHITECTURAL SUB-ASSEMBLY BUILDERS
+    // =========================================================================
+    const TOWER_TIERS = [
+      { yBot: 4.30, yTop: 6.12, rBot: 2.18, rTop: 2.10, nWin: 14, phase: 0.00 },
+      { yBot: 6.34, yTop: 8.08, rBot: 2.06, rTop: 1.98, nWin: 14, phase: 0.50 },
+      { yBot: 8.30, yTop: 9.98, rBot: 1.94, rTop: 1.86, nWin: 12, phase: 0.00 },
+      { yBot: 10.26, yTop: 11.88, rBot: 1.83, rTop: 1.75, nWin: 12, phase: 0.50 },
+      { yBot: 12.10, yTop: 13.78, rBot: 1.72, rTop: 1.64, nWin: 12, phase: 0.00 }
+    ];
+
+    const CORNICES = [
+      { yBase: 3.98, h: 0.36, rWall: 2.20, rPeak: 2.48 },
+      { yBase: 6.08, h: 0.30, rWall: 2.08, rPeak: 2.38 },
+      { yBase: 8.04, h: 0.30, rWall: 1.96, rPeak: 2.26 },
+      { yBase: 9.94, h: 0.36, rWall: 1.85, rPeak: 2.17 },
+      { yBase: 11.84, h: 0.30, rWall: 1.74, rPeak: 2.02 },
+      { yBase: 13.74, h: 0.42, rWall: 1.64, rPeak: 1.95 }
+    ];
+
+    // A. Bold Multi-Ring Rounded Cornice Molding (Zero 90-deg edges, cumulative arc-length V)
+    function buildCorniceRing(c, isHero) {
+      const { yBase, h, rWall, rPeak } = c;
+      const rIn = rWall - 0.08;
+      const rMid = lerp(rWall, rPeak, 0.55);
+      const prof = isHero ? [
+        new THREE.Vector2(rIn,          yBase),
+        new THREE.Vector2(rWall + 0.06, yBase + h * 0.10),
+        new THREE.Vector2(rMid + 0.04,  yBase + h * 0.25),
+        new THREE.Vector2(rWall + 0.08, yBase + h * 0.38),
+        new THREE.Vector2(rPeak,        yBase + h * 0.60),
+        new THREE.Vector2(rPeak - 0.03, yBase + h * 0.78),
+        new THREE.Vector2(rIn,          yBase + h)
+      ] : [
+        new THREE.Vector2(rIn,          yBase),
+        new THREE.Vector2(rMid + 0.04,  yBase + h * 0.26),
+        new THREE.Vector2(rPeak,        yBase + h * 0.62),
+        new THREE.Vector2(rIn,          yBase + h)
+      ];
+      const aoList = isHero
+        ? [0.58, 0.74, 0.88, 0.64, 1.00, 0.94, 0.72]
+        : [0.58, 0.84, 1.00, 0.72];
+      return buildArcLengthLathe(prof, isHero ? 32 : 12, UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, 6.0, aoList);
+    }
+
+    // B. Sculpted Rocky Moss Terrain + Flared Conical Plinth + 12 Tapered Beveled Buttresses
+    function buildPartBaseFoundation(isHero) {
+      const stoneBuckets = [];
+      const mossBuckets = [];
+
+      // 1. Sculpted Rocky Terrain Mound & Mossy Perimeter (#4D5E3C) grounded cleanly at y = 0.0
+      const terrainSegsTheta = isHero ? 40 : 16;
+      const terrainSegsR = isHero ? 4 : 2;
+      const tPos = [], tUv = [], tCol = [], tIdx = [];
+      const strideR = terrainSegsR + 1;
+      const colMoss = new THREE.Color(0x7e9960);
+      const colDeepMoss = new THREE.Color(0x4d5e3c);
+      const colEarth = new THREE.Color(0x968a72);
+      const tmpC = new THREE.Color();
+
+      for (let it = 0; it <= terrainSegsTheta; it++) {
+        const uFrac = it / terrainSegsTheta;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        const rayPts = [];
+        for (let kr = 0; kr <= terrainSegsR; kr++) {
+          const rf = kr / terrainSegsR;
+          const rBase = lerp(1.55, 4.30, rf);
+          const lobe = Math.sin(theta * 5 + 0.8) * 0.16 + Math.cos(theta * 12) * 0.10 + Math.sin(theta * 7 - 1.2) * 0.12;
+          const r = rBase + lobe * Math.sin(rf * Math.PI * 0.85);
+          const skirtEnv = Math.pow(Math.max(0, 1.0 - rf), 0.75) * smoothstep(1.0, 0.84, rf);
+          const rockBump = 0.24 + 0.14 * Math.cos(theta * 12) + 0.11 * Math.sin(theta * 5 + rf * 3.0);
+          const y = rf >= 0.99 ? 0.0 : clamp(skirtEnv * rockBump * 1.45, 0.0, 0.56);
+          rayPts.push({ r, y, rf });
+        }
+        const arcR = [0];
+        for (let kr = 1; kr <= terrainSegsR; kr++) {
+          arcR.push(arcR[kr - 1] + Math.hypot(rayPts[kr].r - rayPts[kr - 1].r, rayPts[kr].y - rayPts[kr - 1].y));
+        }
+        const totArc = Math.max(0.001, arcR[terrainSegsR]);
+
+        for (let kr = 0; kr <= terrainSegsR; kr++) {
+          const pt = rayPts[kr];
+          tPos.push(pt.r * cT, pt.y, -pt.r * sT);
+          tUv.push(uFrac * 6.0, lerp(UV_BANDS.moss.vMin, UV_BANDS.moss.vMax, arcR[kr] / totArc));
+          const mossMask = smoothstep(0.28, 0.68, 0.52 + 0.48 * Math.sin(theta * 5 + 1.1) + 0.25 * Math.cos(theta * 9)) * smoothstep(0.16, 0.50, pt.rf);
+          const pocketAO = lerp(0.55, 1.0, smoothstep(0.05, 0.45, pt.y)) * (0.86 + 0.14 * (1.0 - Math.cos(theta * 12)));
+          tmpC.copy(colEarth).lerp(colMoss, mossMask).lerp(colDeepMoss, mossMask * 0.40);
+          tmpC.multiplyScalar(pocketAO * (pt.rf > 0.92 ? 0.78 : 1.0));
+          tCol.push(tmpC.r, tmpC.g, tmpC.b);
+        }
+      }
+      for (let it = 0; it < terrainSegsTheta; it++) {
+        for (let kr = 0; kr < terrainSegsR; kr++) {
+          const a = it * strideR + kr;
+          const b = (it + 1) * strideR + kr;
+          const c = (it + 1) * strideR + (kr + 1);
+          const d = it * strideR + (kr + 1);
+          tIdx.push(a, d, b, b, d, c);
+        }
+      }
+      const terrainGeom = new THREE.BufferGeometry();
+      terrainGeom.setAttribute('position', new THREE.Float32BufferAttribute(tPos, 3));
+      terrainGeom.setAttribute('uv', new THREE.Float32BufferAttribute(tUv, 2));
+      terrainGeom.setAttribute('color', new THREE.Float32BufferAttribute(tCol, 3));
+      terrainGeom.setIndex(tIdx);
+      terrainGeom.computeVertexNormals();
+      averageSeamNormals(terrainGeom, terrainSegsTheta, strideR, true, false);
+      mossBuckets.push(normalizeForMerge(terrainGeom));
+
+      // 1b. Organic Mossy Rock Mounds tucked between buttress feet
+      const rockCount = isHero ? 12 : 6;
+      for (let i = 0; i < rockCount; i++) {
+        const ang = (i + 0.5) * (Math.PI * 2 / rockCount) + Math.sin(i * 2.1) * 0.08;
+        const rCenter = 3.28 + (i % 3) * 0.16;
+        const rawRock = new THREE.IcosahedronGeometry(isHero ? 0.46 + (i % 2) * 0.12 : 0.54, isHero ? 1 : 0);
+        const rock = BufferGeometryUtils.mergeVertices(rawRock, 1e-4);
+        rawRock.dispose();
+        const pos = rock.getAttribute('position');
+        for (let v = 0; v < pos.count; v++) {
+          let vx = pos.getX(v), vy = pos.getY(v), vz = pos.getZ(v);
+          const disp = 0.88 + 0.22 * Math.sin(vx * 5.2 + i) * Math.cos(vz * 4.7 - i);
+          vx *= 1.18 * disp;
+          vz *= 0.96 * disp;
+          vy = Math.max(-0.02, vy * 0.58 * disp + 0.16);
+          pos.setXYZ(v, vx, vy, vz);
+        }
+        rock.rotateY(ang + 0.4);
+        rock.translate(rCenter * Math.cos(ang), 0.04, -rCenter * Math.sin(ang));
+        rock.computeVertexNormals();
+        applyStoneBoxUVs(rock, UV_BANDS.moss, 0.48, 0.45);
+        mossBuckets.push(normalizeForMerge(rock, 0x95ac78, (p, n) => {
+          const topMoss = smoothstep(0.05, 0.45, n.y);
+          return lerp(0.55, 1.0, topMoss) * lerp(0.68, 1.0, smoothstep(0.0, 0.35, p.y));
+        }));
+      }
+
+      // 2. Flared Conical Stone Plinth (y = 0.10 -> 4.04m)
+      const plinthSegsTheta = isHero ? 36 : 18;
+      const plinthSegsY = isHero ? 6 : 3;
+      const pPos = [], pUv = [], pCol = [], pIdx = [];
+      const strideY = plinthSegsY + 1;
+      const cMossTint = new THREE.Color(0x4d5e3c);
+      const cWhite = new THREE.Color(0xffffff);
+
+      for (let it = 0; it <= plinthSegsTheta; it++) {
+        const uFrac = it / plinthSegsTheta;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        const buttressWave = Math.cos(theta * 12);
+        const bayIndent = smoothstep(-0.3, -0.95, buttressWave) * 0.065;
+
+        const yPts = [];
+        for (let jy = 0; jy <= plinthSegsY; jy++) {
+          const yf = jy / plinthSegsY;
+          const y = lerp(0.10, 4.04, yf);
+          const rFlare = 2.20 + 1.14 * Math.pow(1.0 - yf, 1.48) - bayIndent * Math.sin(yf * Math.PI);
+          yPts.push({ r: rFlare, y, yf });
+        }
+        const arcY = [0];
+        for (let jy = 1; jy <= plinthSegsY; jy++) {
+          arcY.push(arcY[jy - 1] + Math.hypot(yPts[jy].r - yPts[jy - 1].r, yPts[jy].y - yPts[jy - 1].y));
+        }
+        const totArc = Math.max(0.001, arcY[plinthSegsY]);
+
+        for (let jy = 0; jy <= plinthSegsY; jy++) {
+          const pt = yPts[jy];
+          pPos.push(pt.r * cT, pt.y, -pt.r * sT);
+          pUv.push(uFrac * 6.0, lerp(UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, arcY[jy] / totArc));
+
+          const groundAO = lerp(0.52, 1.0, smoothstep(0.08, 1.05, pt.y));
+          const corniceAO = lerp(1.0, 0.60, smoothstep(3.55, 4.04, pt.y));
+          const finAO = lerp(1.0, 0.70, smoothstep(0.32, 0.96, buttressWave));
+          const mossUp = (1.0 - smoothstep(0.25, 1.55, pt.y)) * 0.56;
+          tmpC.copy(cWhite).lerp(cMossTint, mossUp).multiplyScalar(groundAO * corniceAO * finAO);
+          pCol.push(tmpC.r, tmpC.g, tmpC.b);
+        }
+      }
+      for (let it = 0; it < plinthSegsTheta; it++) {
+        for (let jy = 0; jy < plinthSegsY; jy++) {
+          const a = it * strideY + jy;
+          const b = (it + 1) * strideY + jy;
+          const c = (it + 1) * strideY + (jy + 1);
+          const d = it * strideY + (jy + 1);
+          pIdx.push(a, b, c, a, c, d);
+        }
+      }
+      const plinthGeom = new THREE.BufferGeometry();
+      plinthGeom.setAttribute('position', new THREE.Float32BufferAttribute(pPos, 3));
+      plinthGeom.setAttribute('uv', new THREE.Float32BufferAttribute(pUv, 2));
+      plinthGeom.setAttribute('color', new THREE.Float32BufferAttribute(pCol, 3));
+      plinthGeom.setIndex(pIdx);
+      plinthGeom.computeVertexNormals();
+      averageSeamNormals(plinthGeom, plinthSegsTheta, strideY, true, false);
+      stoneBuckets.push(normalizeForMerge(plinthGeom));
+
+      // 3. 12 Tapered, Beveled Stone Buttress Fins (ExtrudeGeometry bevelSegments: 3) + Chamfered Foot Blocks
+      const finShape = new THREE.Shape();
+      if (isHero) {
+        finShape.moveTo(2.12, 0.12);
+        finShape.lineTo(2.12, 3.92);
+        finShape.quadraticCurveTo(2.22, 4.02, 2.48, 3.96);
+        finShape.lineTo(2.88, 2.28);
+        finShape.lineTo(3.48, 0.92);
+        finShape.lineTo(3.72, 0.42);
+        finShape.lineTo(3.68, 0.12);
+        finShape.lineTo(2.18, 0.06);
+      } else {
+        finShape.moveTo(2.12, 0.12);
+        finShape.lineTo(2.14, 3.92);
+        finShape.lineTo(2.48, 3.96);
+        finShape.lineTo(3.66, 0.42);
+        finShape.lineTo(3.62, 0.10);
+      }
+
+      const rawFin = new THREE.ExtrudeGeometry(finShape, {
+        depth: 0.22,
+        bevelEnabled: true,
+        bevelThickness: 0.085,
+        bevelSize: 0.075,
+        bevelSegments: 3,
+        curveSegments: isHero ? 2 : 1
+      });
+      rawFin.translate(0, 0, -0.11);
+      const finPos = rawFin.getAttribute('position');
+      for (let i = 0; i < finPos.count; i++) {
+        const rx = finPos.getX(i);
+        const tRad = clamp((rx - 2.12) / 1.62, 0, 1);
+        finPos.setZ(i, finPos.getZ(i) * lerp(1.16, 0.62, tRad));
+      }
+      rawFin.computeVertexNormals();
+      applyStoneBoxUVs(rawFin, UV_BANDS.stone, 0.42, 0.24);
+
+      let rawFoot = null;
+      if (isHero) {
+        const footShape = new THREE.Shape();
+        footShape.moveTo(2.76, 0.05);
+        footShape.lineTo(2.76, 0.68);
+        footShape.lineTo(3.26, 0.64);
+        footShape.lineTo(3.74, 0.40);
+        footShape.lineTo(3.72, 0.10);
+        footShape.lineTo(2.82, 0.02);
+
+        rawFoot = new THREE.ExtrudeGeometry(footShape, {
+          depth: 0.34,
+          bevelEnabled: true,
+          bevelThickness: 0.09,
+          bevelSize: 0.085,
+          bevelSegments: 3,
+          curveSegments: 1
+        });
+        rawFoot.translate(0, 0, -0.17);
+        const footPos = rawFoot.getAttribute('position');
+        for (let i = 0; i < footPos.count; i++) {
+          const rx = footPos.getX(i);
+          const tRad = clamp((rx - 2.76) / 1.02, 0, 1);
+          footPos.setZ(i, footPos.getZ(i) * lerp(1.12, 0.72, tRad));
+        }
+        rawFoot.computeVertexNormals();
+        applyStoneBoxUVs(rawFoot, UV_BANDS.stone, 0.45, 0.35);
+      }
+
+      for (let k = 0; k < 12; k++) {
+        const theta = (k / 12) * Math.PI * 2;
+        const rotM = new THREE.Matrix4().makeRotationY(theta);
+
+        const finClone = rawFin.clone();
+        finClone.applyMatrix4(rotM);
+        stoneBuckets.push(normalizeForMerge(finClone, 0xffffff, (p) => {
+          const rHoriz = Math.hypot(p.x, p.z);
+          const plinthR = 2.20 + 1.14 * Math.pow(clamp(1.0 - (p.y - 0.10) / 3.94, 0, 1), 1.48);
+          const wallAO = lerp(0.68, 1.0, smoothstep(0.0, 0.34, rHoriz - plinthR));
+          const botAO = lerp(0.60, 1.0, smoothstep(0.04, 0.55, p.y));
+          const topAO = lerp(1.0, 0.66, smoothstep(3.65, 4.02, p.y));
+          return wallAO * botAO * topAO;
+        }));
+
+        if (rawFoot) {
+          const footClone = rawFoot.clone();
+          footClone.applyMatrix4(rotM);
+          stoneBuckets.push(normalizeForMerge(footClone, 0xffffff, (p, n) => {
+            const botAO = lerp(0.54, 1.0, smoothstep(0.02, 0.42, p.y));
+            const topMoss = n.y > 0.35 ? 0.92 : 0.85;
+            return botAO * topMoss;
+          }));
+        }
+      }
+      rawFin.dispose();
+      if (rawFoot) rawFoot.dispose();
+
+      const grp = new THREE.Group();
+      grp.name = 'Part_BaseFoundation';
+
+      const terrainMesh = new THREE.Mesh(safeMerge(mossBuckets), MATS.mossTerrain);
+      terrainMesh.name = 'BaseFoundation_MossyTerrain';
+      terrainMesh.castShadow = true;
+      terrainMesh.receiveShadow = true;
+      grp.add(terrainMesh);
+
+      const plinthMesh = new THREE.Mesh(safeMerge(stoneBuckets), MATS.stoneTower);
+      plinthMesh.name = 'BaseFoundation_PlinthAndButtresses';
+      plinthMesh.castShadow = true;
+      plinthMesh.receiveShadow = true;
+      grp.add(plinthMesh);
+
+      return grp;
+    }
+
+    // C. Romanesque Recessed Arched Cylindrical Tier + Beveled Stone Arch Surrounds
+    function buildArchedCylinderTier(tier, tierIdx, isHero, isCrownSkirt = false) {
+      const { yBot, yTop, rBot, rTop, nWin, phase } = tier;
+      const tierH = yTop - yBot;
+      const dTheta = (Math.PI * 2) / nWin;
+      const stoneParts = [];
+      const slitParts = [];
+
+      const archSegs = isHero ? 4 : 2;
+      const pos = [], uv = [], col = [], idx = [];
+      const cWall = new THREE.Color(0xffffff);
+      const cDarkBack = new THREE.Color(0x1a1511);
+
+      const radiusAtY = (y) => lerp(rBot, rTop, clamp((y - yBot) / tierH, 0, 1));
+      const addVert = (r, th, y, uVal, vVal, cObj) => {
+        pos.push(r * Math.cos(th), y, -r * Math.sin(th));
+        uv.push(uVal, vVal);
+        col.push(cObj.r, cObj.g, cObj.b);
+        return pos.length / 3 - 1;
+      };
+      const addQuad = (a, b, c, d) => { idx.push(a, b, c, a, c, d); };
+
+      const halfWinFrac = 0.24;
+      const sillY = yBot + tierH * (isCrownSkirt ? 0.08 : 0.16);
+      const springY = yBot + tierH * (isCrownSkirt ? 0.50 : 0.56);
+      const archRadY = tierH * (isCrownSkirt ? 0.28 : 0.25);
+      const recessDepth = isCrownSkirt ? 0.13 : 0.16;
+
+      for (let w = 0; w < nWin; w++) {
+        const th0 = (w + phase) * dTheta;
+        const th1 = th0 + dTheta;
+        const thC = (th0 + th1) * 0.5;
+        const thL = thC - dTheta * halfWinFrac;
+        const thR = thC + dTheta * halfWinFrac;
+
+        const vBot = UV_BANDS.stone.vMin;
+        const vSill = lerp(UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, 0.18);
+        const vSpring = lerp(UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, 0.58);
+        const vTop = UV_BANDS.stone.vMax;
+
+        const rB = radiusAtY(yBot), rS = radiusAtY(sillY), rSp = radiusAtY(springY), rT = radiusAtY(yTop);
+        const u0 = w / nWin * 6.0, uL = (w + 0.5 - halfWinFrac) / nWin * 6.0, uR = (w + 0.5 + halfWinFrac) / nWin * 6.0, u1 = (w + 1) / nWin * 6.0;
+
+        const b0 = addVert(rB, th0, yBot, u0, vBot, cWall.clone().multiplyScalar(0.76));
+        const bL = addVert(rB, thL, yBot, uL, vBot, cWall.clone().multiplyScalar(0.76));
+        const bR = addVert(rB, thR, yBot, uR, vBot, cWall.clone().multiplyScalar(0.76));
+        const b1 = addVert(rB, th1, yBot, u1, vBot, cWall.clone().multiplyScalar(0.76));
+
+        const s0 = addVert(rS, th0, sillY, u0, vSill, cWall.clone().multiplyScalar(0.95));
+        const sL = addVert(rS, thL, sillY, uL, vSill, cWall.clone().multiplyScalar(0.88));
+        const sR = addVert(rS, thR, sillY, uR, vSill, cWall.clone().multiplyScalar(0.88));
+        const s1 = addVert(rS, th1, sillY, u1, vSill, cWall.clone().multiplyScalar(0.95));
+
+        addQuad(b0, bL, sL, s0);
+        addQuad(bL, bR, sR, sL);
+        addQuad(bR, b1, s1, sR);
+
+        const sp0 = addVert(rSp, th0, springY, u0, vSpring, cWall);
+        const spL = addVert(rSp, thL, springY, uL, vSpring, cWall.clone().multiplyScalar(0.90));
+        const spR = addVert(rSp, thR, springY, uR, vSpring, cWall.clone().multiplyScalar(0.90));
+        const sp1 = addVert(rSp, th1, springY, u1, vSpring, cWall);
+
+        const t0 = addVert(rT, th0, yTop, u0, vTop, cWall.clone().multiplyScalar(isCrownSkirt ? 0.92 : 0.70));
+        const tL = addVert(rT, thL, yTop, uL, vTop, cWall.clone().multiplyScalar(isCrownSkirt ? 0.92 : 0.70));
+        const tR = addVert(rT, thR, yTop, uR, vTop, cWall.clone().multiplyScalar(isCrownSkirt ? 0.92 : 0.70));
+        const t1 = addVert(rT, th1, yTop, u1, vTop, cWall.clone().multiplyScalar(isCrownSkirt ? 0.92 : 0.70));
+
+        addQuad(s0, sL, spL, sp0);
+        addQuad(sp0, spL, tL, t0);
+        addQuad(sR, s1, sp1, spR);
+        addQuad(spR, sp1, t1, tR);
+
+        const outerArch = [];
+        const innerArch = [];
+        for (let k = 0; k <= archSegs; k++) {
+          const a = (k / archSegs) * Math.PI;
+          const thA = thC + Math.cos(a) * (dTheta * halfWinFrac);
+          const yA = springY + Math.sin(a) * archRadY;
+          const rA = radiusAtY(yA);
+          const uA = lerp(uL, uR, 0.5 + 0.5 * Math.cos(a));
+          const vA = lerp(UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, (yA - yBot) / tierH);
+
+          outerArch.push(addVert(rA, thA, yA, uA, vA, cWall.clone().multiplyScalar(0.84)));
+          innerArch.push(addVert(rA - recessDepth, thA, yA, 0.25, UV_BANDS.dark.vMin + 0.02, cDarkBack));
+        }
+
+        const kMid = Math.floor(archSegs / 2);
+        const tMid = addVert(rT, thC, yTop, (uL + uR) * 0.5, vTop, cWall.clone().multiplyScalar(isCrownSkirt ? 0.92 : 0.70));
+        for (let k = archSegs; k > kMid; k--) {
+          idx.push(outerArch[k], outerArch[k - 1], tL);
+        }
+        idx.push(outerArch[kMid], tMid, tL);
+        idx.push(outerArch[kMid], tR, tMid);
+        for (let k = kMid; k > 0; k--) {
+          idx.push(outerArch[k], outerArch[k - 1], tR);
+        }
+
+        const inSL = addVert(rS - recessDepth, thL, sillY + 0.02, 0.25, UV_BANDS.dark.vMin + 0.01, cDarkBack);
+        const inSR = addVert(rS - recessDepth, thR, sillY + 0.02, 0.25, UV_BANDS.dark.vMin + 0.01, cDarkBack);
+        const inSpL = innerArch[archSegs];
+        const inSpR = innerArch[0];
+
+        addQuad(sL, sR, inSR, inSL);
+        addQuad(sL, inSL, inSpL, spL);
+        addQuad(inSR, sR, spR, inSpR);
+        for (let k = 0; k < archSegs; k++) {
+          addQuad(outerArch[k], outerArch[k + 1], innerArch[k + 1], innerArch[k]);
+        }
+
+        const inCenter = addVert(radiusAtY((springY + sillY) * 0.5) - recessDepth, thC, springY * 0.55 + sillY * 0.45, 0.25, UV_BANDS.dark.vMin + 0.025, cDarkBack);
+        idx.push(inSL, inSR, inSpR);
+        idx.push(inSL, inSpR, inSpL);
+        for (let k = 0; k < archSegs; k++) {
+          idx.push(innerArch[k + 1], innerArch[k], inCenter);
+        }
+
+        // Beveled Romanesque Stone Arch Surround Hood (Hero: 5-seg x 4-facet beveled arch; Game-Ready uses recessed bay intrados)
+        if (!isCrownSkirt && isHero) {
+          const hoodPts = [];
+          const nArchHood = isHero ? 4 : 2;
+          hoodPts.push(new THREE.Vector3(rS * Math.cos(thL), sillY + 0.02, -rS * Math.sin(thL)));
+          hoodPts.push(new THREE.Vector3(rSp * Math.cos(thL), springY, -rSp * Math.sin(thL)));
+          for (let k = nArchHood - 1; k >= 1; k--) {
+            const a = (k / nArchHood) * Math.PI;
+            const thA = thC + Math.cos(a) * (dTheta * halfWinFrac);
+            const yA = springY + Math.sin(a) * archRadY;
+            const rA = radiusAtY(yA);
+            hoodPts.push(new THREE.Vector3(rA * Math.cos(thA), yA, -rA * Math.sin(thA)));
+          }
+          hoodPts.push(new THREE.Vector3(rSp * Math.cos(thR), springY, -rSp * Math.sin(thR)));
+          hoodPts.push(new THREE.Vector3(rS * Math.cos(thR), sillY + 0.02, -rS * Math.sin(thR)));
+
+          const hoodCurve = new THREE.CatmullRomCurve3(hoodPts);
+          const hoodGeom = buildSweptCurveLoft({
+            curve: hoodCurve,
+            tubularSegs: isHero ? 5 : 3,
+            radialSegs: isHero ? 4 : 3,
+            profileShape: 'squircle',
+            squirclePower: 3.4,
+            rxFn: () => 0.048,
+            rbFn: () => 0.056,
+            uRepeat: 1.0,
+            vMin: UV_BANDS.stone.vMin,
+            vMax: UV_BANDS.stone.vMax,
+            capMode: 'none',
+            colorFn: (t, sL, ang, x, y, z, outC) => {
+              const ao = lerp(0.76, 1.0, Math.sin(sL * Math.PI * 0.8 + 0.1));
+              outC.setRGB(ao, ao, ao);
+            }
+          });
+          stoneParts.push(normalizeForMerge(hoodGeom));
+        }
+
+        // Tangentially-aligned Arcane Slit Capsule inside select upper window recesses
+        const hasRuneSlit = !isCrownSkirt && ((tierIdx * 7 + w * 5) % 3 === 0) && tierIdx >= 1;
+        if (hasRuneSlit) {
+          const slitH = tierH * 0.30;
+          const slitY = sillY + 0.16 + slitH * 0.5;
+          const rSlit = radiusAtY(slitY) - recessDepth + 0.025;
+          const rawSlit = new THREE.OctahedronGeometry(0.036, isHero ? 1 : 0);
+          rawSlit.scale(0.6, 5.2, 0.9);
+          rawSlit.rotateY(thC);
+          rawSlit.translate(rSlit * Math.cos(thC), slitY, -rSlit * Math.sin(thC));
+          rawSlit.computeVertexNormals();
+          const sUV = rawSlit.getAttribute('uv');
+          for (let i = 0; i < sUV.count; i++) {
+            sUV.setXY(i, 0.55 + sUV.getX(i) * 0.4, lerp(UV_BANDS.rune.vMin, UV_BANDS.rune.vMax, sUV.getY(i)));
+          }
+          slitParts.push(normalizeForMerge(rawSlit, 0xffd578));
+        }
+      }
+
+      const bayGeom = new THREE.BufferGeometry();
+      bayGeom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      bayGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      bayGeom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      bayGeom.setIndex(idx);
+      bayGeom.computeVertexNormals();
+      stoneParts.unshift(normalizeForMerge(bayGeom));
+
+      return {
+        stoneGeom: safeMerge(stoneParts),
+        slitGeom: slitParts.length > 0 ? safeMerge(slitParts) : null
+      };
+    }
+
+    function buildPartTowerCore(isHero) {
+      const stoneBuckets = [];
+      const slitBuckets = [];
+
+      for (const c of CORNICES) {
+        stoneBuckets.push(normalizeForMerge(buildCorniceRing(c, isHero)));
+      }
+      for (let i = 0; i < TOWER_TIERS.length; i++) {
+        // Keep 12 windows on every tier in Game-Ready (satisfies 12-14 requirement in both LODs)
+        const tierSpec = isHero ? TOWER_TIERS[i] : { ...TOWER_TIERS[i], nWin: 12 };
+        const res = buildArchedCylinderTier(tierSpec, i, isHero, false);
+        stoneBuckets.push(res.stoneGeom);
+        if (res.slitGeom) slitBuckets.push(res.slitGeom);
+      }
+
+      const grp = new THREE.Group();
+      grp.name = 'Part_TowerCore';
+
+      const stoneMesh = new THREE.Mesh(safeMerge(stoneBuckets), MATS.stoneTower);
+      stoneMesh.name = 'TowerCore_TiersAndCornices';
+      stoneMesh.castShadow = true;
+      stoneMesh.receiveShadow = true;
+      grp.add(stoneMesh);
+
+      if (slitBuckets.length > 0) {
+        const slitMesh = new THREE.Mesh(safeMerge(slitBuckets), MATS.arcaneRune);
+        slitMesh.name = 'TowerCore_WindowArcaneSlits';
+        grp.add(slitMesh);
+      }
+
+      return grp;
+    }
+
+    // D. 4 Radial Projecting Stone Beam / Gargoyle Corbels at 90-deg intervals (Tier 3-4 Cornice)
+    function buildPartCorbels(isHero) {
+      const corbelShape = new THREE.Shape();
+      if (isHero) {
+        corbelShape.moveTo(1.74, 9.84);
+        corbelShape.lineTo(1.74, 10.30);
+        corbelShape.quadraticCurveTo(1.82, 10.38, 2.00, 10.37);
+        corbelShape.lineTo(2.74, 10.32);
+        corbelShape.quadraticCurveTo(2.92, 10.28, 2.92, 10.12);
+        corbelShape.quadraticCurveTo(2.90, 9.98, 2.66, 9.92);
+        corbelShape.quadraticCurveTo(2.28, 9.80, 1.88, 9.74);
+        corbelShape.quadraticCurveTo(1.74, 9.75, 1.74, 9.84);
+      } else {
+        corbelShape.moveTo(1.74, 9.82);
+        corbelShape.lineTo(1.76, 10.34);
+        corbelShape.lineTo(2.88, 10.28);
+        corbelShape.lineTo(2.88, 10.00);
+        corbelShape.lineTo(1.86, 9.74);
+      }
+
+      const rawCorbel = new THREE.ExtrudeGeometry(corbelShape, {
+        depth: 0.28,
+        bevelEnabled: true,
+        bevelThickness: 0.085,
+        bevelSize: 0.075,
+        bevelSegments: 3,
+        curveSegments: isHero ? 3 : 1
+      });
+      rawCorbel.translate(0, 0, -0.14);
+      const cPos = rawCorbel.getAttribute('position');
+      for (let i = 0; i < cPos.count; i++) {
+        const rx = cPos.getX(i);
+        const tOut = clamp((rx - 1.75) / 1.18, 0, 1);
+        cPos.setZ(i, cPos.getZ(i) * lerp(1.16, 0.72, tOut));
+      }
+      rawCorbel.computeVertexNormals();
+      applyStoneBoxUVs(rawCorbel, UV_BANDS.stone, 0.55, 0.45);
+
+      let rawSnout = null;
+      if (isHero) {
+        const snoutShape = new THREE.Shape();
+        snoutShape.moveTo(2.16, 10.22);
+        snoutShape.lineTo(2.16, 10.42);
+        snoutShape.quadraticCurveTo(2.30, 10.48, 2.68, 10.44);
+        snoutShape.quadraticCurveTo(2.92, 10.38, 2.90, 10.22);
+        snoutShape.lineTo(2.20, 10.18);
+
+        rawSnout = new THREE.ExtrudeGeometry(snoutShape, {
+          depth: 0.34,
+          bevelEnabled: true,
+          bevelThickness: 0.07,
+          bevelSize: 0.065,
+          bevelSegments: 3,
+          curveSegments: 2
+        });
+        rawSnout.translate(0, 0, -0.17);
+        rawSnout.computeVertexNormals();
+        applyStoneBoxUVs(rawSnout, UV_BANDS.stone, 0.55, 0.45);
+      }
+
+      const buckets = [];
+      for (let k = 0; k < 4; k++) {
+        const ang = (k + 0.5) * (Math.PI * 0.5);
+        const m = new THREE.Matrix4().makeRotationY(ang);
+
+        const gBeam = rawCorbel.clone();
+        gBeam.applyMatrix4(m);
+        buckets.push(normalizeForMerge(gBeam, 0xffffff, (p, n) => {
+          const rHoriz = Math.hypot(p.x, p.z);
+          const underAO = lerp(0.56, 1.0, smoothstep(-0.6, 0.4, n.y));
+          const rootAO = lerp(0.66, 1.0, smoothstep(1.85, 2.30, rHoriz));
+          return underAO * rootAO;
+        }));
+
+        if (rawSnout) {
+          const gSnout = rawSnout.clone();
+          gSnout.applyMatrix4(m);
+          buckets.push(normalizeForMerge(gSnout, 0xffffff, (p, n) => lerp(0.70, 1.0, smoothstep(-0.3, 0.5, n.y))));
+        }
+      }
+      rawCorbel.dispose();
+      if (rawSnout) rawSnout.dispose();
+
+      const grp = new THREE.Group();
+      grp.name = 'Part_Corbels';
+      const mesh = new THREE.Mesh(safeMerge(buckets), MATS.stoneTower);
+      mesh.name = 'Corbels_RadialStoneBeams';
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      grp.add(mesh);
+      return grp;
+    }
+
+    // E. Asymmetrical Shattered Stone Crown + Lower Blind-Arcade Skirt + Deep V-Clefts + Fissure Ridges + Arcane Core
+    function crownHeightAtTheta(theta) {
+      const a = ((theta % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      const peakGauss = (centerDeg, widthDeg, amp) => {
+        const c = (centerDeg * Math.PI) / 180;
+        const w = (widthDeg * Math.PI) / 180;
+        let d = Math.abs(a - c);
+        if (d > Math.PI) d = Math.PI * 2 - d;
+        return amp * Math.exp(-(d * d) / (2 * w * w));
+      };
+      let h = 15.32;
+      h += peakGauss(166, 26, 2.15);
+      h += peakGauss(268, 22, 1.88);
+      h += peakGauss(8,   20, 1.92);
+      h += peakGauss(52,  11, 0.85);
+      h += peakGauss(120, 12, 0.92);
+      h += peakGauss(220, 12, 0.70);
+      h += peakGauss(318, 12, 0.78);
+      h -= peakGauss(84,  15, 0.36);
+      h -= peakGauss(202, 10, 0.32);
+      h -= peakGauss(338, 10, 0.34);
+      h += 0.13 * Math.sin(a * 11 + 0.4) + 0.08 * Math.cos(a * 19);
+      return clamp(h, 15.10, 17.60);
+    }
+
+    function buildPartRuinedCrown(isHero) {
+      const stoneBuckets = [];
+
+      // 1. Lower Blind-Arcade Romanesque Skirt directly above Cornice 5 (y = 14.14 -> 15.16m)
+      const crownSkirt = buildArchedCylinderTier({
+        yBot: 14.14, yTop: 15.16, rBot: 1.64, rTop: 1.59, nWin: isHero ? 10 : 6, phase: 0.5
+      }, 5, isHero, true);
+      stoneBuckets.push(crownSkirt.stoneGeom);
+
+      // 2. Thick-walled watertight sculpted jagged crown parapet shell (y = 15.12 -> h(theta))
+      const segsTheta = isHero ? 40 : 18;
+      const nProf = 12;
+      const stride = nProf;
+      const pos = [], uv = [], col = [], idx = [];
+      const tmpC = new THREE.Color();
+      const cStone = new THREE.Color(0xffffff);
+      const cDarkAbyss = new THREE.Color(0x1a1511);
+      const cRimWeathered = new THREE.Color(0xc8baa0);
+
+      for (let it = 0; it <= segsTheta; it++) {
+        const uFrac = it / segsTheta;
+        const theta = uFrac * Math.PI * 2;
+        const cT = Math.cos(theta), sT = Math.sin(theta);
+
+        const hTop = crownHeightAtTheta(theta);
+        const yBase = 15.10;
+        const fissureIndent = Math.pow(Math.max(0, Math.sin(theta * 7 + 0.5)), 4) * 0.055;
+
+        const rOutBot = 1.59;
+        const rOutTop = 1.52 - fissureIndent * 0.5;
+        const rInTop = 1.18;
+        const rInBot = 1.12;
+        const yFloor = 14.34;
+
+        const prof = [
+          { r: rOutBot,                        y: yBase,                    ao: 0.88, dark: 0.0,  uvBand: 'stone' },
+          { r: lerp(rOutBot, rOutTop, 0.55) - fissureIndent, y: lerp(yBase, hTop, 0.55), ao: 0.94, dark: 0.0, uvBand: 'stone' },
+          { r: rOutTop,                        y: hTop - 0.12,              ao: 0.98, dark: 0.0,  uvBand: 'stone' },
+          // 5-station smooth beveled stone rim crest
+          { r: lerp(rOutTop, rInTop, 0.12),    y: hTop - 0.03,              ao: 1.00, dark: 0.0,  uvBand: 'stone' },
+          { r: lerp(rOutTop, rInTop, 0.36),    y: hTop + 0.03,              ao: 1.00, dark: 0.0,  uvBand: 'stone' },
+          { r: lerp(rOutTop, rInTop, 0.64),    y: hTop + 0.02,              ao: 0.92, dark: 0.0,  uvBand: 'stone' },
+          { r: lerp(rOutTop, rInTop, 0.88),    y: hTop - 0.04,              ao: 0.76, dark: 0.25, uvBand: 'stone' },
+          // Dark hollow inner abyss wall & floor
+          { r: rInTop,                         y: hTop - 0.16,              ao: 0.56, dark: 0.50, uvBand: 'stone' },
+          { r: rInBot + 0.03,                  y: lerp(yFloor, hTop, 0.45), ao: 0.36, dark: 0.72, uvBand: 'dark' },
+          { r: rInBot,                         y: yFloor + 0.14,            ao: 0.22, dark: 0.88, uvBand: 'dark' },
+          { r: 0.55,                           y: yFloor,                   ao: 0.22, dark: 0.90, uvBand: 'dark' },
+          { r: 0.001,                          y: yFloor,                   ao: 0.26, dark: 0.88, uvBand: 'dark' }
+        ];
+
+        const arc = [0];
+        for (let k = 1; k < nProf; k++) {
+          arc.push(arc[k - 1] + Math.hypot(prof[k].r - prof[k - 1].r, prof[k].y - prof[k - 1].y));
+        }
+        const totArc = Math.max(0.001, arc[nProf - 1]);
+
+        for (let k = 0; k < nProf; k++) {
+          const pr = prof[k];
+          pos.push(pr.r * cT, pr.y, -pr.r * sT);
+          if (pr.uvBand === 'dark') {
+            uv.push(0.25, lerp(UV_BANDS.dark.vMin, UV_BANDS.dark.vMax, 0.5));
+          } else {
+            uv.push(uFrac * 5.0, lerp(UV_BANDS.stone.vMin, UV_BANDS.stone.vMax, clamp((arc[k] / totArc) * 1.4, 0, 1)));
+          }
+          tmpC.copy(cStone).lerp(cRimWeathered, pr.ao > 0.96 ? 0.15 : 0.0).lerp(cDarkAbyss, pr.dark).multiplyScalar(pr.ao);
+          col.push(tmpC.r, tmpC.g, tmpC.b);
+        }
+      }
+
+      for (let it = 0; it < segsTheta; it++) {
+        for (let k = 0; k < nProf - 1; k++) {
+          const a = it * stride + k;
+          const b = (it + 1) * stride + k;
+          const c = (it + 1) * stride + (k + 1);
+          const d = it * stride + (k + 1);
+          idx.push(a, b, c, a, c, d);
+        }
+      }
+      const parapetGeom = new THREE.BufferGeometry();
+      parapetGeom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      parapetGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      parapetGeom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      parapetGeom.setIndex(idx);
+      parapetGeom.computeVertexNormals();
+      averageSeamNormals(parapetGeom, segsTheta, stride, true, false);
+      stoneBuckets.push(normalizeForMerge(parapetGeom));
+
+      // 3. Jagged Weathered Crown Spire Shards (beveled ExtrudeGeometry with bevelSegments: 3)
+      const spireSpecs = [
+        { deg: 166, baseY: 16.50, tipY: 18.00, w: 0.42, d: 0.34, lean: 0.08 },
+        { deg: 268, baseY: 16.30, tipY: 17.68, w: 0.40, d: 0.32, lean: -0.04 },
+        { deg: 8,   baseY: 16.35, tipY: 17.75, w: 0.38, d: 0.32, lean: -0.06 },
+        { deg: 120, baseY: 15.65, tipY: 16.65, w: 0.28, d: 0.26, lean: 0.03 },
+        { deg: 52,  baseY: 15.55, tipY: 16.52, w: 0.28, d: 0.26, lean: -0.02 }
+      ];
+      const useSpireCount = isHero ? spireSpecs.length : 3;
+      for (let si = 0; si < useSpireCount; si++) {
+        const sp = spireSpecs[si];
+        const hSp = sp.tipY - sp.baseY;
+        const hw = sp.w * 0.5;
+        const sh = new THREE.Shape();
+        sh.moveTo(-hw, 0.08);
+        sh.quadraticCurveTo(-hw * 0.90, hSp * 0.48, -hw * 0.38 + sp.lean, hSp * 0.88);
+        sh.quadraticCurveTo(sp.lean, hSp * 1.04, hw * 0.38 + sp.lean, hSp * 0.86);
+        sh.quadraticCurveTo(hw * 0.90, hSp * 0.45, hw, 0.08);
+        sh.quadraticCurveTo(0, -0.04, -hw, 0.08);
+
+        const gShard = new THREE.ExtrudeGeometry(sh, {
+          depth: sp.d,
+          bevelEnabled: true,
+          bevelThickness: 0.06,
+          bevelSize: 0.05,
+          bevelSegments: 3,
+          curveSegments: isHero ? 2 : 1
+        });
+        gShard.translate(0, 0, -sp.d * 0.5);
+        const sPos = gShard.getAttribute('position');
+        for (let i = 0; i < sPos.count; i++) {
+          const sy = clamp(sPos.getY(i) / hSp, 0, 1);
+          sPos.setZ(i, sPos.getZ(i) * lerp(1.0, 0.58, sy));
+        }
+        gShard.computeVertexNormals();
+        applyStoneBoxUVs(gShard, UV_BANDS.stone, 0.55, 0.35);
+
+        const ang = (sp.deg * Math.PI) / 180;
+        gShard.rotateY(ang + Math.PI * 0.5);
+        gShard.translate(1.36 * Math.cos(ang), sp.baseY, -1.36 * Math.sin(ang));
+        stoneBuckets.push(normalizeForMerge(gShard, 0xffffff, (p) => lerp(0.76, 1.0, smoothstep(sp.baseY, sp.tipY, p.y))));
+      }
+
+      // 4. Sculpted Vertical Fissure Ribs (Hero)
+      if (isHero) {
+        const ribAnglesDeg = [30, 102, 148, 188, 244, 294, 344];
+        for (const deg of ribAnglesDeg) {
+          const ang = (deg * Math.PI) / 180;
+          const hRibTop = crownHeightAtTheta(ang) - 0.14;
+          const ribCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(1.61 * Math.cos(ang), 15.10, -1.61 * Math.sin(ang)),
+            new THREE.Vector3(1.57 * Math.cos(ang), lerp(15.10, hRibTop, 0.45), -1.57 * Math.sin(ang)),
+            new THREE.Vector3(1.52 * Math.cos(ang), hRibTop, -1.52 * Math.sin(ang))
+          ]);
+          const ribGeom = buildSweptCurveLoft({
+            curve: ribCurve,
+            tubularSegs: 4,
+            radialSegs: 6,
+            profileShape: 'squircle',
+            squirclePower: 3.2,
+            rxFn: (t, sL) => lerp(0.095, 0.048, sL),
+            rbFn: (t, sL) => lerp(0.082, 0.045, sL),
+            vMin: UV_BANDS.stone.vMin,
+            vMax: UV_BANDS.stone.vMax,
+            capMode: 'bevel1',
+            colorFn: (t, sL, a, x, y, z, outC) => {
+              const ao = lerp(0.74, 0.96, sL);
+              outC.setRGB(ao, ao, ao);
+            }
+          });
+          stoneBuckets.push(normalizeForMerge(ribGeom));
+        }
+      }
+
+      // 5. Glowing Arcane Runic Core inside the hollow dark inner abyss
+      const runeBuckets = [];
+      const ringPts = [];
+      for (let i = 0; i <= 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(0.72 * Math.cos(a), 14.40, -0.72 * Math.sin(a)));
+      }
+      const sealCurve = new THREE.CatmullRomCurve3(ringPts, true);
+      const sealGeom = buildSweptCurveLoft({
+        curve: sealCurve,
+        tubularSegs: isHero ? 18 : 10,
+        radialSegs: 4,
+        profileShape: 'squircle',
+        rxFn: () => 0.048,
+        rbFn: () => 0.032,
+        capMode: 'none',
+        uRepeat: 2.0,
+        vMin: UV_BANDS.rune.vMin,
+        vMax: UV_BANDS.rune.vMax
+      });
+      const sealUV = sealGeom.getAttribute('uv');
+      for (let i = 0; i < sealUV.count; i++) sealUV.setX(i, 0.55 + (sealUV.getX(i) % 0.4));
+      runeBuckets.push(normalizeForMerge(sealGeom, 0xffd578));
+
+      const rawCrystal = new THREE.OctahedronGeometry(0.28, isHero ? 1 : 0);
+      const smoothCrystal = BufferGeometryUtils.mergeVertices(rawCrystal, 1e-4);
+      rawCrystal.dispose();
+      smoothCrystal.scale(0.85, 1.45, 0.85);
+      smoothCrystal.translate(0, 14.98, 0);
+      smoothCrystal.computeVertexNormals();
+      const cUV = smoothCrystal.getAttribute('uv');
+      for (let i = 0; i < cUV.count; i++) {
+        cUV.setXY(i, 0.55 + cUV.getX(i) * 0.4, lerp(UV_BANDS.rune.vMin, UV_BANDS.rune.vMax, cUV.getY(i)));
+      }
+      runeBuckets.push(normalizeForMerge(smoothCrystal, 0xffe49e));
+
+      const grp = new THREE.Group();
+      grp.name = 'Part_RuinedCrown';
+
+      const stoneMesh = new THREE.Mesh(safeMerge(stoneBuckets), MATS.stoneTower);
+      stoneMesh.name = 'RuinedCrown_ShatteredParapet';
+      stoneMesh.castShadow = true;
+      stoneMesh.receiveShadow = true;
+      grp.add(stoneMesh);
+
+      const coreMesh = new THREE.Mesh(safeMerge(runeBuckets), MATS.arcaneRune);
+      coreMesh.name = 'RuinedCrown_ArcaneCore';
+      grp.add(coreMesh);
+
+      return grp;
+    }
+
+    // F. Sweeping Segmented Upper-Right Stone Horn-Arch (15 beveled tapered blocks + 14 recessed mortar joints)
+    function buildPartSweepingArch(isHero) {
+      const stoneBuckets = [];
+
+      const archCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(1.36, 14.52, 0.00),
+        new THREE.Vector3(2.42, 14.48, 0.02),
+        new THREE.Vector3(3.44, 15.08, 0.04),
+        new THREE.Vector3(3.84, 16.06, 0.02),
+        new THREE.Vector3(3.46, 17.04, 0.00),
+        new THREE.Vector3(2.48, 17.52, -0.02),
+        new THREE.Vector3(1.38, 17.55, 0.00)
+      ]);
+
+      const totalSpineLen = archCurve.getLength();
+      const numSegments = 15;
+      const gapFrac = 0.0046;
+
+      // Sculpted beveled wall-emergence socket collar (Hero)
+      if (isHero) {
+        const socketShape = new THREE.Shape();
+        socketShape.moveTo(1.20, 13.98);
+        socketShape.lineTo(1.20, 15.06);
+        socketShape.quadraticCurveTo(1.42, 15.12, 1.84, 14.88);
+        socketShape.quadraticCurveTo(1.94, 14.48, 1.82, 14.08);
+        socketShape.quadraticCurveTo(1.48, 13.90, 1.20, 13.98);
+
+        const socketGeom = new THREE.ExtrudeGeometry(socketShape, {
+          depth: 0.94,
+          bevelEnabled: true,
+          bevelThickness: 0.10,
+          bevelSize: 0.09,
+          bevelSegments: 3,
+          curveSegments: 2
+        });
+        socketGeom.translate(0, 0, -0.47);
+        socketGeom.computeVertexNormals();
+        applyStoneBoxUVs(socketGeom, UV_BANDS.stone, 0.45, 0.35);
+        stoneBuckets.push(normalizeForMerge(socketGeom, 0xffffff, (p) => lerp(0.72, 1.0, smoothstep(13.95, 14.65, p.y))));
+      }
+
+      for (let i = 0; i < numSegments; i++) {
+        const t0 = (i / numSegments) + (i === 0 ? 0.01 : gapFrac);
+        const t1 = ((i + 1) / numSegments) - (i === numSegments - 1 ? 0.01 : gapFrac);
+
+        const blockGeom = buildSweptCurveLoft({
+          curve: archCurve,
+          tStart: t0,
+          tEnd: t1,
+          tubularSegs: isHero ? 2 : 1,
+          radialSegs: isHero ? 8 : 5,
+          profileShape: 'squircle',
+          squirclePower: 4.0,
+          rxFn: (t) => lerp(0.54, 0.24, Math.pow(t, 0.92)),
+          rbFn: (t) => lerp(0.51, 0.24, Math.pow(t, 0.92)),
+          uRepeat: 1.0,
+          vMin: UV_BANDS.stone.vMin,
+          vMax: UV_BANDS.stone.vMax,
+          capMode: isHero ? 'bevel3' : 'bevel1',
+          arcScaleOffset: t0 * totalSpineLen,
+          arcTotalGlobal: totalSpineLen,
+          colorFn: (t, sL, ang, wx, wy, wz, outC) => {
+            const endAO = lerp(0.52, 1.0, smoothstep(0.0, 0.12, sL) * smoothstep(1.0, 0.88, sL));
+            const underAO = lerp(0.72, 1.0, smoothstep(14.1, 17.6, wy) * 0.45 + 0.55);
+            const blockShade = 0.94 + 0.06 * ((i % 2 === 0) ? 1 : -1);
+            const v = endAO * underAO * blockShade;
+            outC.setRGB(v, v, v);
+          }
+        });
+        stoneBuckets.push(normalizeForMerge(blockGeom));
+
+        if (i < numSegments - 1) {
+          const tjMid = (i + 1) / numSegments;
+          const tj0 = tjMid - gapFrac * 1.45;
+          const tj1 = tjMid + gapFrac * 1.45;
+          const mortarGeom = buildSweptCurveLoft({
+            curve: archCurve,
+            tStart: tj0,
+            tEnd: tj1,
+            tubularSegs: 1,
+            radialSegs: isHero ? 6 : 4,
+            profileShape: 'squircle',
+            squirclePower: 4.0,
+            rxFn: (t) => lerp(0.54, 0.24, Math.pow(t, 0.92)) * 0.85,
+            rbFn: (t) => lerp(0.51, 0.24, Math.pow(t, 0.92)) * 0.85,
+            uRepeat: 0.45,
+            vMin: UV_BANDS.dark.vMin,
+            vMax: UV_BANDS.dark.vMax,
+            capMode: 'none',
+            arcScaleOffset: tj0 * totalSpineLen,
+            arcTotalGlobal: totalSpineLen,
+            colorFn: (t, sL, ang, wx, wy, wz, outC) => outC.setHex(0x1a1511)
+          });
+          stoneBuckets.push(normalizeForMerge(mortarGeom));
+        }
+      }
+
+      const grp = new THREE.Group();
+      grp.name = 'Part_SweepingArch';
+      const archMesh = new THREE.Mesh(safeMerge(stoneBuckets), MATS.stoneTower);
+      archMesh.name = 'SweepingArch_15SegmentedHorn';
+      archMesh.castShadow = true;
+      archMesh.receiveShadow = true;
+      grp.add(archMesh);
+      return grp;
+    }
+
+    // G. 4 Organic Multi-Station Lofted Mist / Cloud Ribbons (CatmullRomCurve3 + Teardrop Profile)
+    function buildPartSwirlingClouds(isHero) {
+      const grp = new THREE.Group();
+      grp.name = 'Part_SwirlingClouds';
+
+      const ribbonSpecs = [
+        {
+          name: 'Cloud_Ribbon_01',
+          pts: [
+            [-3.85, 1.55, 2.45],
+            [-2.95, 0.72, 3.35],
+            [-0.75, 0.76, 4.18],
+            [ 1.55, 1.04, 3.68],
+            [ 2.75, 1.42, 2.52]
+          ],
+          maxRx: 0.42, maxRb: 0.26
+        },
+        {
+          name: 'Cloud_Ribbon_02',
+          pts: [
+            [-2.58, 3.92, 1.98],
+            [-4.45, 4.48, 1.02],
+            [-4.22, 5.48, -0.88],
+            [-2.62, 6.24, -2.36],
+            [ 0.48, 6.62, -2.62]
+          ],
+          maxRx: 0.46, maxRb: 0.28
+        },
+        {
+          name: 'Cloud_Ribbon_03',
+          pts: [
+            [2.12, 0.68, 3.32],
+            [4.26, 1.46, 1.62],
+            [4.34, 2.56, -0.46],
+            [2.94, 3.56, -2.14],
+            [1.36, 4.14, -2.62]
+          ],
+          maxRx: 0.42, maxRb: 0.25
+        },
+        {
+          name: 'Cloud_Ribbon_04',
+          pts: [
+            [ 0.96, 5.56, 2.64],
+            [ 2.98, 6.26, 1.34],
+            [ 3.16, 7.36, -0.76],
+            [ 1.76, 8.26, -2.24],
+            [-0.54, 8.64, -2.44]
+          ],
+          maxRx: 0.36, maxRb: 0.22
+        }
+      ];
+
+      ribbonSpecs.forEach((spec, idxR) => {
+        const curve = new THREE.CatmullRomCurve3(spec.pts.map(p => new THREE.Vector3(...p)));
+        const cTop = new THREE.Color(0xf0ece0);
+        const cUnder = new THREE.Color(0xa6a092);
+
+        const cloudGeom = buildSweptCurveLoft({
+          curve,
+          tubularSegs: isHero ? 20 : 10,
+          radialSegs: isHero ? 7 : 4,
+          profileShape: 'teardrop',
+          rxFn: (t, sL) => {
+            const tap = Math.pow(Math.sin(clamp(sL, 0.002, 0.998) * Math.PI), 0.65);
+            const billow = 1.0 + 0.32 * Math.sin(sL * Math.PI * 5.0 + idxR) + 0.14 * Math.cos(sL * Math.PI * 9.0 + idxR * 1.7);
+            return spec.maxRx * tap * billow;
+          },
+          rbFn: (t, sL) => {
+            const tap = Math.pow(Math.sin(clamp(sL, 0.002, 0.998) * Math.PI), 0.70);
+            const billow = 1.0 + 0.26 * Math.cos(sL * Math.PI * 4.0 + idxR * 1.5) + 0.12 * Math.sin(sL * Math.PI * 8.0 + idxR);
+            return spec.maxRb * tap * billow;
+          },
+          uRepeat: 1.0,
+          vMin: UV_BANDS.cloud.vMin,
+          vMax: UV_BANDS.cloud.vMax,
+          capMode: 'none',
+          colorFn: (t, sL, ang, wx, wy, wz, outC) => {
+            const topLight = 0.5 + 0.5 * Math.sin(ang);
+            outC.copy(cUnder).lerp(cTop, topLight);
+          }
+        });
+
+        const ribbonMesh = new THREE.Mesh(normalizeForMerge(cloudGeom), MATS.mistClouds);
+        ribbonMesh.name = spec.name;
+        ribbonMesh.castShadow = false;
+        ribbonMesh.receiveShadow = true;
+        grp.add(ribbonMesh);
+      });
+
+      return grp;
+    }
+
+    // =========================================================================
+    // 7. FULL ASSET ASSEMBLY, COLLIDERS & LOD SWITCHING
+    // =========================================================================
+    const state = {
+      lod: 'hero',
+      cloudSpeed: 1.0,
+      runeGlow: 1.0,
+      mossContrast: 0.65,
+      atmosphere: 'daylight'
+    };
+
+    let assetGroup = null;
+    let colliderGroup = null;
+    let parts = null;
+
+    function buildEnochianTower(lod = 'hero') {
+      const isHero = (lod === 'hero');
+      if (assetGroup) {
+        scene.remove(assetGroup);
+        assetGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      }
+
+      const root = new THREE.Group();
+      root.name = 'ENOCHIAN_TOWER_Root';
+
+      const partBase = buildPartBaseFoundation(isHero);
+      const partCore = buildPartTowerCore(isHero);
+      const partCorbels = buildPartCorbels(isHero);
+      const partCrown = buildPartRuinedCrown(isHero);
+      const partArch = buildPartSweepingArch(isHero);
+      const partClouds = buildPartSwirlingClouds(isHero);
+
+      root.add(partBase);
+      root.add(partCore);
+      root.add(partCorbels);
+      root.add(partCrown);
+      root.add(partArch);
+      root.add(partClouds);
+
+      // Smooth Convex Collider Proxies (Zero raw BoxGeometry!)
+      const colGroup = new THREE.Group();
+      colGroup.name = 'Collider_Group';
+      colGroup.visible = document.getElementById('btn-colliders').classList.contains('active');
+
+      const addCol = (name, geom, x, y, z) => {
+        const m = new THREE.Mesh(geom, MATS.colliderMat);
+        m.name = name;
+        m.position.set(x, y, z);
+        colGroup.add(m);
+      };
+      addCol('Collider_BaseButtress', new THREE.CylinderGeometry(2.30, 3.80, 4.10, 12, 1), 0, 2.05, 0);
+      addCol('Collider_TowerShaft',   new THREE.CylinderGeometry(1.75, 2.24, 10.00, 14, 1), 0, 9.10, 0);
+      addCol('Collider_RuinedCrown',  new THREE.CylinderGeometry(1.58, 1.72, 3.90, 12, 1), 0, 16.05, 0);
+      addCol('Collider_SweepingArch', new THREE.IcosahedronGeometry(1.65, 1), 2.75, 16.05, 0);
+      root.add(colGroup);
+
+      assetGroup = root;
+      colliderGroup = colGroup;
+      parts = {
+        Part_BaseFoundation: partBase,
+        Part_TowerCore: partCore,
+        Part_Corbels: partCorbels,
+        Part_RuinedCrown: partCrown,
+        Part_SweepingArch: partArch,
+        Part_SwirlingClouds: partClouds,
+        cloudRibbons: partClouds.children.slice()
+      };
+
+      scene.add(assetGroup);
+      applyMaterialAndLightingState(0, 0);
+      updateHUDStats();
+    }
+
+    // =========================================================================
+    // 8. ATMOSPHERE PRESETS, MATERIAL MODULATION & IDLE ANIMATION
+    // =========================================================================
+    const ATMOSPHERES = {
+      daylight: {
+        bg: 0x45505e,
+        fogDensity: 0.0065,
+        envIntensity: 0.88,
+        hemiSky: 0xdfe9f5, hemiGround: 0x4a4232, hemiInt: 0.88,
+        sunColor: 0xfff0d4, sunInt: 1.92, sunPos: [-14, 24, 16],
+        rimColor: 0xa4c0e0, rimInt: 0.65,
+        pointBoost: 1.0, exposure: 1.04
+      },
+      dusk: {
+        bg: 0x261f33,
+        fogDensity: 0.011,
+        envIntensity: 0.64,
+        hemiSky: 0x9b8ec4, hemiGround: 0x2c1e1a, hemiInt: 0.62,
+        sunColor: 0xffa65c, sunInt: 1.48, sunPos: [-18, 12, 14],
+        rimColor: 0x6c88d4, rimInt: 0.85,
+        pointBoost: 1.35, exposure: 1.08
+      },
+      night: {
+        bg: 0x090d17,
+        fogDensity: 0.014,
+        envIntensity: 0.42,
+        hemiSky: 0x4b648f, hemiGround: 0x0e0c0a, hemiInt: 0.36,
+        sunColor: 0x7aa2d8, sunInt: 0.72, sunPos: [-12, 20, -14],
+        rimColor: 0x5c7ec4, rimInt: 0.75,
+        pointBoost: 1.85, exposure: 1.12
+      }
+    };
+
+    function applyAtmospherePreset(key) {
+      state.atmosphere = key;
+      const a = ATMOSPHERES[key] || ATMOSPHERES.daylight;
+      scene.background.setHex(a.bg);
+      scene.fog.color.setHex(a.bg);
+      scene.fog.density = a.fogDensity;
+      scene.environmentIntensity = a.envIntensity;
+      hemiLight.color.setHex(a.hemiSky);
+      hemiLight.groundColor.setHex(a.hemiGround);
+      hemiLight.intensity = a.hemiInt;
+      sunLight.color.setHex(a.sunColor);
+      sunLight.intensity = a.sunInt;
+      sunLight.position.set(...a.sunPos);
+      rimLight.color.setHex(a.rimColor);
+      rimLight.intensity = a.rimInt;
+      renderer.toneMappingExposure = a.exposure;
+      document.querySelectorAll('[data-atmo]').forEach(b => b.classList.toggle('active', b.dataset.atmo === key));
+    }
+
+    function applyMaterialAndLightingState(dt = 0, elapsed = 0) {
+      if (!parts) return;
+
+      if (dt > 0 && state.cloudSpeed > 0.0001) {
+        parts.Part_SwirlingClouds.rotation.y += dt * state.cloudSpeed * 0.16;
+      }
+      if (state.cloudSpeed > 0.0001 && elapsed > 0) {
+        parts.cloudRibbons.forEach((ribbon, i) => {
+          ribbon.position.y = Math.sin(elapsed * (0.9 + i * 0.22) + i * 1.4) * 0.095;
+        });
+      }
+
+      const pulse = 0.90 + 0.10 * Math.sin(elapsed * 2.4);
+      const atmo = ATMOSPHERES[state.atmosphere] || ATMOSPHERES.daylight;
+      const glowGain = state.runeGlow * atmo.pointBoost * pulse;
+      MATS.arcaneRune.emissiveIntensity = 2.15 * glowGain;
+      crownPointLight.intensity = 15.0 * glowGain;
+
+      const w = state.mossContrast;
+      MATS.stoneTower.normalScale.setScalar(lerp(0.55, 1.35, w));
+      MATS.stoneTower.roughness = lerp(0.86, 1.08, w);
+      MATS.mossTerrain.normalScale.setScalar(lerp(0.65, 1.48, w));
+      MATS.mossTerrain.roughness = lerp(0.95, 0.72, w);
+      MATS.mossTerrain.envMapIntensity = lerp(0.65, 1.05, w);
+    }
+
+    function resetAllPosesForRest() {
+      if (!parts || !assetGroup) return;
+      assetGroup.position.set(0, 0, 0);
+      assetGroup.rotation.set(0, 0, 0);
+      assetGroup.scale.set(1, 1, 1);
+      parts.Part_SwirlingClouds.rotation.set(0, 0, 0);
+      parts.Part_SwirlingClouds.position.set(0, 0, 0);
+      parts.cloudRibbons.forEach((ribbon) => {
+        ribbon.position.set(0, 0, 0);
+        ribbon.rotation.set(0, 0, 0);
+        ribbon.scale.set(1, 1, 1);
+      });
+    }
+
+    // =========================================================================
+    // 9. LIVE ASSET BUDGET HUD & CAMERA PRESETS
+    // =========================================================================
+    function updateHUDStats() {
+      if (!assetGroup) return;
+      let tris = 0, verts = 0, calls = 0;
+      const mats = new Set();
+      assetGroup.traverse((obj) => {
+        if (obj.isMesh && obj.visible) {
+          calls++;
+          const g = obj.geometry;
+          const pos = g.getAttribute('position');
+          if (pos) verts += pos.count;
+          if (g.index) tris += g.index.count / 3;
+          else if (pos) tris += pos.count / 3;
+          if (obj.material) mats.add(obj.material.name || obj.material.uuid);
+        }
+      });
+      document.getElementById('stat-tris').textContent = Math.round(tris).toLocaleString();
+      document.getElementById('stat-verts').textContent = verts.toLocaleString();
+      document.getElementById('stat-calls').textContent = calls;
+      document.getElementById('stat-mats').textContent = mats.size;
+      document.getElementById('lod-badge').textContent = state.lod === 'hero' ? 'HERO LOD' : 'GAME-READY LOD';
+    }
+
+    const CAM_PRESETS = {
+      hero:  { pos: [2.2, 13.2, 30.2], target: [0.45, 8.85, 0] },
+      spire: { pos: [3.2, 4.8, 25.5],  target: [0.4, 9.2, 0] },
+      arch:  { pos: [4.2, 16.4, 11.4], target: [1.9, 15.6, 0] },
+      crown: { pos: [-3.4, 21.8, 7.6], target: [0.1, 15.6, 0] },
+      base:  { pos: [4.8, 3.6, 10.6],  target: [0.0, 2.0, 0] }
+    };
+
+    let camAnim = null;
+    function goToCameraPreset(key) {
+      const p = CAM_PRESETS[key];
+      if (!p) return;
+      const isNarrow = (window.innerWidth / window.innerHeight) < 0.85;
+      const zScale = (key === 'hero' && isNarrow) ? 1.14 : 1.0;
+      camAnim = {
+        t: 0,
+        fromPos: camera.position.clone(),
+        toPos: new THREE.Vector3(p.pos[0], p.pos[1], p.pos[2] * zScale),
+        fromTgt: controls.target.clone(),
+        toTgt: new THREE.Vector3(...p.target)
+      };
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.toggle('active', b.dataset.cam === key));
+    }
+
+    // =========================================================================
+    // 10. EXPORTS (.GLB, .OBJ, .PNG) WITH MANDATORY PRE-EXPORT REST-POSE HOOK
+    // =========================================================================
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function setExportStatus(msg) { document.getElementById('export-status').textContent = msg; }
+
+    function captureStateSnapshot() {
+      return {
+        cloudSpeed: state.cloudSpeed,
+        colVis: colliderGroup ? colliderGroup.visible : false,
+        wire: MATS.stoneTower.wireframe,
+        cloudRotY: parts ? parts.Part_SwirlingClouds.rotation.y : 0,
+        ribbonYs: parts ? parts.cloudRibbons.map(r => r.position.y) : []
+      };
+    }
+
+    function restoreStateSnapshot(snap) {
+      if (colliderGroup) colliderGroup.visible = snap.colVis;
+      for (const m of solidMaterials) m.wireframe = snap.wire;
+      state.cloudSpeed = snap.cloudSpeed;
+      if (parts) {
+        parts.Part_SwirlingClouds.rotation.y = snap.cloudRotY;
+        parts.cloudRibbons.forEach((r, i) => { r.position.y = snap.ribbonYs[i] || 0; });
+      }
+      updateHUDStats();
+    }
+
+    document.getElementById('btn-export-glb').addEventListener('click', () => {
+      setExportStatus('Baking Rest-Pose .GLB...');
+      const snap = captureStateSnapshot();
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMaterials) m.wireframe = false;
+      resetAllPosesForRest();
+      assetGroup.updateMatrixWorld(true);
+
+      new GLTFExporter().parse(
+        assetGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'model/gltf-binary' });
+          triggerBlobDownload(blob, `ENOCHIAN_TOWER_${state.lod}.glb`);
+          restoreStateSnapshot(snap);
+          setExportStatus(`Exported .GLB (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+        },
+        (err) => {
+          console.error(err);
+          restoreStateSnapshot(snap);
+          setExportStatus('GLB Export Error!');
+        },
+        { binary: true, onlyVisible: true }
+      );
+    });
+
+    document.getElementById('btn-export-obj').addEventListener('click', () => {
+      setExportStatus('Generating Rest-Pose .OBJ...');
+      const snap = captureStateSnapshot();
+      if (colliderGroup) colliderGroup.visible = false;
+      for (const m of solidMaterials) m.wireframe = false;
+      resetAllPosesForRest();
+      assetGroup.updateMatrixWorld(true);
+
+      try {
+        const objText = new OBJExporter().parse(assetGroup);
+        const blob = new Blob([objText], { type: 'text/plain' });
+        triggerBlobDownload(blob, `ENOCHIAN_TOWER_${state.lod}.obj`);
+        setExportStatus(`Exported .OBJ (${(blob.size / 1024).toFixed(1)} KB) — Rest-Pose Verified`);
+      } finally {
+        restoreStateSnapshot(snap);
+      }
+    });
+
+    function downloadCanvasPNG(canvas, name) {
+      canvas.toBlob((blob) => { if (blob) triggerBlobDownload(blob, name); }, 'image/png');
+    }
+
+    document.getElementById('card-albedo').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvas, 'ENOCHIAN_TOWER_Albedo.png');
+      setExportStatus('Downloaded ENOCHIAN_TOWER_Albedo.png');
+    });
+    document.getElementById('card-normal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.normalCanvas, 'ENOCHIAN_TOWER_Normal_Sobel.png');
+      setExportStatus('Downloaded ENOCHIAN_TOWER_Normal_Sobel.png');
+    });
+    document.getElementById('card-rough').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.roughCanvas, 'ENOCHIAN_TOWER_Roughness.png');
+      setExportStatus('Downloaded ENOCHIAN_TOWER_Roughness.png');
+    });
+    document.getElementById('card-metal').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.metalCanvas, 'ENOCHIAN_TOWER_Metalness.png');
+      setExportStatus('Downloaded ENOCHIAN_TOWER_Metalness.png');
+    });
+    document.getElementById('card-emissive').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.emissiveCanvas, 'ENOCHIAN_TOWER_Emissive.png');
+      setExportStatus('Downloaded ENOCHIAN_TOWER_Emissive.png');
+    });
+    document.getElementById('btn-export-pngs').addEventListener('click', () => {
+      downloadCanvasPNG(TEX.albedoCanvas, 'ENOCHIAN_TOWER_Albedo.png');
+      downloadCanvasPNG(TEX.normalCanvas, 'ENOCHIAN_TOWER_Normal_Sobel.png');
+      downloadCanvasPNG(TEX.roughCanvas, 'ENOCHIAN_TOWER_Roughness.png');
+      downloadCanvasPNG(TEX.metalCanvas, 'ENOCHIAN_TOWER_Metalness.png');
+      downloadCanvasPNG(TEX.emissiveCanvas, 'ENOCHIAN_TOWER_Emissive.png');
+      setExportStatus('Downloaded 5x 1024×1024 PBR Maps (.png)');
+    });
+
+    // =========================================================================
+    // 11. UI WIRING & MOBILE BOTTOM DRAWER
+    // =========================================================================
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => goToCameraPreset(btn.dataset.cam));
+    });
+
+    document.getElementById('btn-lod-hero').addEventListener('click', () => {
+      if (state.lod === 'hero') return;
+      state.lod = 'hero';
+      document.getElementById('btn-lod-hero').classList.add('active');
+      document.getElementById('btn-lod-game').classList.remove('active');
+      buildEnochianTower('hero');
+    });
+
+    document.getElementById('btn-lod-game').addEventListener('click', () => {
+      if (state.lod === 'game') return;
+      state.lod = 'game';
+      document.getElementById('btn-lod-game').classList.add('active');
+      document.getElementById('btn-lod-hero').classList.remove('active');
+      buildEnochianTower('game');
+    });
+
+    document.querySelectorAll('[data-atmo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        applyAtmospherePreset(btn.dataset.atmo);
+        applyMaterialAndLightingState(0, performance.now() * 0.001);
+      });
+    });
+
+    document.getElementById('sl-cloud').addEventListener('input', (e) => {
+      state.cloudSpeed = Number(e.target.value);
+      document.getElementById('val-cloud').textContent = `${state.cloudSpeed.toFixed(2)}x`;
+    });
+
+    document.getElementById('sl-glow').addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      state.runeGlow = pct / 100;
+      document.getElementById('val-glow').textContent = `${pct}%`;
+      applyMaterialAndLightingState(0, performance.now() * 0.001);
+    });
+
+    document.getElementById('sl-moss').addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      state.mossContrast = pct / 100;
+      document.getElementById('val-moss').textContent = `${pct}%`;
+      applyMaterialAndLightingState(0, performance.now() * 0.001);
+    });
+
+    document.getElementById('btn-wireframe').addEventListener('click', (e) => {
+      const next = !MATS.stoneTower.wireframe;
+      for (const m of solidMaterials) m.wireframe = next;
+      e.currentTarget.classList.toggle('active', next);
+    });
+
+    document.getElementById('btn-colliders').addEventListener('click', (e) => {
+      if (!colliderGroup) return;
+      colliderGroup.visible = !colliderGroup.visible;
+      e.currentTarget.classList.toggle('active', colliderGroup.visible);
+      updateHUDStats();
+    });
+
+    document.getElementById('btn-reset-pose').addEventListener('click', () => {
+      state.cloudSpeed = 0;
+      document.getElementById('sl-cloud').value = 0;
+      document.getElementById('val-cloud').textContent = '0.00x';
+      resetAllPosesForRest();
+      setExportStatus('Rest-Pose Reset Complete (0, 0, 0)');
+    });
+
+    const mobileFab = document.getElementById('mobile-drawer-fab');
+    const controlsPanel = document.getElementById('controls-panel');
+    if (mobileFab && controlsPanel) {
+      mobileFab.addEventListener('click', () => {
+        const isOpen = controlsPanel.classList.toggle('mobile-drawer-open');
+        mobileFab.textContent = isOpen ? '✕ 收合' : '⚙ 控制面板';
+        mobileFab.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // =========================================================================
+    // 12. BOOTSTRAP & RENDER LOOP
+    // =========================================================================
+    applyAtmospherePreset('daylight');
+    buildEnochianTower('hero');
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.4);
+        const s = smoothstep(0, 1, camAnim.t);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      applyMaterialAndLightingState(dt, elapsed);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
