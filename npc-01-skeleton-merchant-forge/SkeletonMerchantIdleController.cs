@@ -75,8 +75,8 @@ namespace Dungeon.NPC
         private Quaternion _shinRRestRot, _shinLRestRot, _thighRRestRot, _thighLRestRot;
         private Quaternion _headRestRot, _jawRestRot, _armRRestRot, _armLRestRot, _coinRestRot;
 
-        private Vector2 _shinKneeOffsetR = new Vector2(0.249f, 0.0243f);
-        private Vector2 _shinKneeOffsetL = new Vector2(0.246f, 0.0486f);
+        private Vector2 _shinKneeOffsetR = new Vector2(0.200f, 0.0190f);
+        private Vector2 _shinKneeOffsetL = new Vector2(0.197f, 0.0377f);
         private float _thighLenR = 0.3968f, _thighLenL = 0.3935f;
         private float _restThighPitchR = 0.244f, _restThighPitchL = 0.1326f;
 
