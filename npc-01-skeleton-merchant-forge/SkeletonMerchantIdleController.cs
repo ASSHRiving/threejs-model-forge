@@ -7,7 +7,7 @@ namespace Dungeon.NPC
     /// Unity URP runtime controller for NPC_01_SkeletonMerchant (Dark Medieval ARPG Dungeon).
     /// Attach directly to the imported NPC_01_SkeletonMerchant Prefab root GameObject.
     /// Automatically binds Part_Torso_Ribcage, Part_Head, Part_Jaw, and Part_Arm_R via transform.Find,
-    /// drives subtle merchant breathing, whispering jaw chatter, and coin-beckoning arm motion,
+    /// drives subtle merchant breathing, scanning head tilt, and coin-beckoning arm motion (jaw kept still in idle),
     /// and modulates MAT_Emissive_Rune _EmissionColor using zero-allocation MaterialPropertyBlock.
     /// </summary>
     [DisallowMultipleComponent]
@@ -26,9 +26,6 @@ namespace Dungeon.NPC
 
         [Tooltip("Head subtle scanning yaw/roll amplitude in degrees.")]
         [Range(0f, 10f)] public float headSwayDegrees = 3.2f;
-
-        [Tooltip("Maximum skeletal jaw opening angle in degrees during whispered merchant muttering.")]
-        [Range(0f, 16f)] public float jawChatterMaxDegrees = 7.5f;
 
         [Tooltip("Right arm coin-rubbing / customer beckoning swing amplitude in degrees.")]
         [Range(0f, 12f)] public float rightArmBeckonDegrees = 3.8f;
@@ -220,13 +217,10 @@ namespace Dungeon.NPC
                 partHead.localRotation = _headRestRot * Quaternion.Euler(pitch, yaw, roll);
             }
 
-            // 3. Jaw whispered chattering bursts (rhythmic opening & closing)
+            // 3. Keep jaw completely still at rest pose during idle
             if (partJaw != null)
             {
-                float cadenceGate = Mathf.SmoothStep(0.15f, 0.9f, 0.5f + 0.5f * Mathf.Sin(t * 0.85f));
-                float syllable = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(t * 7.2f) * 0.7f + Mathf.Sin(t * 11.4f) * 0.3f), 1.3f);
-                float jawOpen = syllable * cadenceGate * jawChatterMaxDegrees;
-                partJaw.localRotation = _jawRestRot * Quaternion.Euler(jawOpen, 0f, 0f);
+                partJaw.localRotation = _jawRestRot;
             }
 
             // 4. Right arm rubbing fingers / inviting customers
