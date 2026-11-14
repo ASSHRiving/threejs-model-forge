@@ -1954,8 +1954,8 @@
     function buildPartHat(isHero) {
       const grp = new THREE.Group();
       grp.name = 'Part_Hat';
-      grp.position.set(0, 0.106, -0.002); // Pulled forward & low over brow ridge (zero gap!)
-      grp.rotation.x = 0.055;
+      grp.position.set(0, 0.092, -0.006); // Lowered cleanly onto brow & occiput
+      grp.rotation.x = 0.015;
 
       const cloakGeos = [];
       const leatherGeos = [];
@@ -2002,12 +2002,15 @@
           const st = profOuter[k];
           const isBrim = st.r > 0.086;
           const isInner = k >= 8;
-          const rEff = isBrim ? st.r * radRipple : st.r * crownPinch;
+          const backFactor = Math.max(0, -sT);
+          const backRadiusBoost = (k === 3 || k === 4 || k === 10 || k === 11) ? (1.0 + 0.14 * backFactor) : 1.0;
+          const rEff = isBrim ? st.r * radRipple : st.r * crownPinch * backRadiusBoost;
           const yWave = isBrim ? brimWave * smoothstep(0.077, 0.180, st.r) : 0;
+          const backDropY = (k >= 4 && k <= 10) ? -0.024 * backFactor : 0;
           const creasePinch = (k === 1 || k === 2) ? Math.sin(theta * 2) * 0.005 : 0;
           const x = st.cx + rEff * cT;
           const z = st.cz + rEff * sT;
-          const y = st.y + yWave + creasePinch;
+          const y = st.y + yWave + creasePinch + backDropY;
           ringPts.push({ x, y, z, isInner, k });
         }
         const arc = [0];
@@ -2045,13 +2048,15 @@
       averageSeamNormals(hatGeom, radSegs, stride, true, false);
       cloakGeos.push(normalizeForMerge(hatGeom));
 
-      // Leather Hatband wrapped around snug lower crown
+      // Leather Hatband wrapped around snug lower crown (tracks rear occipital extension)
       const bandPts = [];
       const bandSegs = isHero ? 16 : 9;
       for (let i = 0; i <= bandSegs; i++) {
         const a = (i / bandSegs) * Math.PI * 2;
-        const r = 0.085 * (1.0 + 0.05 * Math.sin(a * 4 + 1.1));
-        bandPts.push(new THREE.Vector3(r * Math.cos(a), 0.023, r * Math.sin(a)));
+        const sA = Math.sin(a);
+        const backF = Math.max(0, -sA);
+        const r = 0.085 * (1.0 + 0.05 * Math.sin(a * 4 + 1.1)) * (1.0 + 0.14 * backF);
+        bandPts.push(new THREE.Vector3(r * Math.cos(a), 0.023 - 0.020 * backF, r * sA));
       }
       leatherGeos.push(buildSweptCurveLoft({
         curve: new THREE.CatmullRomCurve3(bandPts, true),
@@ -2075,9 +2080,9 @@
 
       assemblePartMeshes(grp, { cloak: cloakGeos, leather: leatherGeos, brass: brassGeos });
 
-      // Melted Tallow Candle seated squarely into slanted hat brim with organic melted wax apron
+      // Melted Tallow Candle seated squarely onto upper hat brim surface (zero underside penetration!)
       const candleGrp = buildPartCandle(isHero);
-      candleGrp.position.set(-0.104, 0.022, 0.066);
+      candleGrp.position.set(-0.104, 0.016, 0.066);
       candleGrp.rotation.set(0.02, 0.0, 0.14);
       grp.add(candleGrp);
 
@@ -2093,34 +2098,32 @@
       const runeGeos = [];
       const leatherGeos = [];
 
-      // Compact forged bronze sconce dish riveted cleanly onto upper brim surface
+      // Compact forged bronze sconce dish riveted cleanly onto upper brim surface (strictly y >= 0.002)
       const dishProf = [
-        new THREE.Vector2(0.001, -0.005),
-        new THREE.Vector2(0.009, -0.005),
-        new THREE.Vector2(0.010,  0.001),
-        new THREE.Vector2(0.020,  0.003),
-        new THREE.Vector2(0.022,  0.007),
-        new THREE.Vector2(0.018,  0.010),
-        new THREE.Vector2(0.014,  0.006),
-        new THREE.Vector2(0.001,  0.005)
+        new THREE.Vector2(0.001, 0.002),
+        new THREE.Vector2(0.012, 0.002),
+        new THREE.Vector2(0.020, 0.004),
+        new THREE.Vector2(0.022, 0.008),
+        new THREE.Vector2(0.018, 0.011),
+        new THREE.Vector2(0.014, 0.007),
+        new THREE.Vector2(0.001, 0.006)
       ];
-      const dish = buildArcLengthLathe(dishProf, isHero ? 10 : 6, UV_BANDS.brass, 2.0, 0xc49c4e, [0.55, 0.65, 0.85, 1.0, 0.96, 0.88, 0.72, 0.65]);
+      const dish = buildArcLengthLathe(dishProf, isHero ? 10 : 6, UV_BANDS.brass, 2.0, 0xc49c4e, [0.55, 0.65, 0.85, 1.0, 0.96, 0.88, 0.72]);
       const brassGeos = [dish];
 
-      // Irregular Melted Wax Skirt Base hugging sloped hat brim naturally beneath & around sconce
-      const skirtBase = buildSculptedBoneBlob(0.027, 0.008, 0.026, isHero ? 10 : 6, isHero ? 6 : 4, UV_BANDS.bone, 0xe8d9b5, (v) => clamp(0.68 + v.y * 25.0, 0.55, 1.0), (v) => {
+      // Irregular Melted Wax Skirt Base hugging upper hat brim (strictly clamped to y >= 0.002)
+      const skirtBase = buildSculptedBoneBlob(0.026, 0.0045, 0.025, isHero ? 10 : 6, isHero ? 6 : 4, UV_BANDS.bone, 0xe8d9b5, (v) => clamp(0.68 + v.y * 25.0, 0.55, 1.0), (v) => {
         const a = Math.atan2(v.z, v.x);
-        const lobe = 1.0 + 0.24 * Math.sin(a * 3.0 + 0.4) + 0.14 * Math.cos(a * 5.0 - 0.7);
+        const lobe = 1.0 + 0.22 * Math.sin(a * 3.0 + 0.4) + 0.12 * Math.cos(a * 5.0 - 0.7);
         v.x *= lobe; v.z *= lobe;
-        v.y -= 0.004 * smoothstep(0.018, 0.032, Math.hypot(v.x, v.z)); // Hugs downward hat-brim slope
+        v.y = Math.max(0.002, v.y + 0.0065 - 0.002 * smoothstep(0.018, 0.032, Math.hypot(v.x, v.z)));
       });
-      skirtBase.translate(0, 0.001, 0);
       waxGeos.push(skirtBase);
 
       // Sculpted melted tallow wax stump sitting inside bronze sconce cup (strictly y >= 0.005)
       const waxProf = [
-        new THREE.Vector2(0.001, 0.004),
-        new THREE.Vector2(0.015, 0.005),
+        new THREE.Vector2(0.001, 0.005),
+        new THREE.Vector2(0.015, 0.006),
         new THREE.Vector2(0.016, 0.028),
         new THREE.Vector2(0.015, 0.056),
         new THREE.Vector2(0.013, 0.068),
@@ -2128,24 +2131,6 @@
         new THREE.Vector2(0.001, 0.060)
       ];
       waxGeos.push(buildArcLengthLathe(waxProf, isHero ? 10 : 6, UV_BANDS.bone, 1.5, 0xede0c2, [0.75, 0.88, 0.96, 1.0, 0.95, 0.72, 0.68]));
-
-      // Clinging Vertical Melted Wax Drips hugging cylindrical candle surface (zero flying buttresses!)
-      const dripSpecs = isHero ? [
-        [[-0.0142, 0.062, 0.0058], [-0.0150, 0.036, 0.0062], [-0.0156, 0.010, 0.0065], [-0.0195, 0.002, 0.0085]],
-        [[ 0.0105, 0.060, 0.0114], [ 0.0110, 0.032, 0.0120], [ 0.0115, 0.010, 0.0125], [ 0.0145, 0.002, 0.0155]],
-        [[-0.0046, 0.058, -0.0148], [-0.0048, 0.032, -0.0155], [-0.0052, 0.010, -0.0160], [-0.0065, 0.002, -0.0195]]
-      ] : [
-        [[-0.0142, 0.062, 0.0058], [-0.0150, 0.036, 0.0062], [-0.0156, 0.010, 0.0065], [-0.0195, 0.002, 0.0085]]
-      ];
-      dripSpecs.forEach((pts) => {
-        const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
-        waxGeos.push(buildSweptCurveLoft({
-          curve: c, tubularSegs: isHero ? 6 : 3, radialSegs: isHero ? 4 : 3,
-          rxFn: (s) => lerp(0.0024, 0.0042, Math.pow(s, 0.7)),
-          rbFn: (s) => lerp(0.0020, 0.0036, Math.pow(s, 0.7)),
-          band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xebd9b8
-        }));
-      });
 
       // Charred wick
       const wickCurve = new THREE.CatmullRomCurve3([
@@ -2315,9 +2300,9 @@
       [-1, 1].forEach((side) => {
         const clavCurve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(side * 0.018, 0.420, 0.034),
-          new THREE.Vector3(side * 0.082, 0.428, 0.036),
-          new THREE.Vector3(side * 0.138, 0.425, 0.014),
-          new THREE.Vector3(side * 0.175, 0.422, -0.005)
+          new THREE.Vector3(side * 0.072, 0.424, 0.034),
+          new THREE.Vector3(side * 0.118, 0.414, 0.012),
+          new THREE.Vector3(side * 0.148, 0.398, -0.008)
         ]);
         boneGeos.push(buildSweptCurveLoft({
           curve: clavCurve, tubularSegs: isHero ? 9 : 5, radialSegs: isHero ? 6 : 4,
@@ -2326,10 +2311,10 @@
           band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xf6ebd4
         }));
 
-        const scap = buildSculptedBoneBlob(0.050, 0.070, 0.012, isHero ? 8 : 5, isHero ? 6 : 4, UV_BANDS.bone, 0xd8cab0);
+        const scap = buildSculptedBoneBlob(0.036, 0.052, 0.009, isHero ? 8 : 5, isHero ? 6 : 4, UV_BANDS.bone, 0xd8cab0);
         scap.rotateY(side * -0.35);
         scap.rotateZ(side * 0.18);
-        scap.translate(side * 0.104, 0.345, -0.058);
+        scap.translate(side * 0.082, 0.350, -0.042);
         boneGeos.push(scap);
       });
 
@@ -2404,12 +2389,13 @@
       const vRows = isHero ? 11 : 5;
       const thick = 0.030; // Heavy boiled-wool wall thickness (~3.0-3.8cm)
 
-      // Coat leaves front ~118 deg open for skeleton ribcage; layered shoulder capelets wrap ~316 deg over BOTH shoulder joints!
+      // Coat leaves front ~118 deg open for skeleton ribcage; single draped shoulder mantle wraps smoothly over both shoulder joints & coat upper edge!
       const buildCloakLayer = (rows, yTop, yBot, radTop, radBot, colTint, mode = 'coat') => {
         const isCapelet = (mode === 'mantle' || mode === 'cowl');
         const isCowl = (mode === 'cowl');
-        const layerThick = isCowl ? 0.024 : (isCapelet ? 0.025 : thick);
-        const thetaSpan = (mode === 'coat') ? (Math.PI * 0.67) : (isCowl ? Math.PI * 0.78 : Math.PI * 0.88);
+        const isAnyCapelet = isCapelet;
+        const layerThick = isCowl ? 0.016 : (isAnyCapelet ? 0.014 : thick);
+        const thetaSpan = (mode === 'coat') ? (Math.PI * 0.66) : (isCowl ? Math.PI * 0.78 : Math.PI * 0.68);
         const ringSamples = [];
         for (let iv = 0; iv <= rows; iv++) {
           const vf = iv / rows;
@@ -2421,48 +2407,62 @@
             const frontFrac = Math.abs(uf * 2 - 1);
 
             const collarDrop = isCowl
-              ? 0.026 * Math.pow(frontFrac, 1.35)
-              : (isCapelet ? 0.068 * Math.pow(frontFrac, 1.35) : 0.102 * Math.pow(frontFrac, 1.38));
+              ? 0.022 * Math.pow(frontFrac, 1.35)
+              : (isAnyCapelet ? 0.042 * Math.pow(frontFrac, 1.35) : 0.088 * Math.pow(frontFrac, 1.38));
             const yBase = lerp(yTop - collarDrop, yBot, vf);
 
-            const swellMid = (!isCapelet) ? Math.sin(vf * Math.PI) * 0.016 : 0;
+            // Never shrink upper coat width so rear ribcage (+/-0.158) stays 100% enclosed inside heavy wool coat
+            const underCapeletTuck = 1.0;
+            const swellMid = (!isAnyCapelet) ? Math.sin(vf * Math.PI) * 0.014 : 0;
             const bell = isCowl
-              ? lerp(radTop, radBot, Math.pow(vf, 0.75)) + Math.sin(vf * Math.PI) * 0.010
+              ? lerp(radTop, radBot, Math.pow(vf, 0.75)) + Math.sin(vf * Math.PI) * 0.006
               : (isCapelet
-                ? lerp(radTop, radBot, Math.pow(vf, 0.50))
-                : lerp(radTop, radBot, Math.pow(vf, 0.88)) + swellMid);
+                ? lerp(radTop, radBot, Math.pow(vf, 0.56))
+                : (lerp(radTop, radBot, Math.pow(vf, 0.86)) + swellMid) * underCapeletTuck);
 
+            const coatTopFade = (mode === 'coat') ? smoothstep(0.18, 0.38, vf) : 1.0;
             const pleatAmp = isCowl
-              ? 0.008
-              : (isCapelet ? 0.015 * Math.pow(vf, 0.7) : 0.022 * smoothstep(0.08, 0.92, vf));
+              ? 0.006
+              : (isCapelet ? 0.008 * smoothstep(0.28, 1.0, vf) : 0.020 * smoothstep(0.12, 0.92, vf) * coatTopFade);
             const pleats = Math.cos(th * 5.0) * pleatAmp + Math.sin(th * 8.0 + 0.5) * (pleatAmp * 0.30);
 
             const collarRoll = isCowl
-              ? Math.sin(vf * Math.PI) * 0.008
-              : ((!isCapelet && vf < 0.24)
-                ? Math.sin((1.0 - vf / 0.24) * Math.PI * 0.72) * 0.010 * Math.max(0.25, Math.cos(th * 0.6))
-                : 0);
+              ? Math.sin(vf * Math.PI) * 0.006
+              : 0;
 
-            const lapelFlare = (!isCapelet)
-              ? Math.pow(smoothstep(0.45, 1.0, frontFrac), 1.35) * lerp(0.010, 0.022, vf)
-              : (isCowl ? 0 : Math.pow(smoothstep(0.65, 1.0, frontFrac), 1.4) * 0.010 * vf);
+            const lapelFlare = (!isAnyCapelet)
+              ? Math.pow(smoothstep(0.45, 1.0, frontFrac), 1.35) * lerp(0.004, 0.020, vf) * coatTopFade
+              : (isCowl ? 0 : Math.pow(smoothstep(0.65, 1.0, frontFrac), 1.4) * 0.006 * vf);
 
-            const frontChestTuck = isCapelet ? lerp(1.0, 0.82, smoothstep(0.65, 1.0, frontFrac)) : 1.0;
-            const rx = (bell * (isCowl ? 1.04 : (isCapelet ? 1.12 : 1.04)) + pleats + collarRoll) * (1.0 + lapelFlare);
-            const rz = (bell * (isCowl ? 0.86 : (isCapelet ? 0.76 : 0.88)) + pleats * 0.55 + collarRoll) * frontChestTuck;
+            const frontChestTuck = isAnyCapelet ? lerp(1.0, 0.90, smoothstep(0.65, 1.0, frontFrac)) : 1.0;
+            const rx = (bell * (isCowl ? 1.02 : (isAnyCapelet ? 1.04 : 1.02)) + pleats + collarRoll) * (1.0 + lapelFlare);
+            const rz = (bell * (isCowl ? 0.86 : (isAnyCapelet ? 0.88 : 0.88)) + pleats * 0.55 + collarRoll) * frontChestTuck;
 
-            const tat = smoothstep(0.72, 1.0, vf) * (
-              0.032 * Math.sin(th * 6.0 + 0.5)
-              + 0.018 * Math.cos(th * 11.0 - 0.8)
-              - (isCowl ? 0.006 : (isCapelet ? 0.022 * Math.pow(frontFrac, 1.05) : 0.022))
-            );
+            const tat = isAnyCapelet
+              ? smoothstep(0.25, 1.0, vf) * (
+                  (isCowl ? 0.004 : 0.007) * Math.cos(th * 3.0)
+                  - (isCowl ? 0.005 : 0.014 * Math.pow(frontFrac, 1.10))
+                )
+              : smoothstep(0.70, 1.0, vf) * (
+                  0.026 * Math.sin(th * 6.0 + 0.5)
+                  + 0.014 * Math.cos(th * 11.0 - 0.8)
+                  - 0.022
+                );
             const y = clamp(yBase + tat, -0.64, 0.64);
 
             const backLocal = isCowl
-              ? -0.010
-              : (isCapelet ? -0.006 : -0.020 * Math.exp(-Math.pow((vf - 0.28) / 0.26, 2)) - 0.038 * smoothstep(0.35, 1.0, vf));
+              ? -0.008
+              : (isAnyCapelet
+                ? -0.004 - 0.028 * Math.max(0, cT) * smoothstep(0.10, 0.85, vf)
+                : -0.020 * Math.exp(-Math.pow((vf - 0.28) / 0.26, 2)) - 0.038 * smoothstep(0.35, 1.0, vf));
+            // Push coat rear (-Z) outward when cT > 0 so rear ribs & spinous processes never poke through coat back
+            const coatBackPushZ = (mode === 'coat' && cT > 0) ? -0.025 * cT * smoothstep(0.0, 0.22, vf) : 0;
+            // Subtle forward deltoid Z-cup on shoulder capelet so front-lateral upper sleeves have ample +Z clearance
+            const deltoidCupZ = (isAnyCapelet && !isCowl)
+              ? 0.018 * Math.pow(Math.abs(sT), 1.4) * smoothstep(-0.20, 0.65, -cT) * smoothstep(0.15, 0.90, vf)
+              : 0;
             const x = rx * sT;
-            const z = -rz * cT + backLocal;
+            const z = -rz * cT + backLocal + coatBackPushZ + deltoidCupZ;
 
             ring.push({ x, y, z, vf, uf, pleats, th, frontFrac });
           }
@@ -2593,103 +2593,137 @@
         return { geo: normalizeForMerge(g), ringSamples, innerPt };
       };
 
-      // 1. Heavy Boiled-Wool Open Merchant Greatcoat (local y = +0.46 down to -0.62)
-      const coatBuilt = buildCloakLayer(vRows, 0.46, -0.62, 0.154, 0.244, 0x4b424c, 'coat');
+      // 1. Heavy Boiled-Wool Open Merchant Greatcoat (local y = +0.385 down to -0.62, full rear rib coverage, top tucked under capelet)
+      const coatBuilt = buildCloakLayer(vRows, 0.385, -0.62, 0.172, 0.255, 0x4b424c, 'coat');
       cloakGeos.push(coatBuilt.geo);
 
-      // 2. Full-Shoulder Lower Mantle Capelet wrapping both shoulder caps & sleeve origins (local y = +0.46 -> +0.26)
-      const mantleLower = buildCloakLayer(isHero ? 6 : 3, 0.46, 0.26, 0.148, 0.258, 0x564852, 'mantle');
+      // 2. Single Smooth Draped Shoulder Mantle Capelet covering shoulders, coat upper edge & sleeve roots (local y = +0.475 -> +0.255)
+      const mantleLower = buildCloakLayer(isHero ? 8 : 4, 0.475, 0.255, 0.118, 0.238, 0x564852, 'mantle');
       cloakGeos.push(mantleLower.geo);
 
-      // 3. Upper Tattered Layered Pauldron Capelet overlapping collar & upper arms (local y = +0.49 -> +0.34)
-      const mantleUpper = buildCloakLayer(isHero ? 5 : 3, 0.49, 0.34, 0.128, 0.236, 0x62525c, 'mantle');
-      cloakGeos.push(mantleUpper.geo);
-
-      // 4. Tailored Stand-Collar / Cowl cradling C1-C4 neck cleanly under scaled head (local y = +0.51 -> +0.41)
-      const cowlBuilt = buildCloakLayer(isHero ? 4 : 2, 0.51, 0.41, 0.114, 0.148, 0x443943, 'cowl');
+      // 3. Tailored Stand-Collar / Cowl rising cleanly from mantle neck opening (local y = +0.515 -> +0.445)
+      const cowlBuilt = buildCloakLayer(isHero ? 4 : 2, 0.515, 0.445, 0.106, 0.124, 0x443943, 'cowl');
       cloakGeos.push(cowlBuilt.geo);
 
-      // 4. Chunky Swept Wool Front Lapel Rolls & Boiled-Leather Border Straps (Zero thin sheet silhouette)
+      // 5. Chunky Swept Wool Front Lapel Rolls & Boiled-Leather Border Straps (tucked at top under capelets, chunky below)
       [0, uSegs].forEach((iuEdge, sideIdx) => {
         const lapelPts = [];
         const pipingPts = [];
         const sideSign = sideIdx === 0 ? -1 : 1;
         for (let iv = 0; iv <= vRows; iv++) {
+          const vf = iv / vRows;
+          const emerge = smoothstep(0.08, 0.28, vf);
           const po = coatBuilt.ringSamples[iv][iuEdge];
           const pi = coatBuilt.innerPt(po);
           const mx = 0.5 * (po.x + pi.x);
           const my = 0.5 * (po.y + pi.y);
           const mz = 0.5 * (po.z + pi.z);
-          lapelPts.push(new THREE.Vector3(mx + sideSign * 0.005, my, mz + 0.006));
-          pipingPts.push(new THREE.Vector3(po.x + sideSign * 0.007, po.y, po.z + 0.014));
+          lapelPts.push(new THREE.Vector3(
+            mx + sideSign * (0.005 * emerge),
+            my,
+            mz + lerp(-0.006, 0.006, emerge)
+          ));
+          pipingPts.push(new THREE.Vector3(
+            po.x + sideSign * (0.007 * emerge),
+            po.y,
+            po.z + lerp(-0.004, 0.014, emerge)
+          ));
         }
         cloakGeos.push(buildSweptCurveLoft({
           curve: new THREE.CatmullRomCurve3(lapelPts),
           tubularSegs: isHero ? 16 : 7, radialSegs: isHero ? 8 : 5,
-          rxFn: (s) => lerp(0.022, 0.019, s) + Math.sin(s * Math.PI) * 0.004,
-          rbFn: (s) => lerp(0.024, 0.020, s),
+          rxFn: (s) => (lerp(0.022, 0.019, s) + Math.sin(s * Math.PI) * 0.004) * lerp(0.32, 1.0, smoothstep(0.04, 0.24, s)),
+          rbFn: (s) => lerp(0.024, 0.020, s) * lerp(0.32, 1.0, smoothstep(0.04, 0.24, s)),
           squirclePower: 1.5, band: UV_BANDS.cloak, capMode: 'round', tintHex: 0x564652,
-          aoFn: (s) => lerp(0.95, 0.80, s)
+          aoFn: (s) => lerp(0.72, 0.84, smoothstep(0.0, 0.25, s))
         }));
         leatherGeos.push(buildSweptCurveLoft({
           curve: new THREE.CatmullRomCurve3(pipingPts),
           tubularSegs: isHero ? 14 : 6, radialSegs: isHero ? 6 : 4,
-          rxFn: () => 0.009, rbFn: () => 0.008,
+          rxFn: (s) => 0.009 * lerp(0.35, 1.0, smoothstep(0.06, 0.26, s)),
+          rbFn: (s) => 0.008 * lerp(0.35, 1.0, smoothstep(0.06, 0.26, s)),
           squirclePower: 1.4, band: UV_BANDS.leather, capMode: 'round', tintHex: 0x3b261d,
-          aoFn: (s) => lerp(0.94, 0.78, s)
+          aoFn: (s) => lerp(0.72, 0.82, smoothstep(0.0, 0.25, s))
         }));
       });
 
       return assemblePartMeshes(grp, { cloak: cloakGeos, leather: leatherGeos });
     }
 
-    // Shared Helper: Curved Gravity-Draped Bell Sleeve Loft wrapping tucked shoulder root down over elbow (zero sphere cap!)
-    function buildDrapedSleeveLoft(shoulderRoot, midPt, cuffPt, sideSign, isHero) {
-      const curve = new THREE.CatmullRomCurve3([shoulderRoot, midPt, cuffPt]);
-      const outerSteps = isHero ? 8 : 4;
-      const radSegs = isHero ? 14 : 7;
-      const specRings = [];
-      for (let i = 0; i <= outerSteps; i++) {
+    // Shared Helper: Twist-Free Bishop-Frame Draped Bell Sleeve seamlessly rooted inside lower capelet -> over elbow -> forearm cuff
+    function buildDrapedSleeveLoft(curvePts, sideSign, isHero) {
+      const curve = new THREE.CatmullRomCurve3(curvePts);
+      const outerSteps = isHero ? 10 : 5;
+      const radSegs = isHero ? 16 : 8;
+      const specRings = [
+        { s: 0.00, r: 0.002, sag: 0.000, fold: 0.0000, tint: 0x261d24, ao: 0.22 },
+        { s: 0.03, r: 0.023, sag: 0.000, fold: 0.0000, tint: 0x352b34, ao: 0.36 }
+      ];
+      for (let i = 1; i <= outerSteps; i++) {
         const s = i / outerSteps;
-        const flare = Math.pow(s, 1.55);
+        // Stay compact (r = 0.025..0.028) while exiting mantleLower (s <= 0.35), then flare smoothly into a bell sleeve down to the cuff
+        const bellT = smoothstep(0.32, 1.0, s);
+        const flare = Math.pow(bellT, 1.25);
         specRings.push({
           s,
-          r: lerp(0.032, 0.062, flare) + Math.sin(s * Math.PI) * 0.008,
-          sag: smoothstep(0.35, 1.0, s) * 0.020,
-          fold: smoothstep(0.45, 1.0, s) * 0.0055,
+          r: lerp(0.025, 0.058, flare) + Math.sin(bellT * Math.PI) * 0.004,
+          sag: smoothstep(0.36, 1.0, s) * 0.022,
+          fold: smoothstep(0.36, 1.0, s) * 0.0048,
           tint: 0x4c4249,
-          ao: lerp(0.62, 1.0, smoothstep(0.0, 0.45, s))
+          ao: lerp(0.48, 1.0, smoothstep(0.18, 0.50, s))
         });
       }
-      // Rounded cuff lip bead turning into deep oxblood shadowed interior sleeve tunnel
-      specRings.push({ s: 1.02, r: 0.065, sag: 0.022, fold: 0.0055, tint: 0x52454c, ao: 0.90 });
-      specRings.push({ s: 1.00, r: 0.052, sag: 0.015, fold: 0.0040, tint: 0x4b2932, ao: 0.58 });
-      specRings.push({ s: 0.80, r: 0.036, sag: 0.006, fold: 0.0020, tint: 0x3b1f27, ao: 0.24 });
-      specRings.push({ s: 0.48, r: 0.020, sag: 0.0,   fold: 0.0,    tint: 0x221217, ao: 0.12 });
-      specRings.push({ s: 0.46, r: 0.002, sag: 0.0,   fold: 0.0,    tint: 0x1a0d11, ao: 0.08 });
+      // Rounded thick boiled-wool cuff lip bead turning into deep oxblood shadowed interior sleeve tunnel
+      specRings.push({ s: 1.02, r: 0.060, sag: 0.023, fold: 0.0048, tint: 0x564852, ao: 0.92 });
+      specRings.push({ s: 1.00, r: 0.048, sag: 0.015, fold: 0.0030, tint: 0x5c303a, ao: 0.62 });
+      specRings.push({ s: 0.82, r: 0.037, sag: 0.007, fold: 0.0015, tint: 0x3b1f27, ao: 0.26 });
+      specRings.push({ s: 0.58, r: 0.022, sag: 0.000, fold: 0.0000, tint: 0x221217, ao: 0.12 });
+      specRings.push({ s: 0.55, r: 0.002, sag: 0.000, fold: 0.0000, tint: 0x160b0f, ao: 0.08 });
+
+      // Pre-compute twist-free Parallel Transport (Bishop) frames along curve so rings never collapse at the elbow bend
+      const frameSteps = 32;
+      const frames = [];
+      let prevT = curve.getTangentAt(0).normalize();
+      const initRef = Math.abs(prevT.z) < 0.8 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+      let prevB = new THREE.Vector3().crossVectors(prevT, initRef).normalize();
+      let prevN = new THREE.Vector3().crossVectors(prevB, prevT).normalize();
+      frames.push({ T: prevT.clone(), N: prevN.clone(), B: prevB.clone() });
+
+      const stepQuat = new THREE.Quaternion();
+      for (let m = 1; m <= frameSteps; m++) {
+        const curT = curve.getTangentAt(m / frameSteps).normalize();
+        stepQuat.setFromUnitVectors(prevT, curT);
+        const curN = prevN.clone().applyQuaternion(stepQuat);
+        curN.addScaledVector(curT, -curN.dot(curT)).normalize();
+        const curB = new THREE.Vector3().crossVectors(curT, curN).normalize();
+        frames.push({ T: curT, N: curN, B: curB });
+        prevT = curT;
+        prevN = curN;
+        prevB = curB;
+      }
 
       const stride = specRings.length;
       const ringSamples = specRings.map((sr) => {
         const sClamped = clamp(sr.s, 0, 1);
         const cPt = sr.s > 1.0
-          ? curve.getPointAt(1.0).addScaledVector(curve.getTangentAt(1.0), (sr.s - 1.0) * 0.16)
+          ? curve.getPointAt(1.0).addScaledVector(curve.getTangentAt(1.0), (sr.s - 1.0) * 0.14)
           : curve.getPointAt(sClamped);
-        const T = curve.getTangentAt(sClamped).normalize();
-        const downProj = new THREE.Vector3(0, -1, 0).addScaledVector(T, T.y);
-        if (downProj.lengthSq() < 1e-6) downProj.set(0, 0, 1);
-        downProj.normalize();
-        const sideDir = new THREE.Vector3().crossVectors(T, downProj).normalize();
+        const fIdx = Math.min(frameSteps, Math.round(sClamped * frameSteps));
+        const { N, B } = frames[fIdx];
 
         const rowPts = [];
         for (let iu = 0; iu <= radSegs; iu++) {
           const phi = (iu / radSegs) * Math.PI * 2;
           const cP = Math.cos(phi), sP = Math.sin(phi);
           const ruffle = sr.fold * Math.sin(phi * 5.0 + sideSign * 1.1);
-          const rx = sr.r + ruffle;
-          const rDown = rx + sr.sag * Math.max(0, cP);
-          const px = cPt.x + sideDir.x * (sP * rx) + downProj.x * (cP * rDown);
-          const py = cPt.y + sideDir.y * (sP * rx) + downProj.y * (cP * rDown);
-          const pz = cPt.z + sideDir.z * (sP * rx) + downProj.z * (cP * rDown);
+          const rad = sr.r + ruffle;
+          const rxVec = N.x * cP + B.x * sP;
+          const ryVec = N.y * cP + B.y * sP;
+          const rzVec = N.z * cP + B.z * sP;
+          const downWeight = Math.max(0, -ryVec);
+          const px = cPt.x + rxVec * rad;
+          const py = cPt.y + ryVec * rad - sr.sag * Math.pow(downWeight, 1.25);
+          const pz = cPt.z + rzVec * rad;
           rowPts.push({ x: px, y: py, z: pz, tint: sr.tint, ao: sr.ao });
         }
         return rowPts;
@@ -2736,40 +2770,41 @@
     function buildPartArmR(isHero) {
       const grp = new THREE.Group();
       grp.name = 'Part_Arm_R';
-      grp.position.set(-0.215, 0.425, 0.005); // Right shoulder relative to Part_Torso_Ribcage -> World (-0.215, 1.365, -0.010)
+      grp.position.set(-0.182, 0.425, 0.005); // Tucked-in anatomical right shoulder -> World (-0.182, 1.365, -0.010)
 
       const boneGeos = [];
       const cloakGeos = [];
 
-      // Humerus & Elbow aligned cleanly down center of Draped Bell Sleeve (ZERO bone-through-sleeve poke!)
-      const elbowPt = new THREE.Vector3(-0.072, -0.228, 0.052);
+      // Humerus, Elbow & Proximal Forearm aligned concentrically down the Bishop-frame Draped Bell Sleeve (ZERO clipping!)
+      const elbowPt = new THREE.Vector3(-0.026, -0.198, 0.064);
       const wristPt = new THREE.Vector3(-0.028, -0.172, 0.220);
 
       const humCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(-0.042, -0.112, 0.024),
+        new THREE.Vector3( 0.036, -0.028, -0.006),
+        new THREE.Vector3( 0.014, -0.118,  0.018),
         elbowPt
       ]);
       boneGeos.push(buildSweptCurveLoft({
         curve: humCurve, tubularSegs: isHero ? 8 : 4, radialSegs: isHero ? 6 : 4,
-        rxFn: (s) => 0.014 * (1.28 - 0.35 * Math.sin(s * Math.PI)),
-        rbFn: (s) => 0.014 * (1.28 - 0.35 * Math.sin(s * Math.PI)),
+        rxFn: (s) => 0.013 * (1.24 - 0.30 * Math.sin(s * Math.PI)),
+        rbFn: (s) => 0.013 * (1.24 - 0.30 * Math.sin(s * Math.PI)),
         band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xeee2c8
       }));
 
-      // Gravity-draped curved bell sleeve tucking deep up beneath capelet (y = +0.035) and enclosing elbow completely
-      cloakGeos.push(buildDrapedSleeveLoft(
-        new THREE.Vector3(0.012, 0.035, -0.008),
-        new THREE.Vector3(-0.042, -0.116, 0.024),
-        new THREE.Vector3(elbowPt.x - 0.004, elbowPt.y - 0.012, elbowPt.z + 0.004),
-        -1, isHero
-      ));
+      // Sleeve rooted inside mantleLower (y = 0.380 -> 0.333 at Torso x = -0.130 -> -0.150) then flaring freely below y=0.340 to elbow & cuff
+      cloakGeos.push(buildDrapedSleeveLoft([
+        new THREE.Vector3( 0.052, -0.045, -0.012),
+        new THREE.Vector3( 0.032, -0.092,  0.002),
+        new THREE.Vector3( 0.006, -0.142,  0.026),
+        new THREE.Vector3(-0.024, -0.192,  0.066),
+        new THREE.Vector3(-0.027, -0.184,  0.126)
+      ], -1, isHero));
 
-      // Paired Radius & Ulna Forearm Bones emerging organically from sleeve cuff interior -> wristPt
+      // Paired Radius & Ulna Forearm Bones emerging concentrically through sleeve cuff center (-0.027, -0.184, 0.126) -> wristPt
       [-0.010, 0.010].forEach((offset, idxBone) => {
         const foreCurve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(elbowPt.x + offset * 0.9, elbowPt.y + 0.008, elbowPt.z),
-          new THREE.Vector3(lerp(elbowPt.x, wristPt.x, 0.45) + offset * 1.35, -0.205, lerp(elbowPt.z, wristPt.z, 0.50)),
+          new THREE.Vector3(elbowPt.x + offset * 0.85, elbowPt.y + 0.005, elbowPt.z),
+          new THREE.Vector3(-0.027 + offset * 1.15, -0.184, 0.128),
           new THREE.Vector3(wristPt.x + offset * 0.95, wristPt.y, wristPt.z)
         ]);
         boneGeos.push(buildSweptCurveLoft({
@@ -2875,7 +2910,7 @@
     function buildPartArmL(isHero) {
       const grp = new THREE.Group();
       grp.name = 'Part_Arm_L';
-      grp.position.set(0.215, 0.425, 0.005); // Left shoulder relative to Part_Torso_Ribcage -> World (+0.215, 1.365, -0.010)
+      grp.position.set(0.182, 0.425, 0.005); // Tucked-in anatomical left shoulder -> World (+0.182, 1.365, -0.010)
 
       const boneGeos = [];
       const cloakGeos = [];
@@ -2883,35 +2918,36 @@
       const brassGeos = [];
       const runeGeos = [];
 
-      // Humerus & Elbow aligned cleanly down Draped Left Bell Sleeve tucked under shoulder capelet
-      const elbowPt = new THREE.Vector3(0.098, -0.242, 0.068);
+      // Humerus, Elbow & Proximal Forearm aligned concentrically down Draped Left Bell Sleeve tucked inside coat & capelet
+      const elbowPt = new THREE.Vector3(0.042, -0.218, 0.064);
       const wristPt = new THREE.Vector3(0.204, -0.278, 0.162);
       const gripPt  = new THREE.Vector3(0.190, -0.295, 0.215); // +0.06m outward stance clearing cloak & leg
 
       const humCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0.056, -0.120, 0.032),
+        new THREE.Vector3(-0.036, -0.028, -0.006),
+        new THREE.Vector3(-0.014, -0.120,  0.018),
         elbowPt
       ]);
       boneGeos.push(buildSweptCurveLoft({
         curve: humCurve, tubularSegs: isHero ? 10 : 5, radialSegs: isHero ? 8 : 4,
-        rxFn: (s) => 0.014 * (1.24 - 0.3 * Math.sin(s * Math.PI)),
-        rbFn: (s) => 0.014 * (1.24 - 0.3 * Math.sin(s * Math.PI)),
+        rxFn: (s) => 0.013 * (1.22 - 0.28 * Math.sin(s * Math.PI)),
+        rbFn: (s) => 0.013 * (1.22 - 0.28 * Math.sin(s * Math.PI)),
         band: UV_BANDS.bone, capMode: 'bevel3', tintHex: 0xeee2c8
       }));
 
-      // Gravity-draped Left Bell Sleeve tucked beneath Shoulder Capelet (zero sphere cap!)
-      cloakGeos.push(buildDrapedSleeveLoft(
-        new THREE.Vector3(-0.012, 0.035, -0.008),
-        new THREE.Vector3(0.056, -0.124, 0.034),
-        new THREE.Vector3(elbowPt.x + 0.004, elbowPt.y - 0.012, elbowPt.z + 0.004),
-        1, isHero
-      ));
+      // Sleeve rooted inside mantleLower (y = 0.380 -> 0.333 at Torso x = +0.130 -> +0.150) then flaring freely below y=0.340 to elbow & cuff
+      cloakGeos.push(buildDrapedSleeveLoft([
+        new THREE.Vector3(-0.052, -0.045, -0.012),
+        new THREE.Vector3(-0.032, -0.092,  0.002),
+        new THREE.Vector3(-0.006, -0.142,  0.026),
+        new THREE.Vector3( 0.042, -0.214,  0.064),
+        new THREE.Vector3( 0.102, -0.240,  0.104)
+      ], 1, isHero));
 
       [-0.010, 0.010].forEach((offset) => {
         const fc = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(elbowPt.x + offset, elbowPt.y + 0.010, elbowPt.z),
-          new THREE.Vector3(lerp(elbowPt.x, wristPt.x, 0.5) + offset * 1.4, lerp(elbowPt.y, wristPt.y, 0.5) - 0.006, lerp(elbowPt.z, wristPt.z, 0.5)),
+          new THREE.Vector3(elbowPt.x + offset * 0.85, elbowPt.y + 0.004, elbowPt.z),
+          new THREE.Vector3(0.102 + offset * 1.15, -0.240, 0.104),
           new THREE.Vector3(wristPt.x + offset * 0.9, wristPt.y, wristPt.z)
         ]);
         boneGeos.push(buildSweptCurveLoft({
@@ -3112,15 +3148,14 @@
 
       const leatherGeos = [];
       const brassGeos = [];
-      const paperGeos = [];
 
-      // 1. Thick Beveled Merchant Waist Belt cinching flush over the tunic skirt sash (local y ≈ 0 -> World ~0.880)
+      // 1. Thick Beveled Merchant Waist Belt cinching flush (~12% tighter waist) over tunic skirt sash
       const beltSegs = isHero ? 20 : 10;
       const beltPts = [];
       for (let i = 0; i <= beltSegs; i++) {
         const a = (i / beltSegs) * Math.PI * 2;
         const sA = Math.sin(a), cA = Math.cos(a);
-        beltPts.push(new THREE.Vector3(cA * 0.130, -sA * 0.015, sA * 0.102));
+        beltPts.push(new THREE.Vector3(cA * 0.115, -sA * 0.015, sA * 0.088));
       }
       leatherGeos.push(buildSweptCurveLoft({
         curve: new THREE.CatmullRomCurve3(beltPts, true),
@@ -3140,46 +3175,46 @@
       bHole.lineTo(0.018, 0.020); bHole.lineTo(-0.018, 0.020); bHole.closePath();
       bShape.holes.push(bHole);
       const beltBuckle = buildBeveledExtrude(bShape, { depth: 0.0075, bevelSegments: 3, bevelSize: 0.0045, bevelThickness: 0.0045, curveSegments: 1 }, UV_BANDS.brass, 0xcfa452);
-      beltBuckle.translate(0, -0.015, 0.108);
+      beltBuckle.translate(0, -0.015, 0.095);
       brassGeos.push(beltBuckle);
 
       const prong = buildSweptCurveLoft({
-        curve: new THREE.CatmullRomCurve3([new THREE.Vector3(-0.019, -0.015, 0.115), new THREE.Vector3(0.020, -0.015, 0.115)]),
+        curve: new THREE.CatmullRomCurve3([new THREE.Vector3(-0.019, -0.015, 0.102), new THREE.Vector3(0.020, -0.015, 0.102)]),
         tubularSegs: 2, radialSegs: 3, rxFn: 0.0038, rbFn: 0.0038,
         band: UV_BANDS.brass, capMode: isHero ? 'bevel1' : 'open', tintHex: 0x524e5a
       });
       brassGeos.push(prong);
 
-      // 3. Rolled Parchment Ledger tucked cleanly at front-left waist (zero rear cloak clipping!)
+      // 3. Warm Boiled-Leather Rolled Ledger tucked along left-rear hip (cleared from front silhouette!)
       const scrollC = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0.078, -0.072, 0.098),
-        new THREE.Vector3(0.114, -0.020, 0.088),
-        new THREE.Vector3(0.146,  0.030, 0.074)
+        new THREE.Vector3(0.118, -0.068,  0.010),
+        new THREE.Vector3(0.122, -0.015, -0.015),
+        new THREE.Vector3(0.125,  0.032, -0.035)
       ]);
-      paperGeos.push(buildSweptCurveLoft({
+      leatherGeos.push(buildSweptCurveLoft({
         curve: scrollC, tubularSegs: isHero ? 6 : 3, radialSegs: isHero ? 6 : 4,
         rxFn: (s) => 0.017 * (1.0 + 0.08 * Math.sin(s * Math.PI * 3)),
         rbFn: (s) => 0.017 * (1.0 + 0.08 * Math.sin(s * Math.PI * 3)),
-        band: UV_BANDS.bone, capMode: 'bevel1', tintHex: 0xebd9ad
+        band: UV_BANDS.leather, capMode: 'bevel1', tintHex: 0xb89060
       }));
       const sStrap = buildSweptCurveLoft({
         curve: new THREE.CatmullRomCurve3([
-          new THREE.Vector3(0.092, -0.008, 0.082),
-          new THREE.Vector3(0.128, -0.020, 0.098),
-          new THREE.Vector3(0.112, -0.040, 0.092),
-          new THREE.Vector3(0.092, -0.008, 0.082)
+          new THREE.Vector3(0.102, -0.008, -0.018),
+          new THREE.Vector3(0.141, -0.015, -0.006),
+          new THREE.Vector3(0.128, -0.032, -0.026),
+          new THREE.Vector3(0.102, -0.008, -0.018)
         ], true),
         tubularSegs: isHero ? 8 : 4, radialSegs: 4,
         rxFn: 0.0045, rbFn: 0.0075, band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0x8c6b50
       });
       leatherGeos.push(sStrap);
 
-      assemblePartMeshes(grp, { leather: leatherGeos, brass: brassGeos, bone: paperGeos });
+      assemblePartMeshes(grp, { leather: leatherGeos, brass: brassGeos });
 
       // 4. Dedicated Named Sub-Group: Part_CoinPouch (snug on right hip via short belt hanger loop)
       const pouchGrp = new THREE.Group();
       pouchGrp.name = 'Part_CoinPouch';
-      pouchGrp.position.set(-0.132, -0.064, 0.068);
+      pouchGrp.position.set(-0.117, -0.064, 0.058);
       pouchGrp.rotation.z = -0.10;
 
       const pLeather = [], pBrass = [];
@@ -3234,7 +3269,7 @@
       // 5. Dedicated Named Sub-Group: Part_KeyRing (clear outside tunic skirt on left hip via short belt hanger loop)
       const keyGrp = new THREE.Group();
       keyGrp.name = 'Part_KeyRing';
-      keyGrp.position.set(0.140, -0.056, 0.068);
+      keyGrp.position.set(0.125, -0.056, 0.058);
       keyGrp.rotation.y = 0.25;
 
       const kLeather = [], kBrass = [];
@@ -3322,29 +3357,109 @@
       const pelvCloakGeos = [];
 
       const pelvisArchCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-0.086,  0.004, 0.002),
-        new THREE.Vector3(-0.046, -0.030, 0.036),
-        new THREE.Vector3( 0.000, -0.038, 0.046),
-        new THREE.Vector3( 0.046, -0.030, 0.036),
-        new THREE.Vector3( 0.086,  0.004, 0.002)
+        new THREE.Vector3(-0.072, -0.018, 0.000),
+        new THREE.Vector3(-0.038, -0.042, 0.020),
+        new THREE.Vector3( 0.000, -0.048, 0.024),
+        new THREE.Vector3( 0.038, -0.042, 0.020),
+        new THREE.Vector3( 0.072, -0.018, 0.000)
       ]);
       pelvBoneGeos.push(buildSweptCurveLoft({
         curve: pelvisArchCurve, tubularSegs: isHero ? 10 : 5, radialSegs: isHero ? 5 : 4,
-        rxFn: (s) => lerp(0.016, 0.013, Math.sin(s * Math.PI)),
-        rbFn: (s) => lerp(0.020, 0.018, Math.sin(s * Math.PI)),
+        rxFn: (s) => lerp(0.014, 0.011, Math.sin(s * Math.PI)),
+        rbFn: (s) => lerp(0.016, 0.014, Math.sin(s * Math.PI)),
         profileShape: 'squircle', squirclePower: 2.8,
         band: UV_BANDS.bone, capMode: isHero ? 'bevel1' : 'open', tintHex: 0xdfd2b4,
-        aoFn: () => 0.62
+        aoFn: () => 0.45
       }));
 
-      [-1, 1].forEach((side) => {
-        const iliumWing = buildSculptedBoneBlob(0.022, 0.024, 0.018, isHero ? 6 : 4, isHero ? 5 : 3, UV_BANDS.bone, 0xd8cab0, () => 0.56);
-        iliumWing.rotateZ(side * -0.45);
-        iliumWing.translate(side * 0.062, -0.012, -0.004);
-        pelvBoneGeos.push(iliumWing);
-      });
+      // 1. Unified Trouser Waistband Interior & Bifurcating Crotch Saddle bridging Left & Right Pant Legs seamlessly
+      (() => {
+        const uSegs = isHero ? 28 : 14;
+        const vSteps = isHero ? 8 : 4;
+        const saddleRings = [];
 
-      // Closed-ring thick pleated tattered tunic skirt wrapping 360deg under the belt with asymmetric high front cutaway
+        // Ring 0..2: Raised flush waist floor (y = 0.062..0.068) matching peplum top so looking down into belt shows zero hollow bucket cavity
+        const makeSpineFloorRing = (rScale, yVal, aoVal) => {
+          const r = [];
+          for (let iu = 0; iu <= uSegs; iu++) {
+            const th = lerp(-Math.PI, Math.PI, iu / uSegs);
+            r.push({ x: Math.sin(th) * rScale, y: yVal, z: -Math.cos(th) * rScale, ao: aoVal, tint: 0x1e161d });
+          }
+          return r;
+        };
+        saddleRings.push(makeSpineFloorRing(0.002, 0.062, 0.14));
+        saddleRings.push(makeSpineFloorRing(0.032, 0.064, 0.22));
+        saddleRings.push(makeSpineFloorRing(0.092, 0.068, 0.36));
+
+        for (let iv = 0; iv <= vSteps; iv++) {
+          const vf = iv / vSteps;
+          const ring = [];
+          for (let iu = 0; iu <= uSegs; iu++) {
+            const uf = iu / uSegs;
+            const th = lerp(-Math.PI, Math.PI, uf);
+            const sT = Math.sin(th), cT = Math.cos(th);
+            // Center plane (sT ≈ 0) pinches inward in Z and arches up at the bottom to form a true bifurcating trouser crotch seam
+            const centerProximity = Math.exp(-Math.pow(sT / 0.34, 2));
+            const crotchPinchZ = 1.0 - 0.28 * centerProximity * smoothstep(0.20, 1.0, vf);
+            const flySeamGroove = -0.005 * Math.exp(-Math.pow(sT / 0.09, 2)) * smoothstep(0.15, 0.95, vf);
+
+            const yTop = 0.068;
+            const yBotAtTh = lerp(-0.088, -0.098, centerProximity); // Tucked inside thigh tops laterally (-0.088), smooth center crotch arch (-0.098)
+            const y = lerp(yTop, yBotAtTh, vf);
+
+            const rx = lerp(0.102, 0.092, Math.pow(vf, 0.80));
+            const rz = lerp(0.076, 0.056, Math.pow(vf, 0.75)) * crotchPinchZ + flySeamGroove;
+            const pleats = 0.0025 * Math.cos(th * 6.0) * (1.0 - vf * 0.5);
+            const x = (rx + pleats) * sT;
+            const z = -(rz + pleats * 0.7) * cT + 0.012 * vf;
+            const ao = clamp(lerp(0.48, 0.86, smoothstep(0.0, 0.55, vf)) * (1.0 - 0.22 * centerProximity * vf), 0.22, 0.92);
+            ring.push({ x, y, z, ao, tint: 0x3f3742 });
+          }
+          saddleRings.push(ring);
+        }
+        // Close the bottom of the crotch saddle cleanly inside the upper thigh tops
+        saddleRings.push(makeSpineFloorRing(0.042, -0.092, 0.28));
+        saddleRings.push(makeSpineFloorRing(0.002, -0.088, 0.18));
+
+        const stride = saddleRings.length;
+        const pos = [], uv = [], col = [], idx = [];
+        const tmpC = new THREE.Color();
+        for (let iu = 0; iu <= uSegs; iu++) {
+          const uf = iu / uSegs;
+          const arc = [0];
+          for (let iv = 1; iv < stride; iv++) {
+            const p0 = saddleRings[iv - 1][iu], p1 = saddleRings[iv][iu];
+            arc.push(arc[iv - 1] + Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z));
+          }
+          const totArc = Math.max(0.001, arc[stride - 1]);
+          for (let iv = 0; iv < stride; iv++) {
+            const p = saddleRings[iv][iu];
+            pos.push(p.x, p.y, p.z);
+            uv.push(uf * 2.0, lerp(UV_BANDS.cloak.vMin, UV_BANDS.cloak.vMax, arc[iv] / totArc));
+            tmpC.setHex(p.tint);
+            col.push(tmpC.r * p.ao, tmpC.g * p.ao, tmpC.b * p.ao);
+          }
+        }
+        for (let iu = 0; iu < uSegs; iu++) {
+          for (let iv = 0; iv < stride - 1; iv++) {
+            const a = iu * stride + iv;
+            const b = (iu + 1) * stride + iv;
+            const c = (iu + 1) * stride + (iv + 1);
+            const d = iu * stride + (iv + 1);
+            idx.push(a, b, c, a, c, d);
+          }
+        }
+        const saddleGeo = new THREE.BufferGeometry();
+        saddleGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        saddleGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        saddleGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        saddleGeo.setIndex(idx);
+        saddleGeo.computeVertexNormals();
+        averageSeamNormals(saddleGeo, uSegs, stride, true, false);
+        pelvCloakGeos.push(normalizeForMerge(saddleGeo));
+      })();
+
+      // 2. Belted Tattered Tunic Peplum Skirt wrapping 360deg under the leather belt over the trouser seat
       (() => {
         const uSegs = isHero ? 28 : 14;
         const rows = isHero ? 8 : 4;
@@ -3363,14 +3478,14 @@
             const asymSlit = Math.exp(-Math.pow((sT + 0.14) / 0.54, 2)) * clamp(-cT, 0, 1);
 
             const yTop = 0.068 - 0.008 * frontMask;
-            const tatter = 0.018 * Math.sin(th * 5.0 + 0.6) + 0.010 * Math.cos(th * 9.0 - 0.4);
-            const yBot = -0.186 + 0.118 * asymSlit + tatter;
+            const tatter = 0.014 * Math.sin(th * 5.0 + 0.6) + 0.008 * Math.cos(th * 9.0 - 0.4);
+            const yBot = -0.158 + 0.044 * asymSlit + tatter;
             const y = lerp(yTop, yBot, vf);
 
             const cinch = 1.0 - 0.06 * Math.exp(-Math.pow((vf - 0.22) / 0.14, 2));
-            const pleats = Math.cos(th * 7.0) * (0.006 + 0.006 * vf) + Math.sin(th * 11.0 + 0.3) * 0.003 * vf;
-            const rx = (lerp(0.124, 0.162, Math.pow(vf, 0.85)) * cinch) + pleats;
-            const rz = (lerp(0.096, 0.128, Math.pow(vf, 0.85)) * cinch) + pleats * 0.72;
+            const pleats = Math.cos(th * 7.0) * (0.005 + 0.006 * vf) + Math.sin(th * 11.0 + 0.3) * 0.003 * vf;
+            const rx = (lerp(0.109, 0.156, Math.pow(vf, 0.85)) * cinch) + pleats;
+            const rz = (lerp(0.084, 0.122, Math.pow(vf, 0.85)) * cinch) + pleats * 0.72;
             const x = rx * sT;
             const z = -rz * cT + 0.004 * (1.0 - vf);
             ring.push({ x, y, z, vf, pleats, frontMask });
@@ -3712,64 +3827,101 @@
           thighBone.push(condyle);
         });
 
-        // Gathered Dark Merchant Knee-Breeches enclosing upper ~84% of thigh right above exposed knee condyles
-        const brCurve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(0, 0.012, 0),
-          new THREE.Vector3(thRel.x * 0.42, thRel.y * 0.42, thRel.z * 0.42),
-          new THREE.Vector3(thRel.x * 0.84, thRel.y * 0.84, thRel.z * 0.84)
-        ]);
-        const brGeo = buildSweptCurveLoft({
-          curve: brCurve, tubularSegs: isHero ? 12 : 6, radialSegs: isHero ? 10 : 6,
-          rxFn: (s) => {
-            if (s < 0.84) {
-              const p = s / 0.84;
-              return 0.052 + 0.018 * Math.sin(p * Math.PI) - 0.015 * smoothstep(0.65, 1.0, p);
-            }
-            const t = (s - 0.84) / 0.16; // Cinched waist -> ruffled cuff overhang -> tuck to distal femur
-            return t < 0.55 ? lerp(0.037, 0.043, t / 0.55) : lerp(0.043, 0.025, (t - 0.55) / 0.45);
-          },
-          rbFn: (s) => {
-            if (s < 0.84) {
-              const p = s / 0.84;
-              return 0.054 + 0.018 * Math.sin(p * Math.PI) - 0.016 * smoothstep(0.65, 1.0, p);
-            }
-            const t = (s - 0.84) / 0.16;
-            return t < 0.55 ? lerp(0.038, 0.044, t / 0.55) : lerp(0.044, 0.025, (t - 0.55) / 0.45);
-          },
-          band: UV_BANDS.cloak, capMode: 'bevel1', tintHex: 0x3b343e,
-          aoFn: (s) => (s > 0.78 && s < 0.88) ? 0.56 : 0.84
-        });
-        // Add subtle organic vertical pleat ripples along breeches
-        const brPos = brGeo.getAttribute('position');
-        for (let vi = 0; vi < brPos.count; vi++) {
-          const bx = brPos.getX(vi), by = brPos.getY(vi), bz = brPos.getZ(vi);
-          const ang = Math.atan2(bz, bx);
-          const pleat = 1.0 + 0.065 * Math.sin(ang * 6.0 + by * 18.0);
-          brPos.setXYZ(vi, bx * pleat, by, bz * pleat);
-        }
-        brGeo.computeVertexNormals();
-        thighCloak.push(brGeo);
+        // Natural Open-Cuffed Dark Merchant Trousers seamlessly joined into the Crotch Saddle at top (no cinched cuff or garter!)
+        (() => {
+          const trCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-side * 0.026, -0.018, 0.004),
+            new THREE.Vector3(thRel.x * 0.42 - side * 0.006, thRel.y * 0.42, thRel.z * 0.38),
+            new THREE.Vector3(thRel.x * 0.78, thRel.y * 0.78, thRel.z * 0.72)
+          ]);
+          const trSteps = isHero ? 10 : 5;
+          const trRadSegs = isHero ? 16 : 8;
+          const trSpecs = [
+            { s: 0.00, rx: 0.002, rz: 0.002, drop: 0.000, fold: 0.0000, tint: 0x221d24, ao: 0.25 },
+            { s: 0.03, rx: 0.056, rz: 0.056, drop: 0.000, fold: 0.0012, tint: 0x3b343e, ao: 0.52 }
+          ];
+          for (let i = 1; i <= trSteps; i++) {
+            const s = i / trSteps;
+            // Relaxed straight-leg trouser silhouette: flows smoothly out of the crotch saddle down to an open, un-cinched knee hem
+            const rx = lerp(0.057, 0.055, Math.pow(s, 0.65)) + 0.003 * smoothstep(0.65, 1.0, s);
+            const rz = lerp(0.057, 0.057, Math.pow(s, 0.65)) + 0.004 * smoothstep(0.65, 1.0, s);
+            trSpecs.push({
+              s,
+              rx,
+              rz,
+              drop: smoothstep(0.35, 1.0, s) * 0.008,
+              fold: lerp(0.0020, 0.0046, s),
+              tint: 0x3f3742,
+              ao: lerp(0.62, 0.94, smoothstep(0.0, 0.48, s))
+            });
+          }
+          // Open un-cinched trouser cuff bead turning into deep shadowed interior lining around the femur
+          trSpecs.push({ s: 1.015, rx: 0.057, rz: 0.059, drop: 0.009, fold: 0.0046, tint: 0x483f4b, ao: 0.92 });
+          trSpecs.push({ s: 1.000, rx: 0.046, rz: 0.048, drop: 0.006, fold: 0.0028, tint: 0x45262f, ao: 0.54 });
+          trSpecs.push({ s: 0.800, rx: 0.036, rz: 0.037, drop: 0.002, fold: 0.0012, tint: 0x2c171d, ao: 0.22 });
+          trSpecs.push({ s: 0.560, rx: 0.022, rz: 0.022, drop: 0.000, fold: 0.0000, tint: 0x1a0e12, ao: 0.12 });
+          trSpecs.push({ s: 0.530, rx: 0.002, rz: 0.002, drop: 0.000, fold: 0.0000, tint: 0x12090c, ao: 0.08 });
 
-        // Snug Leather Knee-Garter Strap tying breeches right above the exposed skeletal knee
-        const tieCenter = thRel.clone().multiplyScalar(0.71);
-        const tiePts = [];
-        const tieSegs = isHero ? 10 : 5;
-        for (let k = 0; k <= tieSegs; k++) {
-          const a = (k / tieSegs) * Math.PI * 2;
-          tiePts.push(new THREE.Vector3(tieCenter.x + Math.sin(a) * 0.040, tieCenter.y, tieCenter.z + Math.cos(a) * 0.041));
-        }
-        thighLeather.push(buildSweptCurveLoft({
-          curve: new THREE.CatmullRomCurve3(tiePts, true),
-          tubularSegs: tieSegs, radialSegs: 4, rxFn: 0.004, rbFn: 0.008,
-          band: UV_BANDS.leather, capMode: 'closedLoop', tintHex: 0x73523b
-        }));
-        const gShape = new THREE.Shape();
-        gShape.moveTo(-0.007, -0.008); gShape.lineTo(0.007, -0.008);
-        gShape.lineTo(0.007,  0.008); gShape.lineTo(-0.007, 0.008); gShape.closePath();
-        const garterBuckle = buildBeveledExtrude(gShape, { depth: 0.003, bevelSegments: 3, bevelSize: 0.0014, bevelThickness: 0.0014, curveSegments: 1 }, UV_BANDS.brass, 0xcfa452);
-        garterBuckle.rotateY(side * 1.15);
-        garterBuckle.translate(tieCenter.x + Math.sin(side * 1.15) * 0.042, tieCenter.y, tieCenter.z + Math.cos(side * 1.15) * 0.043);
-        thighBrass.push(garterBuckle);
+          const stride = trSpecs.length;
+          const trRings = trSpecs.map((ts) => {
+            const sClamped = clamp(ts.s, 0, 1);
+            const cPt = ts.s > 1.0
+              ? trCurve.getPointAt(1.0).addScaledVector(trCurve.getTangentAt(1.0), (ts.s - 1.0) * 0.12)
+              : trCurve.getPointAt(sClamped);
+            const rowPts = [];
+            for (let iu = 0; iu <= trRadSegs; iu++) {
+              const phi = (iu / trRadSegs) * Math.PI * 2;
+              const sP = Math.sin(phi), cP = Math.cos(phi);
+              const crease = ts.fold * (Math.cos(phi * 5.0 + side * 0.7) + 0.45 * Math.sin(phi * 8.0 - 0.4));
+              const hemWave = (ts.s >= 0.90) ? 0.0035 * Math.sin(phi * 4.0 + side * 1.2) : 0;
+              // Medial crotch bridge at upper thigh (s < 0.48) smoothly merges the inner thigh wall into the center crotch saddle
+              const medialInward = Math.max(0, -side * sP);
+              const crotchBridge = (ts.s <= 1.0 ? (1.0 - smoothstep(0.04, 0.48, ts.s)) : 0) * 0.024 * Math.pow(medialInward, 1.2);
+              const backDrape = ts.drop * Math.max(0, -cP);
+              const px = cPt.x + sP * (ts.rx + crease) - side * crotchBridge;
+              const py = cPt.y - backDrape + hemWave;
+              const pz = cPt.z + cP * (ts.rz + crease * 0.85) - ts.drop * 0.35;
+              rowPts.push({ x: px, y: py, z: pz, tint: ts.tint, ao: ts.ao });
+            }
+            return rowPts;
+          });
+
+          const pos = [], uv = [], col = [], idx = [];
+          const tmpC = new THREE.Color();
+          for (let iu = 0; iu <= trRadSegs; iu++) {
+            const uf = iu / trRadSegs;
+            const arc = [0];
+            for (let iv = 1; iv < stride; iv++) {
+              const p0 = trRings[iv - 1][iu], p1 = trRings[iv][iu];
+              arc.push(arc[iv - 1] + Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z));
+            }
+            const totArc = Math.max(0.001, arc[stride - 1]);
+            for (let iv = 0; iv < stride; iv++) {
+              const p = trRings[iv][iu];
+              pos.push(p.x, p.y, p.z);
+              uv.push(uf * 2.0, lerp(UV_BANDS.cloak.vMin, UV_BANDS.cloak.vMax, arc[iv] / totArc));
+              tmpC.setHex(p.tint);
+              col.push(tmpC.r * p.ao, tmpC.g * p.ao, tmpC.b * p.ao);
+            }
+          }
+          for (let iu = 0; iu < trRadSegs; iu++) {
+            for (let iv = 0; iv < stride - 1; iv++) {
+              const a = iu * stride + iv;
+              const b = (iu + 1) * stride + iv;
+              const c = (iu + 1) * stride + (iv + 1);
+              const d = iu * stride + (iv + 1);
+              idx.push(a, d, b, b, d, c);
+            }
+          }
+          const trGeo = new THREE.BufferGeometry();
+          trGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+          trGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+          trGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+          trGeo.setIndex(idx);
+          trGeo.computeVertexNormals();
+          averageSeamNormals(trGeo, trRadSegs, stride, true, false);
+          thighCloak.push(normalizeForMerge(trGeo));
+        })();
 
         assemblePartMeshes(thighGrp, { cloak: thighCloak, leather: thighLeather, brass: thighBrass, bone: thighBone });
         grp.add(thighGrp);
